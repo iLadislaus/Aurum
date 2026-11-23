@@ -21,13 +21,7 @@
   let err = $state('');
   let shown = $state(false);
   let monoOpen = $state(false);
-  let subH = $state(0);
-  // на время раскрытия притормаживаем бесконечные блики, чтобы кадры не рвались
-  function toggleMono() {
-    monoOpen = !monoOpen;
-    document.body.classList.add('calm');
-    setTimeout(() => document.body.classList.remove('calm'), 420);
-  }
+  const toggleMono = () => (monoOpen = !monoOpen);
   let envAll = $state(false);
 
   onMount(async () => {
@@ -90,13 +84,13 @@
         <AccRow icon="card" name="Monobank" sub="на всех картах" amount={cash(d.cardsTotal)} neg={d.cardsTotal < 0} top={false} onclick={toggleMono}>
           <span class="cp">{d.cards.length} {d.cards.length === 1 ? 'card' : 'cards'}<span class="ch" class:o={monoOpen}><Icon name="chevron" size={13} /></span></span>
         </AccRow>
-        <div class="sub" style:height={monoOpen ? subH + 'px' : '0px'} aria-hidden={!monoOpen}>
-          <div class="in" bind:clientHeight={subH}>
+        {#if monoOpen}
+          <div class="sub">
             {#each d.cards as c, i (c.id)}
               <AccRow icon="card" indent name={c.name} sub={c.limit > 0 ? 'кредитный лимит ' + cash(c.limit, 0) : ''} amount={cash(c.balance)} neg={c.balance < 0} top={true} onlong={menuCard} />
             {/each}
           </div>
-        </div>
+        {/if}
       {/if}
       {#each d.cashes as c, i (c.id)}
         <AccRow icon={/cash/i.test(c.name) ? 'cash' : 'wallet'} name={c.name} sub={/wallet/i.test(c.name) ? 'основной для трат' : /cash/i.test(c.name) ? 'откуда идёт распределение' : ''} amount={cash(c.balance)} neg={c.balance < 0} top={d.cards.length > 0 || i > 0} onlong={menuCash} />
@@ -155,8 +149,6 @@
   .cp { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; padding: 1px 6px 1px 9px; border-radius: 99px; font-size: 11.5px; font-weight: 600; color: var(--gold); background: var(--gold-soft); vertical-align: 1px; }
   .ch { display: inline-grid; transition: transform .2s ease; }
   .ch.o { transform: rotate(180deg); }
-  .sub { height: 0; overflow: hidden; background: var(--fill); transition: height .36s cubic-bezier(.32, .72, 0, 1); will-change: height; contain: layout paint; }
-  .sub .in { display: block; }
-  @media (prefers-reduced-motion: reduce) { .sub { transition: none; } }
+  .sub { background: var(--fill); }
   .more { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 42px; font-size: 13px; font-weight: 500; color: var(--muted); border-top: .5px solid var(--line); }
 </style>
