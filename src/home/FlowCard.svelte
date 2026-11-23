@@ -2,7 +2,7 @@
   import { money, signed } from '../lib/format.js';
   let { months, shown } = $props();
 
-  const W = 330, H = 168, TOP = 26, PLOT = 96, PAD = 40;
+  const W = 330, H = 168, TOP = 26, PLOT = 96, PAD = 24;
   let sel = $state(months.length - 1);
   let cur = $derived(months[sel]);
   let nets = $derived(months.map((m) => m.income - m.expense));
@@ -32,6 +32,7 @@
   const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : '');
   let sub = $derived.by(() => {
     if (net < 0) return 'расходы больше доходов';
+    if (net === Math.max(...nets) && months.length > 1) return `лучший результат за ${months.length} мес.`;
     const p = months[sel - 1];
     if (!p) return 'накоплено за месяц';
     const dd = net - (p.income - p.expense);
@@ -47,12 +48,18 @@
   </div>
   <svg viewBox="0 0 {W} {H}" role="img" aria-label="Накопление по месяцам">
     <defs>
+      <linearGradient id="fcN" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E5584A" stop-opacity=".1" /><stop offset="1" stop-color="#E5584A" stop-opacity=".62" /></linearGradient>
+      <clipPath id="fcUp"><rect x="0" y="0" width={W} height={geo.z} /></clipPath>
+      <clipPath id="fcDn"><rect x="0" y={geo.z} width={W} height={H} /></clipPath>
       <linearGradient id="fcP" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E8C277" stop-opacity=".5" /><stop offset="1" stop-color="#E8C277" stop-opacity="0" /></linearGradient>
       <filter id="fcG" x="-10%" y="-40%" width="120%" height="180%"><feGaussianBlur stdDeviation="3" result="b" /><feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
     </defs>
-    <line x1="10" x2={W - 10} y1={geo.z} y2={geo.z} class="zero" />
+    <line x1="4" x2={W - 4} y1={geo.z} y2={geo.z} class="zero" />
     {#if months.length > 1}
-      <g class="area" class:in={go}><path d="{geo.d}L{geo.pts.at(-1)[0]} {geo.z}L{geo.pts[0][0]} {geo.z}Z" fill="url(#fcP)" /></g>
+      <g class="area" class:in={go}>
+        <path d="{geo.d}L{geo.pts.at(-1)[0]} {geo.z}L{geo.pts[0][0]} {geo.z}Z" fill="url(#fcP)" clip-path="url(#fcUp)" />
+        <path d="{geo.d}L{geo.pts.at(-1)[0]} {geo.z}L{geo.pts[0][0]} {geo.z}Z" fill="url(#fcN)" clip-path="url(#fcDn)" />
+      </g>
       <path d={geo.d} pathLength="1" class="ln" class:in={go} filter="url(#fcG)" />
     {/if}
     {#each geo.pts as p, i}
