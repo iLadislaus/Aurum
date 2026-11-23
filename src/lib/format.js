@@ -10,3 +10,7 @@ const plural = (n, a, b, c) => {
   return d === 1 ? a : d >= 2 && d <= 4 ? b : c;
 };
 export const daysLabel = (d) => (d <= 0 ? 'сегодня' : d === 1 ? 'завтра' : `через ${d} ${plural(d, 'день', 'дня', 'дней')}`);
+
+const SYM = { UAH: '₴', USD: '$', EUR: '€' };
+// «−1 313,04 ₴»: настоящий минус, символ валюты после числа
+export const cash = (v, d = 2, cur = 'UAH') => (v < 0 ? '−' : '') + fmt(Math.abs(v), d) + ' ' + (SYM[cur] ?? cur);

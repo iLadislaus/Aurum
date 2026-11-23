@@ -81,3 +81,53 @@ export async function loadHome() {
     months, horizon, recent
   };
 }
+
+const nz = (x) => Number(x || 0);
+
+// Экран «Счета»: карты Monobank одной группой, Wallet и Cash, конверты, валютные счета, долги
+export async function loadAccounts() {
+  const now = new Date();
+  const [acc, bal, debts, sum] = await Promise.all([
+    sb.from('accounts').select('id,name,block,currency,is_foreign,is_monobank'),
+    sb.from('account_balances').select('id,balance,credit_limit'),
+    sb.from('debts').select('id,name,currency,amount').order('id'),
+    sb.rpc('month_summary', { p_month: first(now.getFullYear(), now.getMonth()) })
+  ]);
+  for (const r of [acc, bal, debts, sum]) if (r.error) throw r.error;
+
+  const bm = new Map(bal.data.map((b) => [b.id, b]));
+  const rows = acc.data.map((a) => ({
+    id: a.id, name: clean(a.name), block: a.block, currency: a.currency,
+    foreign: a.is_foreign, mono: a.is_monobank,
+    balance: nz(bm.get(a.id)?.balance), limit: nz(bm.get(a.id)?.credit_limit)
+  }));
+  const home = rows.filter((a) => !a.foreign);
+  const total = home.reduce((s, a) => s + a.balance, 0);
+  const s = sum.data;
+  const delta = nz(s.income) - (nz(s.expense) - nz(s.returns));
+  const start = total - delta;
+
+  // карты Monobank: показываем только с кредитным лимитом или с деньгами (белые без лимита и с нулём скрыты)
+  const cards = home.filter((a) => a.mono && (a.limit > 0 || Math.abs(a.balance) > 0.004));
+  const cashes = home.filter((a) => !a.mono && a.block === 'card');
+  const envs = home.filter((a) => !a.mono && a.block === 'env').sort((a, b) => b.balance - a.balance);
+
+  // валютные счета по валютам
+  const fx = new Map();
+  for (const a of rows.filter((x) => x.foreign)) {
+    const g = fx.get(a.currency) || { currency: a.currency, balance: 0, names: [] };
+    g.balance += a.balance;
+    g.names.push(a.name);
+    fx.set(a.currency, g);
+  }
+
+  const sumOf = (l) => l.reduce((x, a) => x + a.balance, 0);
+  return {
+    total, delta, pct: start > 0 ? (delta / start) * 100 : 0,
+    cards, cardsTotal: sumOf(cards),
+    cashes, cardCashTotal: sumOf(cards) + sumOf(cashes),
+    envs, envsTotal: sumOf(envs),
+    foreign: [...fx.values()],
+    debts: debts.data.map((d) => ({ id: d.id, name: clean(d.name), currency: d.currency, amount: nz(d.amount) }))
+  };
+}
