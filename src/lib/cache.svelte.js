@@ -1,5 +1,5 @@
 // Кэш данных экранов: показываем сохранённое сразу, свежее подтягиваем тихо в фоне
-const PFX = 'aurum.c1.';
+const PFX = 'aurum.c2.';
 const boxes = {};
 
 function box(key) {

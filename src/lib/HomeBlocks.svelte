@@ -5,8 +5,7 @@
   const RH = 64;
   let drag = $state(null); // { id, y }
   let dy0 = 0, from = 0;
-  let sy = $state(0), sdrag = false, sY0 = 0, shift = 0;
-
+  
   function lift(e, id) {
     e.preventDefault();
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -23,15 +22,36 @@
   const drop = () => { drag = null; };
   const top = (id, i) => (drag?.id === id ? drag.y : i * RH);
 
-  // закрытие свайпом вниз за верхнюю часть окна
-  function sdown(e) { sdrag = true; sY0 = e.clientY; shift = 0; e.currentTarget.setPointerCapture(e.pointerId); }
-  function smove(e) { if (sdrag) { shift = Math.max(0, e.clientY - sY0); sy = shift; } }
-  function sup() { if (!sdrag) return; sdrag = false; const c = sy > 90; sy = 0; if (c) closeBlocks(); }
+  // окно открывается на половину (как окно счёта); вверх — на весь экран, вниз — закрыть
+  let dy = $state(0), y0 = null, sdrag = $state(false), full = $state(false), H = $state(700), shEl, vel = 0, ly = 0, lt = 0;
+  const half = $derived(Math.round(H * 0.46));
+  const base = $derived(full ? 0 : half);
+  const pos = $derived(Math.max(0, base + dy));
+  $effect(() => { if (hb.open) { full = false; dy = 0; if (shEl) H = shEl.offsetHeight; } });
+
+  function sdown(e) { y0 = e.clientY; dy = 0; vel = 0; ly = e.clientY; lt = performance.now(); e.currentTarget.setPointerCapture?.(e.pointerId); }
+  function smove(e) {
+    if (y0 == null) return;
+    dy = Math.max(-base, e.clientY - y0);
+    const t = performance.now();
+    vel = (e.clientY - ly) / Math.max(1, t - lt); ly = e.clientY; lt = t;
+    if (Math.abs(dy) > 4) sdrag = true;
+  }
+  function sup() {
+    if (y0 == null) return;
+    const p = pos; y0 = null; sdrag = false; dy = 0;
+    if (vel < -0.5) full = true;
+    else if (vel > 0.5) { if (full) full = false; else closeBlocks(); }
+    else {
+      const d = [[0, 'f'], [half, 'h'], [H, 'c']].sort((m, n) => Math.abs(m[0] - p) - Math.abs(n[0] - p))[0][1];
+      if (d === 'c') closeBlocks(); else full = d === 'f';
+    }
+  }
 </script>
 
 <div class="hb" class:open={hb.open}>
-  <button class="ov" aria-label="Закрыть" onclick={closeBlocks}></button>
-  <div class="sh" class:dragging={sdrag} role="dialog" aria-modal="true" aria-label="Блоки главной" style:transform={hb.open ? `translateY(${sy}px)` : undefined}>
+  <button class="ov" aria-label="Закрыть" style:opacity={hb.open ? Math.max(0, Math.min(1, 1 - (pos - half) / (H - half))) : 0} onclick={closeBlocks}></button>
+  <div class="sh" class:dragging={sdrag} bind:this={shEl} role="dialog" aria-modal="true" aria-label="Блоки главной" style:transform={hb.open ? `translateY(${pos}px)` : undefined}>
     <div class="top" onpointerdown={sdown} onpointermove={smove} onpointerup={sup} onpointercancel={sup}>
       <div class="gr"></div>
       <div class="tt"><b>Блоки главной</b><button class="ok" onpointerdown={(e) => e.stopPropagation()} onclick={closeBlocks}>Готово</button></div>
@@ -47,7 +67,7 @@
         </div>
       {/each}
     </div>
-    <p class="note">Потяните за ≡, чтобы поменять порядок. Выключенные блоки скрываются с главной.</p>
+    <div class="fill" onpointerdown={sdown} onpointermove={smove} onpointerup={sup} onpointercancel={sup}><p class="note">Потяните за ≡, чтобы поменять порядок. Выключенные блоки скрываются с главной.</p></div>
 
     {#if hb.lesson}
       <div class="les" role="presentation" onclick={endLesson}>
@@ -68,8 +88,7 @@
   .hb { position: absolute; inset: 0; z-index: 55; pointer-events: none; }
   .hb.open { pointer-events: auto; }
   .ov { position: absolute; inset: 0; width: 100%; background: rgba(0, 0, 0, .4); opacity: 0; transition: opacity .45s cubic-bezier(.32, .72, 0, 1); }
-  .open .ov { opacity: 1; }
-  .sh { position: absolute; left: 14px; right: 14px; bottom: 0; top: calc(env(safe-area-inset-top, 0px) + 14px); display: flex; flex-direction: column;
+    .sh { position: absolute; left: 14px; right: 14px; bottom: 0; top: calc(env(safe-area-inset-top, 0px) + 14px); display: flex; flex-direction: column;
     background: var(--bg); border-radius: 26px 26px 0 0; overflow: hidden; transform: translateY(105%); transition: transform .5s cubic-bezier(.32, .72, 0, 1);
     box-shadow: inset 0 1px 0 rgba(255, 236, 170, .9), inset 0 0 0 .5px rgba(214, 164, 62, .4), 0 -3px 16px rgba(226, 172, 62, .26); }
   .sh.dragging { transition: none; }
@@ -91,6 +110,7 @@
   .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, .3); transition: transform .25s cubic-bezier(.3, .7, .4, 1); }
   .sw.on { background: #D9A93F; }
   .sw.on::after { transform: translateX(20px); }
+  .fill { flex: 1; touch-action: none; }
   .note { margin: 14px 18px 0; font-size: 12.5px; color: var(--muted); text-align: center; }
 
   .les { position: absolute; inset: 0; z-index: 20; background: rgba(0, 0, 0, .88); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 18px; text-align: center; animation: fi .4s both; }
