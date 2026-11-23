@@ -49,16 +49,6 @@
         : { ...x, uah: null, amount: '−' + own, small: '' };
     });
   });
-  let debtCol = $derived.by(() => {
-    if (!debts.length) return null;
-    if (debts.every((x) => x.uah !== null)) return { value: (debts.some((x) => x.currency !== 'UAH') ? '≈ −' : '−') + fmt(debts.reduce((s, x) => s + x.uah, 0), 0) + ' ₴' };
-    return { value: debts.map((x) => x.amount).join(' · ') };
-  });
-  let cols = $derived(d ? [
-    { label: 'Карты и наличные', value: cash(d.cardCashTotal, 0) },
-    { label: 'Конверты', value: cash(d.envsTotal, 0) },
-    ...(debtCol ? [{ label: 'Долг', value: debtCol.value, neg: true }] : [])
-  ] : []);
   const date = new Date().toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
 </script>
 
@@ -76,7 +66,7 @@
   {:else if !d}
     <p class="msg">Загружаю…</p>
   {:else}
-    <div class="rise" style="--i:1"><BalanceCard total={d.total} delta={d.delta} pct={d.pct} {shown} {cols} /></div>
+    <div class="rise" style="--i:1"><BalanceCard total={d.total} delta={d.delta} pct={d.pct} {shown} /></div>
 
     <div class="sh rise" style="--i:2"><h2>Карта и наличные</h2><span>{cash(d.cardCashTotal)}</span></div>
     <div class="cd rise" style="--i:2">

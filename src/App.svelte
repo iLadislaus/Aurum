@@ -7,6 +7,8 @@
   import NewAccount from './lib/NewAccount.svelte';
   import { na } from './lib/newacct.svelte.js';
   import { acct } from './lib/acctsheet.svelte.js';
+  import HomeBlocks from './lib/HomeBlocks.svelte';
+  import { hb } from './lib/homeblocks.svelte.js';
   import { startUpdateWatch } from './lib/update.svelte.js';
   import { onMount } from 'svelte';
   import { auth, startAuth } from './lib/auth.svelte.js';
@@ -27,7 +29,7 @@
   });
 </script>
 
-<main bind:this={scroller} class:back={acct.open || na.open}>
+<main bind:this={scroller} class:back={acct.open || na.open || hb.open}>
   {#if !auth.ready}
     <!-- проверяем вход -->
   {:else if !auth.session}
@@ -43,7 +45,7 @@
   {/if}
 </main>
 <UpdateBanner />
-{#if auth.session}<AccountSheet /><NewAccount /><CtxMenu />{/if}
+{#if auth.session}<AccountSheet /><HomeBlocks /><NewAccount /><CtxMenu />{/if}
 {#if auth.session}<TabBar />{/if}
 
 <style>
