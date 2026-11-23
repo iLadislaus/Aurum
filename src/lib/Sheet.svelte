@@ -1,0 +1,90 @@
+<script>
+  // Единое окно снизу: размер, анимация и жесты одни для всех. Открывается на половину, тянется на весь экран.
+  let { open = false, onclose, title = '', sub = '', z = 55, full = $bindable(false), lead, footer, children } = $props();
+
+  let dy = $state(0), y0 = null, dragging = $state(false);
+  let H = $state(700), shEl, scEl, vel = 0, ly = 0, lt = 0;
+  const half = $derived(Math.round(H * 0.46));
+  const base = $derived(full ? 0 : half);
+  const pos = $derived(Math.max(0, base + dy));
+
+  // при открытии всегда начинаем с половины и верха списка
+  $effect(() => {
+    if (!open) return;
+    full = false; dy = 0;
+    if (scEl) scEl.scrollTop = 0;
+    if (shEl) H = shEl.offsetHeight;
+  });
+
+  function down(e) { y0 = e.clientY; dy = 0; vel = 0; ly = e.clientY; lt = performance.now(); }
+  function move(e) {
+    if (y0 == null) return;
+    dy = Math.max(-base, e.clientY - y0);
+    const t = performance.now();
+    vel = (e.clientY - ly) / Math.max(1, t - lt); ly = e.clientY; lt = t;
+    if (Math.abs(dy) > 4 && !dragging) { dragging = true; e.currentTarget?.setPointerCapture?.(e.pointerId); }
+  }
+  function up() {
+    if (y0 == null) return;
+    const p = pos; y0 = null; dragging = false; dy = 0;
+    if (vel < -0.5) full = true;
+    else if (vel > 0.5) { if (full) full = false; else onclose?.(); }
+    else {
+      const d = [[0, 'f'], [half, 'h'], [H, 'c']].sort((m, n) => Math.abs(m[0] - p) - Math.abs(n[0] - p))[0][1];
+      if (d === 'c') onclose?.(); else full = d === 'f';
+    }
+  }
+
+  // содержимое: на половине тянется само окно; на весь экран — только когда список в самом верху и тянут вниз (как в iOS)
+  function grab(node) {
+    let on = false, y = 0, live = false;
+    const ts = (e) => { y = e.touches[0].clientY; live = true; on = false; if (!full) { down({ clientY: y }); on = true; } };
+    const tm = (e) => {
+      if (!live) return;
+      const c = e.touches[0].clientY;
+      if (!on) { if (node.scrollTop <= 0 && c - y > 4) { down({ clientY: c }); on = true; } else return; }
+      e.preventDefault(); move({ clientY: c });
+    };
+    const te = () => { live = false; if (on) { on = false; up(); } };
+    node.addEventListener('touchstart', ts, { passive: true });
+    node.addEventListener('touchmove', tm, { passive: false });
+    node.addEventListener('touchend', te); node.addEventListener('touchcancel', te);
+    return { destroy() { node.removeEventListener('touchstart', ts); node.removeEventListener('touchmove', tm); node.removeEventListener('touchend', te); node.removeEventListener('touchcancel', te); } };
+  }
+</script>
+
+<div class="as" class:open style:z-index={z} aria-hidden={!open}>
+  <button class="ov" aria-label="Закрыть" style:opacity={open ? Math.max(0, Math.min(1, 1 - (pos - half) / (H - half))) : 0} onclick={() => onclose?.()}></button>
+  <div class="sh" class:dragging bind:this={shEl} role="dialog" aria-modal="true" aria-label={title} style:transform={open ? `translateY(${pos}px)` : undefined}>
+    <div class="top" onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up}>
+      <div class="gr"></div>
+      {@render lead?.()}
+      <h3>{title}</h3>
+      {#if sub}<p class="st">{sub}</p>{/if}
+    </div>
+    <div class="sc" class:lock={!full} bind:this={scEl} use:grab>{@render children?.()}</div>
+    {@render footer?.()}
+  </div>
+</div>
+
+<style>
+  .as { position: absolute; inset: 0; pointer-events: none; }
+  .as.open { pointer-events: auto; }
+  .ov { position: absolute; inset: 0; width: 100%; background: rgba(0, 0, 0, .4); opacity: 0; transition: opacity .45s cubic-bezier(.32, .72, 0, 1); }
+  .sh { position: absolute; left: 14px; right: 14px; bottom: 0; top: calc(env(safe-area-inset-top, 0px) + 14px); display: flex; flex-direction: column;
+    background: var(--bg); border-radius: 26px 26px 0 0; overflow: hidden; transform: translateY(105%); transition: transform .5s cubic-bezier(.32, .72, 0, 1);
+    box-shadow: inset 0 1px 0 rgba(255, 236, 170, .9), inset 0 0 0 .5px rgba(214, 164, 62, .4), 0 -3px 16px rgba(226, 172, 62, .26); }
+  .sh.dragging { transition: none; }
+  .sh::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 90px; pointer-events: none; background: radial-gradient(70% 100% at 50% 0, rgba(236, 190, 84, .14), transparent); }
+  .top { position: relative; flex: none; touch-action: none; padding-bottom: 8px; }
+  .gr { width: 36px; height: 5px; border-radius: 3px; background: #C9A24A; opacity: .8; margin: 8px auto; }
+  h3 { margin: 0; text-align: center; font-size: 16px; font-weight: 700; }
+  .st { margin: 1px 0 0; text-align: center; font-size: 11.5px; color: var(--muted); }
+  .sc { position: relative; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 4px 8px calc(30px + var(--safe-b)); }
+  .sc.lock { overflow: hidden; touch-action: none; }
+  @media (prefers-color-scheme: dark) {
+    .sh { box-shadow: inset 0 1px 0 rgba(255, 232, 160, .55), inset 0 0 0 .5px rgba(232, 194, 119, .45), 0 -3px 18px rgba(240, 190, 90, .24); }
+    .sh::before { background: radial-gradient(70% 100% at 50% 0, rgba(240, 200, 110, .1), transparent); }
+  }
+  @media (prefers-reduced-motion: reduce) { .ov, .sh { transition: none; } }
+</style>

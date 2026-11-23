@@ -39,3 +39,23 @@ export const ICONS = {
   tag: 'M4 12V5a1 1 0 0 1 1-1h7l8 8-8 8zM8.5 8.5h.01'
 };
 export const iconPath = (k) => ICONS[k] ?? ICONS.tag;
+
+// Иконка конверта по названию (английские и русские слова); если ничего не подошло — конверт
+const ENV = [
+  [/transport|car\b|auto|fuel|транспорт|машин|авто|бензин|такси/i, 'car'],
+  [/gift|подар/i, 'gift'],
+  [/digital|subscr|internet|phone|цифр|подпис|интернет|связь/i, 'digital'],
+  [/health|medic|pharm|здоров|медиц|аптек|лечен/i, 'health'],
+  [/family|семь|дет|kids/i, 'family'],
+  [/care myself|myself|beauty|self|уход|себ|красот/i, 'care'],
+  [/rent|аренд|жиль|коммун|utilit/i, 'home'],
+  [/sport|gym|fitness|спорт|зал|фитнес/i, 'sport'],
+  [/home goods|household|furnit|дом\b|быт|мебел|хозяйств/i, 'sofa'],
+  [/cloth|apparel|одежд|обув/i, 'cloth'],
+  [/entertain|fun|cinema|развлеч|кино|отдых/i, 'film'],
+  [/study|educat|school|course|учёб|учеб|обучен|курс/i, 'study'],
+  [/credit|loan|debt|кредит|долг|займ/i, 'card'],
+  [/food|eat|grocer|еда|продукт|кафе|ресторан/i, 'eat'],
+  [/save|saving|reserve|накоп|резерв|подуш/i, 'coin']
+];
+export const envIcon = (name = '') => ENV.find(([re]) => re.test(name))?.[1] ?? 'mail';

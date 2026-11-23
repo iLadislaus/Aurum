@@ -9,7 +9,8 @@
   import AccRow from '../accounts/AccRow.svelte';
   import { openCtx } from '../lib/ctxmenu.svelte.js';
   import { openAcct } from '../lib/acctsheet.svelte.js';
-  import { na, openNew } from '../lib/newacct.svelte.js';
+  import { openNew } from '../lib/newacct.svelte.js';
+  import { envIcon } from '../lib/icons.js';
 
   // Меню по долгому нажатию. Сами действия подключим вместе с их экранами, пока меню просто закрывается
   const op = { t: 'Новая операция', icon: 'plus' }, tr = { t: 'Перевод', icon: 'swap' }, ed = { t: 'Изменить', icon: 'pen' };
@@ -37,6 +38,11 @@
   const CUR = { USD: '$', EUR: '€' };
   const uniq = (l) => [...new Set(l)];
   let envList = $derived(d ? d.envs : []);
+  // пустые конверты прячутся под стрелкой, как в iOS
+  const isEmpty = (e) => Math.abs(e.balance) < 0.005;
+  let envFull = $derived(envList.filter((e) => !isEmpty(e)));
+  let envEmpty = $derived(envList.filter(isEmpty));
+  let emptyOpen = $state(false);
 
   // долг в гривнах по курсу Monobank; если курса нет, остаётся в исходной валюте
   let debts = $derived.by(() => {
@@ -60,7 +66,7 @@
       <div class="d">Счета и конверты</div>
       <h1 class="large-title">Счета</h1>
     </div>
-    <button class="plus" class:fly={na.open} class:back={!na.open && na.used} aria-label="Новый счёт" onclick={openNew}><Icon name="plus" size={20} /></button>
+    <button class="plus" aria-label="Новый счёт" onclick={openNew}><Icon name="plus" size={20} /></button>
   </div>
 
   {#if err}
@@ -100,11 +106,23 @@
 
     <div class="sh rise" style="--i:4"><h2>Конверты</h2><span>{cash(d.envsTotal, 0)}</span></div>
     <div class="cd rise" style="--i:4">
-      {#each envList as e, i (e.id)}
-        <AccRow icon="mail" name={e.name} amount={cash(e.balance, 0)} dim={Math.abs(e.balance) < 0.005} top={i > 0} onclick={() => openAcct({ id: e.id, name: e.name, kind: 'Конверт', balance: e.balance })} onlong={menuEnv} />
-      {:else}
-        <p class="empty">Конвертов пока нет</p>
+      {#each envFull as e, i (e.id)}
+        <AccRow icon={envIcon(e.name)} name={e.name} amount={cash(e.balance, 0)} top={i > 0} onclick={() => openAcct({ id: e.id, name: e.name, kind: 'Конверт', balance: e.balance })} onlong={menuEnv} />
       {/each}
+      {#if envEmpty.length}
+        <div class="ex" class:o={emptyOpen}>
+          <div>
+            {#each envEmpty as e, i (e.id)}
+              <div class="exr" style="--d:{i * 35}ms"><AccRow icon={envIcon(e.name)} name={e.name} amount={cash(e.balance, 0)} dim top={envFull.length > 0 || i > 0} onclick={() => openAcct({ id: e.id, name: e.name, kind: 'Конверт', balance: e.balance })} onlong={menuEnv} /></div>
+            {/each}
+          </div>
+        </div>
+        <button class="tg" class:t={envFull.length > 0 || emptyOpen} class:o={emptyOpen} onclick={() => (emptyOpen = !emptyOpen)}>
+          <span>{emptyOpen ? 'Скрыть пустые' : 'Показать пустые · ' + envEmpty.length}</span><span class="tc"><Icon name="chevron" size={16} /></span>
+        </button>
+      {:else if !envFull.length}
+        <p class="empty">Конвертов пока нет</p>
+      {/if}
     </div>
 
     {#if d.foreign.length}
@@ -126,10 +144,6 @@
   section { padding: 0 16px calc(110px + var(--safe-b)); }
   .head { display: flex; justify-content: space-between; align-items: flex-end; padding: calc(env(safe-area-inset-top, 0px) + 33px) 4px 14px; }
   .d { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-  .plus.fly { animation: fly .38s cubic-bezier(.5, 0, .75, 0) forwards; }
-  .plus.back { animation: back .5s cubic-bezier(.2, .9, .3, 1.2) .22s both; }
-  @keyframes fly { 0% { transform: scale(1); } 18% { transform: scale(.86); } 100% { transform: translateY(-90px) scale(.5); opacity: 0; } }
-  @keyframes back { from { transform: translateY(-40px) scale(.5); opacity: 0; } to { transform: none; opacity: 1; } }
   .plus { width: 44px; height: 44px; display: grid; place-items: center; }
   .plus :global(svg) { width: 36px !important; height: 36px !important; padding: 8px; box-sizing: border-box; border-radius: 50%; color: #fff; background: linear-gradient(160deg, #EBC77A, #B8862C); }
   .sh { display: flex; justify-content: space-between; align-items: baseline; margin: 24px 4px 8px; }
@@ -144,4 +158,14 @@
   .cap { position: relative; display: flex; justify-content: space-between; align-items: baseline; padding: 12px 14px 2px; font-size: 13px; color: var(--muted); }
   .cap.t::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: .5px; background: var(--line); }
   .sub { background: var(--fill); }
+  .ex { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .45s cubic-bezier(.32, .72, 0, 1); }
+  .ex.o { grid-template-rows: 1fr; }
+  .ex > div { overflow: hidden; min-height: 0; }
+  .exr { opacity: 0; transform: translateY(-6px); transition: opacity .3s, transform .4s cubic-bezier(.32, .72, 0, 1); }
+  .ex.o .exr { opacity: 1; transform: none; transition-delay: var(--d); }
+  .tg { position: relative; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 44px; font-size: 14px; font-weight: 500; color: var(--gold); -webkit-tap-highlight-color: transparent; }
+  .tg.t::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: .5px; background: var(--line); }
+  .tc { display: inline-grid; transition: transform .35s cubic-bezier(.32, .72, 0, 1); }
+  .tg.o .tc { transform: rotate(180deg); }
+  @media (prefers-reduced-motion: reduce) { .ex, .exr, .tc { transition: none; } }
 </style>
