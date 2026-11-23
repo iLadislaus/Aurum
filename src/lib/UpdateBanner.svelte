@@ -10,22 +10,23 @@
 {/if}
 
 <style>
-  /* Овальная чипса из дымчатого золотого стекла: одинаково видна на светлой и тёмной теме */
+  /* Овальная чипса из золотого стекла (Liquid Glass): золото внутри всегда, на светлой и тёмной теме */
   .upd {
     position: fixed; z-index: 11; left: 0; right: 0; margin: 0 auto; width: max-content; max-width: calc(100% - 28px);
     bottom: calc(var(--nav-b) + var(--nav-h) + 10px);
     display: flex; align-items: center; gap: 8px; height: 42px; padding: 0 20px 0 15px; border-radius: 999px;
-    overflow: hidden; isolation: isolate; color: #FBE7AE; font-size: 14.5px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap;
-    background: rgba(34, 26, 12, .64);
+    overflow: hidden; isolation: isolate; color: #2A1D05; font-size: 14.5px; font-weight: 600; letter-spacing: -.01em; white-space: nowrap;
+    background: linear-gradient(180deg, rgba(246, 208, 110, .86), rgba(204, 150, 44, .84));
     -webkit-backdrop-filter: blur(20px) saturate(2); backdrop-filter: blur(20px) saturate(2);
-    box-shadow: inset 0 0 0 .8px rgba(255, 226, 150, .78), inset 0 1.5px 0 rgba(255, 244, 205, .5), inset 0 -2px 4px rgba(0, 0, 0, .35), 0 12px 26px -8px rgba(60, 40, 5, .6), 0 0 22px rgba(240, 190, 90, .3);
+    text-shadow: 0 .5px 0 rgba(255, 244, 205, .6);
+    box-shadow: inset 0 0 0 .8px rgba(255, 240, 190, .85), inset 0 2px 1px rgba(255, 255, 255, .8), inset 0 -3px 5px rgba(140, 92, 8, .36), 0 12px 26px -8px rgba(130, 86, 8, .65), 0 0 22px rgba(240, 190, 90, .35);
     animation: rise .45s cubic-bezier(.2, .9, .25, 1.2) both;
     transition: transform .15s;
   }
   /* переливающееся золото по стеклу */
   .upd::before {
     content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: -1;
-    background: linear-gradient(105deg, rgba(226, 170, 60, 0) 0%, rgba(255, 226, 140, .42) 22%, rgba(255, 244, 200, .18) 38%, rgba(232, 178, 64, 0) 55%, rgba(255, 226, 140, .38) 78%, rgba(226, 170, 60, 0) 100%);
+    background: linear-gradient(105deg, rgba(196, 142, 46, .0) 0%, rgba(255, 241, 190, .55) 24%, rgba(255, 250, 220, .25) 38%, rgba(201, 149, 50, 0) 56%, rgba(255, 236, 170, .5) 80%, rgba(196, 142, 46, 0) 100%);
     background-size: 260% 100%; animation: flow 4.5s ease-in-out infinite;
   }
   /* блик, проходящий по кнопке */
