@@ -14,11 +14,19 @@ function box(key) {
 
 export const peek = (key) => box(key).v;
 
-export async function refresh(key, loader) {
-  const v = await loader();
-  box(key).v = v;
-  try { localStorage.setItem(PFX + key, JSON.stringify(v)); } catch { /* хранилище недоступно */ }
-  return v;
+// один и тот же запрос не летит дважды: экран подхватывает уже идущую загрузку
+const inflight = {};
+export function refresh(key, loader) {
+  if (inflight[key]) return inflight[key];
+  inflight[key] = (async () => {
+    try {
+      const v = await loader();
+      box(key).v = v;
+      try { localStorage.setItem(PFX + key, JSON.stringify(v)); } catch { /* хранилище недоступно */ }
+      return v;
+    } finally { delete inflight[key]; }
+  })();
+  return inflight[key];
 }
 
 // при выходе из аккаунта чужие данные не остаются

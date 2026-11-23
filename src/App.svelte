@@ -9,6 +9,7 @@
   import { acct } from './lib/acctsheet.svelte.js';
   import HomeBlocks from './lib/HomeBlocks.svelte';
   import { hb } from './lib/homeblocks.svelte.js';
+  import { prefetchAll } from './lib/prefetch.js';
   import { startUpdateWatch } from './lib/update.svelte.js';
   import { onMount } from 'svelte';
   import { auth, startAuth } from './lib/auth.svelte.js';
@@ -20,6 +21,14 @@
   import More from './pages/More.svelte';
 
   onMount(() => { startUpdateWatch(); startAuth(); });
+
+  // после входа и при возвращении в приложение подтягиваем данные всех экранов
+  $effect(() => { if (auth.session) prefetchAll(true); });
+  onMount(() => {
+    const vis = () => { if (document.visibilityState === 'visible' && auth.session) prefetchAll(); };
+    document.addEventListener('visibilitychange', vis);
+    return () => document.removeEventListener('visibilitychange', vis);
+  });
 
   let scroller;
   // При переходе между вкладками показываем верх страницы
