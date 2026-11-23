@@ -344,3 +344,24 @@ export async function clearSplits(id) {
   const d = await sb.from('transaction_splits').delete().eq('transaction_id', id);
   if (d.error) throw d.error;
 }
+
+// Создание и правка операции (вручную; банковские операции сюда не попадают)
+export async function saveOp(id, f) {
+  const row = {
+    date: f.date, action: f.action, amount: f.amount, note: f.note || null, category_id: f.category_id ?? null,
+    account_id: f.action === 'TRANSFER' ? null : f.account_id, from_account_id: f.action === 'TRANSFER' ? f.from_account_id : null,
+    to_account_id: f.action === 'TRANSFER' ? f.to_account_id : null, currency: f.currency || 'UAH',
+    to_amount: f.action === 'TRANSFER' ? f.to_amount ?? null : null, rate: f.action === 'TRANSFER' ? f.rate ?? null : null
+  };
+  if (id) {
+    const chk = await sb.from('transactions').select('mono_op_id').eq('id', id).limit(1);
+    if (chk.error) throw chk.error;
+    if (chk.data[0]?.mono_op_id) throw new Error('Банковскую операцию править нельзя, только категорию');
+    const r = await sb.from('transactions').update(row).eq('id', id);
+    if (r.error) throw r.error;
+    return id;
+  }
+  const r = await sb.from('transactions').insert(row).select('id').limit(1);
+  if (r.error) throw r.error;
+  return r.data[0].id;
+}
