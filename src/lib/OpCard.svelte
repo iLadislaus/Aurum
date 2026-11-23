@@ -185,7 +185,7 @@
       {#if more > 0}<button class="ap" onclick={applyMore}>Применить ещё к {more} операциям без категории</button>{/if}
       {#if err}<p class="er">{err}</p>{/if}
 
-      <div class="act">
+      <div class="act" class:one={o.mono || (tr && false)}>
         {#if !o.mono}<button class="g" onclick={() => { const e = o; closeOp(); setTimeout(() => openNewOp(e), 250); }}><Icon name="pen" size={22} />Изменить</button>{/if}
         {#if !o.mono}<button disabled={busy} onclick={rep}><Icon name="swap" size={22} />Повторить</button>{/if}
         {#if !tr}<button disabled={split} onclick={openSplit}><Icon name="sliders" size={22} />Разделить</button>{/if}
@@ -243,6 +243,7 @@
   .act button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; height: 72px; border-radius: 18px; background: var(--card); box-shadow: var(--shadow); font-size: 12.5px; font-weight: 600; transition: background .25s, color .25s, transform .2s; }
   .act button:active { transform: scale(.96); }
   .act button:disabled { opacity: .45; }
+  .act.one button { flex-direction: row; height: 52px; gap: 10px; font-size: 14.5px; }
   .act .g { background: linear-gradient(180deg, #F4D48A, #D09A32); color: #1a1206; box-shadow: 0 8px 18px -8px rgba(226, 172, 62, .6); }
   .act .d { background: rgba(229, 72, 77, .14); color: #E5484D; box-shadow: none; }
   .act .d.armed { background: #E5484D; color: #fff; }
