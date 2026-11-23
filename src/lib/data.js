@@ -221,11 +221,14 @@ export async function loadMonthOps(y, m) {
     rows.push(...r.data);
     if (r.data.length < 1000) break;
   }
-  const [cats, accs] = await Promise.all([
+  const [cats, accs, spl] = await Promise.all([
     sb.from('categories').select('id,name,icon'),
-    sb.from('accounts').select('id,name,currency,is_foreign')
+    sb.from('accounts').select('id,name,currency,is_foreign'),
+    sb.from('transaction_splits').select('transaction_id')
   ]);
-  for (const r of [cats, accs]) if (r.error) throw r.error;
+  for (const r of [cats, accs, spl]) if (r.error) throw r.error;
+  const sc = new Map();
+  for (const x of spl.data) sc.set(x.transaction_id, (sc.get(x.transaction_id) ?? 0) + 1);
   const cm = new Map(cats.data.map((c) => [c.id, c]));
   const am = new Map(accs.data.map((x) => [x.id, x]));
   const SYM = { UAH: '₴', USD: '$', EUR: '€' };
@@ -238,11 +241,11 @@ export async function loadMonthOps(y, m) {
     return {
       id: t.id, date: t.date, action: t.action, amount, to_amount: t.to_amount == null ? null : Number(t.to_amount),
       note: t.note || '', category_id: t.category_id, account_id: t.account_id, from_account_id: t.from_account_id, to_account_id: t.to_account_id,
-      currency: t.currency, rate: t.rate, mono: !!t.mono_op_id,
+      currency: t.currency, rate: t.rate, mono: !!t.mono_op_id, splits: sc.get(t.id) ?? 0,
       v: t.action === 'INCOME' || t.action === 'RETURN' ? amount : t.action === 'EXPENSE' ? -amount : amount,
       foreign, sym: SYM[cur] ?? cur,
       name: clean(t.note) || clean(c?.name) || (tr ? 'Перевод' : 'Операция'),
-      cat: tr ? 'Перевод' : clean(c?.name) || 'Без категории',
+      cat: tr ? 'Перевод' : sc.get(t.id) ? `${sc.get(t.id)} категории` : clean(c?.name) || 'Без категории',
       acc: tr ? `${clean(fa?.name) || '?'} → ${clean(ta?.name) || '?'}` : clean(acc?.name),
       icon: tr ? 'swap' : c?.icon || 'tag',
       uncat: !tr && t.category_id == null
@@ -316,4 +319,27 @@ export async function setOpType(id, action, categoryId) {
   if (chk.data[0]?.action === 'TRANSFER') throw new Error('Перевод меняется в режиме «Изменить»');
   const r = await sb.from('transactions').update({ action, category_id: categoryId }).eq('id', id);
   if (r.error) throw r.error;
+}
+
+// Разделение суммы операции на несколько категорий
+export async function loadSplits(id) {
+  const r = await sb.from('transaction_splits').select('category_id,amount,sort_order').eq('transaction_id', id).order('sort_order');
+  if (r.error) throw r.error;
+  return r.data.map((x) => ({ category_id: x.category_id, amount: Number(x.amount) }));
+}
+export async function saveSplits(id, total, parts) {
+  const sum = parts.reduce((t, p) => t + p.amount, 0);
+  if (parts.length < 2 || Math.abs(sum - total) > 0.005) throw new Error('Сумма частей должна равняться сумме операции');
+  const d = await sb.from('transaction_splits').delete().eq('transaction_id', id);
+  if (d.error) throw d.error;
+  const ins = await sb.from('transaction_splits').insert(parts.map((p, i) => ({ transaction_id: id, category_id: p.category_id, amount: p.amount, sort_order: i })));
+  if (ins.error) throw ins.error;
+  // основной категорией остаётся самая крупная часть
+  const top = [...parts].sort((a, b) => b.amount - a.amount)[0];
+  const u = await sb.from('transactions').update({ category_id: top.category_id }).eq('id', id);
+  if (u.error) throw u.error;
+}
+export async function clearSplits(id) {
+  const d = await sb.from('transaction_splits').delete().eq('transaction_id', id);
+  if (d.error) throw d.error;
 }
