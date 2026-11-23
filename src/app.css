@@ -9,6 +9,7 @@
   --glass-shadow: rgba(60,45,10,.2); --hole: #efe6d3;
   --tab-muted: rgba(60,60,67,.62);
   --safe-b: env(safe-area-inset-bottom, 0px);
+  --nav-h: 64px; --nav-b: max(12px, calc(var(--safe-b) - 12px));
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -28,6 +29,16 @@ body {
 }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
 #app { position: fixed; inset: 0; }
+
+/* iOS, приложение с экрана «Домой»: высота окна по dvh/100% короче экрана, и всё, что прижато к низу, оказывается выше края.
+   Высота по lvh настоящая — приложение и нижняя панель привязаны к ней (как в старом Aurum). */
+@media (display-mode: standalone) {
+  @supports (height: 100lvh) {
+    html, body { height: 100lvh; }
+    body { position: relative; }
+    #app { position: absolute; inset: auto; left: 0; right: 0; top: 0; height: 100lvh; }
+  }
+}
 
 /* Шкала iOS */
 .large-title { font-size: 28px; font-weight: 700; margin: 0; }

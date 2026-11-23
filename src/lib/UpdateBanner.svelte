@@ -12,12 +12,17 @@
 <style>
   .upd {
     position: fixed; z-index: 11; left: 0; right: 0; margin: 0 auto; width: max-content; max-width: calc(100% - 28px);
-    bottom: calc(max(12px, calc(var(--safe-b) - 12px)) + 64px + 10px);
+    bottom: calc(var(--nav-b) + var(--nav-h) + 10px);
     display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 999px;
     background: var(--glass); color: var(--gold); font-size: 13px; font-weight: 600;
     -webkit-backdrop-filter: blur(22px) saturate(1.9); backdrop-filter: blur(22px) saturate(1.9);
     box-shadow: inset 0 0 0 .5px var(--glass-ring), inset 0 1px 0 var(--hi), 0 8px 24px var(--glass-shadow), 0 0 16px var(--glow);
     animation: rise .35s cubic-bezier(.2,.8,.2,1) both;
+  }
+  @media (display-mode: standalone) {
+    @supports (height: 100lvh) {
+      .upd { position: absolute; bottom: auto; top: calc(100lvh - var(--nav-b) - var(--nav-h) - 10px - 40px); }
+    }
   }
   .upd:active { scale: .96; }
   svg { width: 18px; height: 18px; stroke: currentColor; fill: none; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
