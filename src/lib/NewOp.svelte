@@ -233,7 +233,7 @@
 
 <style>
   .bd { padding: 0 12px 14px; }
-  .seg { position: relative; display: flex; padding: 2px; border-radius: 11px; background: var(--fill); margin: 6px 0 16px; }
+  .seg { position: relative; display: flex; padding: 2px; border-radius: 11px; background: var(--fill); margin: 0 0 18px; }
   .seg .pl { position: absolute; top: 2px; bottom: 2px; left: 2px; width: calc((100% - 4px) / 4); border-radius: 9px; background: linear-gradient(180deg, #F2D58F, #CD9A3A); transform: translateX(calc(var(--n) * 100%)); transition: transform .4s cubic-bezier(.3, 1.3, .5, 1); }
   .seg button { position: relative; z-index: 1; flex: 1; padding: 7px 0; font-size: 12.5px; font-weight: 600; color: var(--muted); transition: color .25s; }
   .seg button.on { color: #1a1206; }
