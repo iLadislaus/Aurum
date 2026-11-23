@@ -79,13 +79,18 @@
 <style>
   nav {
     position: fixed; left: 14px; right: 14px; z-index: 10;
-    bottom: max(12px, calc(var(--safe-b) - 12px));
-    height: 64px; padding: 4px; border-radius: 32px;
+    bottom: var(--nav-b);
+    height: var(--nav-h); padding: 4px; border-radius: 32px;
     background: var(--glass);
     -webkit-backdrop-filter: blur(22px) saturate(1.9);
     backdrop-filter: blur(22px) saturate(1.9);
     box-shadow: inset 0 0 0 .5px var(--rim), inset 0 1.5px 0 var(--hi), 0 10px 30px var(--glass-shadow);
     touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  @media (display-mode: standalone) {
+    @supports (height: 100lvh) {
+      nav { position: absolute; bottom: auto; top: calc(100lvh - var(--nav-h) - var(--nav-b)); }
+    }
   }
   .in { position: relative; height: 100%; display: grid; grid-template-columns: repeat(5, 1fr); }
   /* Золотая «линза» под активным пунктом */
