@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { nav } from '../lib/nav.svelte.js';
   import { loadHome } from '../lib/data.js';
+  import { peek, refresh } from '../lib/cache.svelte.js';
   import Icon from '../lib/Icon.svelte';
   import BalanceCard from '../home/BalanceCard.svelte';
   import BudgetCard from '../home/BudgetCard.svelte';
@@ -11,12 +12,13 @@
 
   const date = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
   const month = new Date().toLocaleDateString('ru-RU', { month: 'long' });
-  let d = $state(null);
+  let d = $derived(peek('home'));
   let err = $state('');
   let shown = $state(false);
   // данные приходят из Supabase; анимации стартуют, когда экран уже нарисован
   onMount(async () => {
-    try { d = await loadHome(); } catch (e) { err = e.message || 'Не удалось загрузить данные'; return; }
+    if (d) requestAnimationFrame(() => requestAnimationFrame(() => (shown = true)));
+    try { await refresh('home', loadHome); } catch (e) { if (!d) { err = e.message || 'Не удалось загрузить данные'; return; } }
     requestAnimationFrame(() => requestAnimationFrame(() => (shown = true)));
   });
 </script>

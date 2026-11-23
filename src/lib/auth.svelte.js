@@ -1,3 +1,4 @@
+import { dropCache } from './cache.svelte.js';
 import { sb } from './supabase.js';
 
 export const auth = $state({ ready: false, session: null, error: '' });
@@ -22,4 +23,4 @@ export async function signInGoogle() {
   if (error) auth.error = error.message;
 }
 
-export const signOut = () => sb.auth.signOut();
+export const signOut = async () => { dropCache(); await sb.auth.signOut(); };
