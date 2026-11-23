@@ -207,3 +207,61 @@ export async function createAccount({ type, name, icon, currency, budgetSource, 
   }
   return data.id;
 }
+
+// ---- Операции за месяц (экран «Операции»)
+const OP_COLS = 'id,date,action,amount,to_amount,category_id,note,account_id,from_account_id,to_account_id,currency,rate';
+
+export async function loadMonthOps(y, m) {
+  const a = new Date(y, m, 1).toISOString(), b = new Date(y, m + 1, 1).toISOString();
+  const rows = [];
+  for (let from = 0; ; from += 1000) {
+    const r = await sb.from('transactions').select(OP_COLS).gte('date', a).lt('date', b)
+      .order('date', { ascending: false }).range(from, from + 999);
+    if (r.error) throw r.error;
+    rows.push(...r.data);
+    if (r.data.length < 1000) break;
+  }
+  const [cats, accs] = await Promise.all([
+    sb.from('categories').select('id,name,icon'),
+    sb.from('accounts').select('id,name,currency,is_foreign')
+  ]);
+  for (const r of [cats, accs]) if (r.error) throw r.error;
+  const cm = new Map(cats.data.map((c) => [c.id, c]));
+  const am = new Map(accs.data.map((x) => [x.id, x]));
+  const SYM = { UAH: '₴', USD: '$', EUR: '€' };
+  const ops = rows.map((t) => {
+    const c = cm.get(t.category_id), acc = am.get(t.account_id), fa = am.get(t.from_account_id), ta = am.get(t.to_account_id);
+    const tr = t.action === 'TRANSFER';
+    const foreign = tr ? !!(fa?.is_foreign || ta?.is_foreign) : !!acc?.is_foreign;
+    const cur = tr ? (fa?.is_foreign ? fa.currency : ta?.is_foreign ? ta.currency : 'UAH') : acc?.is_foreign ? acc.currency : 'UAH';
+    const amount = Number(t.amount);
+    return {
+      id: t.id, date: t.date, action: t.action, amount, to_amount: t.to_amount == null ? null : Number(t.to_amount),
+      note: t.note || '', category_id: t.category_id, account_id: t.account_id, from_account_id: t.from_account_id, to_account_id: t.to_account_id,
+      currency: t.currency, rate: t.rate,
+      v: t.action === 'INCOME' || t.action === 'RETURN' ? amount : t.action === 'EXPENSE' ? -amount : amount,
+      foreign, sym: SYM[cur] ?? cur,
+      name: clean(t.note) || clean(c?.name) || (tr ? 'Перевод' : 'Операция'),
+      cat: tr ? 'Перевод' : clean(c?.name) || 'Без категории',
+      acc: tr ? `${clean(fa?.name) || '?'} → ${clean(ta?.name) || '?'}` : clean(acc?.name),
+      icon: tr ? 'swap' : c?.icon || 'tag',
+      uncat: !tr && t.category_id == null
+    };
+  });
+  return { ops };
+}
+
+export async function deleteOp(id) {
+  const r = await sb.from('transactions').delete().eq('id', id);
+  if (r.error) throw r.error;
+}
+
+// Повтор операции: та же запись с сегодняшней датой
+export async function repeatOp(o) {
+  const row = {
+    date: new Date().toISOString(), action: o.action, amount: o.amount, to_amount: o.to_amount, rate: o.rate, currency: o.currency,
+    category_id: o.category_id, account_id: o.account_id, from_account_id: o.from_account_id, to_account_id: o.to_account_id, note: o.note || null
+  };
+  const r = await sb.from('transactions').insert(row);
+  if (r.error) throw r.error;
+}
