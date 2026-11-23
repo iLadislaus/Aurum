@@ -11,6 +11,7 @@
   import RecentOps from '../home/RecentOps.svelte';
   import { hb, isOn, openBlocks } from '../lib/homeblocks.svelte.js';
   import { openNewOp } from '../lib/newop.svelte.js';
+  import { flyOpen } from '../lib/fly.js';
 
   const date = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
   const month = new Date().toLocaleDateString('ru-RU', { month: 'long' });
@@ -33,7 +34,7 @@
     </div>
     <div class="hb">
       <button class="rf" aria-label="Блоки главной" onclick={openBlocks}><Icon name="sliders" size={20} /></button>
-      <button class="rf plus" aria-label="Новая операция" onclick={() => openNewOp()}><Icon name="plus" size={20} /></button>
+      <button class="rf plus" aria-label="Новая операция" onclick={(e) => flyOpen(e, () => openNewOp())}><Icon name="plus" size={20} /></button>
     </div>
   </div>
 

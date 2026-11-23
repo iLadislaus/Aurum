@@ -10,6 +10,7 @@
   import { sw } from '../lib/swipe.svelte.js';
   import { openOp } from '../lib/opcard.svelte.js';
   import { openNewOp } from '../lib/newop.svelte.js';
+  import { flyOpen } from '../lib/fly.js';
   import Skeleton from '../lib/Skeleton.svelte';
 
   const SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
@@ -128,7 +129,7 @@
     <h1 class="large-title">Операции</h1>
     <div class="hb">
       <button class="rf" class:on={searching} aria-label="Поиск" onclick={toggleSearch}><Icon name={searching ? 'plus' : 'search'} size={20} /></button>
-      <button class="rf" aria-label="Новая операция" onclick={() => openNewOp()}><Icon name="plus" size={20} /></button>
+      <button class="rf" aria-label="Новая операция" onclick={(e) => flyOpen(e, () => openNewOp())}><Icon name="plus" size={20} /></button>
     </div>
   </div>
 
