@@ -46,7 +46,7 @@
   <div class="blocks">
     {#each hb.list as bl, i (bl.id)}
       {#if bl.on}
-        <div class="rise" style="--i:{Math.min(i + 1, 5)}">
+        <div class="rise" class:bal={bl.id === 'balance'} style="--i:{Math.min(i + 1, 5)}">
           {#if bl.id === 'balance'}
             <BalanceCard total={d.total} delta={d.delta} pct={d.pct} {shown} onopen={() => (nav.tab = 'accounts')} />
           {:else if bl.id === 'budget'}
@@ -79,6 +79,9 @@
   .rf.plus :global(svg) { background: linear-gradient(160deg, #EBC77A, #B8862C); color: #fff; padding: 8px; }
   .sh { display: flex; justify-content: space-between; align-items: baseline; margin: 26px 4px 8px; }
   .blocks > :first-child .sh { margin-top: 8px; }
+  /* у карточки баланса нет заголовка, поэтому отступ между блоками задаём ей самой */
+  .bal { margin-top: 26px; }
+  .blocks > .bal:first-child { margin-top: 0; }
   .sh h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: .35px; }
   .all { font-size: 15px; color: var(--gold); min-height: 28px; }
   .msg { text-align: center; color: var(--muted); padding: 40px 0; }

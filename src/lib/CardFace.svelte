@@ -50,12 +50,15 @@
   .mac { position: absolute; left: 20px; bottom: 16px; }
   /* общие части содержимого (разметку дают окна) */
   .cf :global(.big) { display: flex; align-items: baseline; gap: 8px; margin-top: 26px; }
-  .cf :global(.big input), .cf :global(.big .v) { flex: none; max-width: calc(100% - 44px); min-width: 1ch; padding: 0; margin: 0; text-align: left; border: 0; outline: 0; background: none; font: inherit; font-size: 52px; font-weight: 700; letter-spacing: -1.6px; line-height: 1.15; color: var(--fg); font-variant-numeric: tabular-nums; -webkit-user-select: text; user-select: text; }
+  .cf :global(.big input), .cf :global(.big .v) { flex: none; min-width: 1ch; padding: 0; margin: 0; text-align: left; border: 0; outline: 0; background: none; font: inherit; font-size: 52px; font-weight: 700; letter-spacing: -1.6px; line-height: 1.15; color: var(--fg); font-variant-numeric: tabular-nums; -webkit-user-select: text; user-select: text; }
   .cf :global(.big input::placeholder) { color: #6f6150; }
+  .cf :global(.big input) { max-width: calc(100% - 44px); }
+  .cf :global(.big .v) { white-space: nowrap; }
   .cf :global(.big u) { text-decoration: none; font-size: 30px; color: var(--sub); font-weight: 600; }
   .cf.mono :global(.big) { margin-top: 0; }
-  .cf.mono :global(.big input), .cf.mono :global(.big .v) { font-size: 46px; letter-spacing: -1.4px; }
-  .cf.mono :global(.big u) { font-size: 26px; }
+  .cf.mono :global(.big input), .cf.mono :global(.big .v) { font-size: 38px; letter-spacing: -1.2px; }
+  .cf.mono :global(.big u) { font-size: 22px; }
+  .cf.mono .ab { white-space: nowrap; }
   .cf :global(.ct) { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 16px; font-weight: 600; color: var(--fg); }
   .cf.mono :global(.ct) { font-size: 14px; gap: 8px; }
   .cf :global(.ct span) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
