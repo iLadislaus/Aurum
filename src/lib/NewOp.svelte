@@ -192,7 +192,7 @@
   .pill span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pill select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; }
   .lb { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 14px 4px 6px; }
-  .rb { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .rb { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding: 8px 10px 4px; margin: 0 -10px; }
   .rb::-webkit-scrollbar { display: none; }
   .cc { flex: none; width: 66px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; line-height: 13px; color: var(--muted); text-align: center; }
   .cc span { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: var(--gold-soft); color: var(--gold); transition: transform .25s cubic-bezier(.3, 1.5, .5, 1), background .2s, color .2s; }
