@@ -4,6 +4,7 @@
   import UpdateBanner from './lib/UpdateBanner.svelte';
   import CtxMenu from './lib/CtxMenu.svelte';
   import AccountSheet from './lib/AccountSheet.svelte';
+  import { acct } from './lib/acctsheet.svelte.js';
   import { startUpdateWatch } from './lib/update.svelte.js';
   import { onMount } from 'svelte';
   import { auth, startAuth } from './lib/auth.svelte.js';
@@ -24,7 +25,7 @@
   });
 </script>
 
-<main bind:this={scroller}>
+<main bind:this={scroller} class:back={acct.open}>
   {#if !auth.ready}
     <!-- проверяем вход -->
   {:else if !auth.session}
@@ -45,5 +46,9 @@
 
 <style>
   /* Прокручивается область приложения, а не страница; панель лежит поверх, и сквозь стекло виден контент */
-  main { position: absolute; inset: 0; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; background: var(--bg); }
+  main { position: absolute; inset: 0; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; background: var(--bg);
+    transform-origin: 50% 0; transition: transform .55s cubic-bezier(.32, .72, 0, 1), border-radius .55s cubic-bezier(.32, .72, 0, 1); }
+  /* окно счёта открыто: страница позади слегка отъезжает назад */
+  main.back { transform: scale(.94) translateY(8px); border-radius: 26px; }
+  @media (prefers-reduced-motion: reduce) { main { transition: none; } }
 </style>
