@@ -131,7 +131,7 @@
   .gr { width: 36px; height: 5px; border-radius: 3px; background: #C9A24A; opacity: .8; margin: 8px auto; }
   h3 { margin: 0; text-align: center; font-size: 16px; font-weight: 700; }
   .st { margin: 1px 0 0; text-align: center; font-size: 11.5px; color: var(--muted); }
-  .sc { position: relative; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 4px 8px calc(30px + var(--safe-b)); }
+  .sc { position: relative; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 4px 4px calc(30px + var(--safe-b)); }
   .sc.lock { overflow: hidden; touch-action: none; }
   .hero { border-radius: 22px; padding: 14px 16px; color: #F4EEDD; background: radial-gradient(120% 90% at 85% 0, #2A200C, #120F08 50%, #080807); box-shadow: 0 0 0 .5px rgba(232, 194, 119, .35), 0 14px 30px -18px rgba(232, 194, 119, .45); }
   .hero small { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #B3A47C; }
@@ -152,7 +152,7 @@
   .srch { display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; margin-bottom: 4px; border-radius: 11px; background: var(--fill); color: var(--muted); }
   .srch input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 15px; color: var(--text); -webkit-user-select: text; user-select: text; }
   .srch input::-webkit-search-cancel-button { display: none; }
-  .dh { display: flex; justify-content: space-between; margin: 12px 6px 5px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; font-variant-numeric: tabular-nums; }
+  .dh { display: flex; justify-content: space-between; margin: 12px 8px 5px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; font-variant-numeric: tabular-nums; }
   .cd { background: var(--card); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
   .r { position: relative; display: flex; align-items: center; gap: 12px; padding: 9px 14px; min-height: 56px; }
   .r + .r::before { content: ""; position: absolute; top: 0; left: 60px; right: 0; height: .5px; background: var(--line); }
