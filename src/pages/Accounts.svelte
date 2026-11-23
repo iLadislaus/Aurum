@@ -5,7 +5,7 @@
   import { peek, refresh } from '../lib/cache.svelte.js';
   import { cash, fmt } from '../lib/format.js';
   import Icon from '../lib/Icon.svelte';
-  import BalanceCard from '../home/BalanceCard.svelte';
+  import BalanceDetail from '../home/BalanceDetail.svelte';
   import AccRow from '../accounts/AccRow.svelte';
   import { openCtx } from '../lib/ctxmenu.svelte.js';
   import { openAcct } from '../lib/acctsheet.svelte.js';
@@ -49,6 +49,8 @@
         : { ...x, uah: null, amount: '−' + own, small: '' };
     });
   });
+  // долги в гривнах по курсу; без курса учитываем только гривневые
+  let debtSum = $derived(debts.reduce((t, x) => t + (x.uah ?? 0), 0));
   const date = new Date().toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
 </script>
 
@@ -66,7 +68,7 @@
   {:else if !d}
     <p class="msg">Загружаю…</p>
   {:else}
-    <div class="rise" style="--i:1"><BalanceCard total={d.total} delta={d.delta} pct={d.pct} {shown} /></div>
+    <div class="rise" style="--i:1"><BalanceDetail total={d.total} delta={d.delta} pct={d.pct} cardCash={d.cardCashTotal} envs={d.envsTotal} debt={debtSum} /></div>
 
     <div class="sh rise" style="--i:2"><h2>Карта и наличные</h2><span>{cash(d.cardCashTotal)}</span></div>
     <div class="cd rise" style="--i:2">
