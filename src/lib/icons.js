@@ -27,6 +27,11 @@ export const ICONS = {
   chart: 'M4 19h16M7 16v-5M12 16V6M17 16v-8',
   basket: 'M3 10h18l-2 10H5zM8 10l3-6M16 10l-3-6',
   pen: 'M4 20l1-4L16.5 4.5a2 2 0 0 1 3 3L8 19z',
+  chevron: 'M6 9l6 6 6-6',
+  user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4 3.6-7 8-7s8 3 8 7',
+  mail: 'M4 6h16v12H4zM4 7l8 6 8-6',
+  dollar: 'M12 3v18M16 7.5C15.5 6 14 5 12 5c-2.2 0-4 1.2-4 3s1.6 2.5 4 3 4 1.2 4 3-1.8 3-4 3c-2 0-3.6-1-4-2.5',
+  euro: 'M17 7a6 6 0 1 0 0 10M4 10h9M4 14h9',
   tag: 'M4 12V5a1 1 0 0 1 1-1h7l8 8-8 8zM8.5 8.5h.01'
 };
 export const iconPath = (k) => ICONS[k] ?? ICONS.tag;

@@ -1,7 +1,7 @@
 <script>
   import { tween } from '../lib/anim.js';
   import { fmt, signed } from '../lib/format.js';
-  let { total, delta, pct, shown, onopen } = $props();
+  let { total, delta, pct, shown, onopen, cols = [] } = $props();
   let disp = $state(0);
 
   // сумма отсчитывается от нуля при появлении карточки
@@ -18,6 +18,11 @@
   <div class="cap">Общий баланс</div>
   <div class="sum"><span class="num">{sp[0]}</span><small>{sp[1]}&nbsp;₴</small></div>
   <div class="chip" class:dn={delta < 0}>{delta >= 0 ? '▲' : '▼'} {signed(delta)} · {pct >= 0 ? '+' : '−'}{Math.abs(pct).toFixed(1).replace('.', ',')}% за месяц</div>
+  {#if cols.length}
+    <div class="cols" style:grid-template-columns="repeat({cols.length}, minmax(0, 1fr))">
+      {#each cols as c}<div><span>{c.label}</span><b class:neg={c.neg}>{c.value}</b></div>{/each}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -34,5 +39,11 @@
   .sum small { font-size: .5em; font-weight: 700; }
   .chip { display: inline-block; margin-top: 7px; font-size: 12.5px; font-weight: 600; color: #2A1D05; background: linear-gradient(110deg, #E8B954, #F8E3A6 50%, #D9A33F); padding: 3px 11px; border-radius: 99px; box-shadow: 0 0 14px -2px rgba(232,194,119,.55); }
   .chip.dn { background: linear-gradient(110deg, #C9705F, #F2B3A6 45%, #B4574A); }
+  .cols { display: grid; margin-top: 12px; border-top: .5px solid rgba(255,255,255,.1); }
+  .cols > div { padding: 9px 6px 0 0; min-width: 0; }
+  .cols > div + div { padding-left: 10px; border-left: .5px solid rgba(255,255,255,.1); }
+  .cols span { display: block; font-size: 11.5px; color: #9A917B; white-space: nowrap; }
+  .cols b { display: block; margin-top: 2px; font-size: 13.5px; font-weight: 600; color: #F4EEDD; white-space: nowrap; }
+  .cols b.neg { color: #FF8A7E; }
   @media (prefers-reduced-motion: reduce) { .bc::before, .sum { animation: none; } }
 </style>
