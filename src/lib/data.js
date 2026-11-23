@@ -134,20 +134,12 @@ export async function loadAccounts() {
 }
 
 // Операции одного счёта: со знаком для этого счёта, по дням, плюс итоги текущего месяца
-export async function loadAccountOps(id) {
-  const [tx, cats] = await Promise.all([
-    sb.from('transactions')
-      .select('id,date,action,amount,to_amount,category_id,note,account_id,from_account_id,to_account_id')
-      .or(`account_id.eq.${id},from_account_id.eq.${id},to_account_id.eq.${id}`)
-      .order('date', { ascending: false }).limit(300),
-    sb.from('categories').select('id,name,icon')
-  ]);
-  for (const r of [tx, cats]) if (r.error) throw r.error;
-  const cm = new Map(cats.data.map((c) => [c.id, c]));
+// Операции счёта из уже загруженных строк: со знаком для этого счёта, плюс итоги месяца
+function buildAccountOps(id, rows, cm) {
   const now = new Date();
   const mk = now.getFullYear() * 12 + now.getMonth();
   let inc = 0, out = 0;
-  const ops = tx.data.map((t) => {
+  const ops = rows.map((t) => {
     const c = cm.get(t.category_id);
     let v;
     if (t.action === 'INCOME' || t.action === 'RETURN') v = Number(t.amount);
@@ -163,6 +155,39 @@ export async function loadAccountOps(id) {
     };
   });
   return { ops, inc, out };
+}
+
+const TX_COLS = 'id,date,action,amount,to_amount,category_id,note,account_id,from_account_id,to_account_id';
+
+export async function loadAccountOps(id) {
+  const [tx, cats] = await Promise.all([
+    sb.from('transactions').select(TX_COLS)
+      .or(`account_id.eq.${id},from_account_id.eq.${id},to_account_id.eq.${id}`)
+      .order('date', { ascending: false }).limit(300),
+    sb.from('categories').select('id,name,icon')
+  ]);
+  for (const r of [tx, cats]) if (r.error) throw r.error;
+  return buildAccountOps(id, tx.data, new Map(cats.data.map((c) => [c.id, c])));
+}
+
+// Все операции одним заходом и раскладка по счетам: окно любого счёта открывается сразу с готовым списком
+export async function loadOpsForAll(ids) {
+  const pages = [];
+  for (let from = 0; ; from += 1000) {
+    const r = await sb.from('transactions').select(TX_COLS).order('date', { ascending: false }).range(from, from + 999);
+    if (r.error) throw r.error;
+    pages.push(...r.data);
+    if (r.data.length < 1000) break;
+  }
+  const cats = await sb.from('categories').select('id,name,icon');
+  if (cats.error) throw cats.error;
+  const cm = new Map(cats.data.map((c) => [c.id, c]));
+  const out = new Map();
+  for (const id of ids) {
+    const rows = pages.filter((t) => t.account_id === id || t.from_account_id === id || t.to_account_id === id).slice(0, 300);
+    out.set(id, buildAccountOps(id, rows, cm));
+  }
+  return out;
 }
 
 // Новый счёт. Начальный остаток записывается операцией «Коррекция баланса» (категория 25), как уже сделано в базе
