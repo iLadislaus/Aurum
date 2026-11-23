@@ -25,14 +25,15 @@ export async function loadHome() {
   const y = now.getFullYear(), m = now.getMonth();
   // три месяца: два прошлых и текущий
   const mons = [m - 5, m - 4, m - 3, m - 2, m - 1, m].map((k) => new Date(Date.UTC(y, k, 1)));
-  const [bal, cats, ops, rec, ...sums] = await Promise.all([
+  const [bal, cats, ops, accs, rec, ...sums] = await Promise.all([
     sb.from('account_balances').select('balance,is_foreign'),
     sb.from('categories').select('id,name,icon'),
-    sb.from('transactions').select('id,date,action,amount,category_id,note,account_id,from_account_id,to_account_id').order('date', { ascending: false }).limit(5),
+    sb.from('transactions').select(OP_COLS).order('date', { ascending: false }).limit(5),
+    sb.from('accounts').select('id,name,currency,is_foreign'),
     sb.from('recurring_payments').select('id,name,amount,period,next_date,category_id').eq('active', true).eq('dismissed', false).order('next_date'),
     ...mons.map((d) => sb.rpc('month_summary', { p_month: first(d.getUTCFullYear(), d.getUTCMonth()) }))
   ]);
-  for (const r of [bal, cats, ops, rec, ...sums]) if (r.error) throw r.error;
+  for (const r of [bal, cats, ops, accs, rec, ...sums]) if (r.error) throw r.error;
 
   const catMap = new Map(cats.data.map((c) => [c.id, c]));
   const total = bal.data.filter((a) => !a.is_foreign).reduce((s, a) => s + Number(a.balance), 0);
@@ -62,18 +63,13 @@ export async function loadHome() {
     icon: catMap.get(p.category_id)?.icon || 'tag'
   }));
 
-  const recent = ops.data.map((t) => {
-    const c = catMap.get(t.category_id);
-    const sign = t.action === 'EXPENSE' ? -1 : t.action === 'TRANSFER' ? 0 : 1;
-    return {
-      id: t.id,
-      name: clean(t.note) || clean(c?.name) || (t.action === 'TRANSFER' ? 'Перевод' : 'Операция'),
-      cat: t.action === 'TRANSFER' ? 'Перевод' : clean(c?.name) || 'Без категории',
-      when: whenLabel(t.date),
-      amount: sign * Number(t.amount),
-      icon: t.action === 'TRANSFER' ? 'swap' : c?.icon || 'tag'
-    };
-  });
+  const ids = ops.data.map((t) => t.id);
+  const spl = ids.length ? await sb.from('transaction_splits').select('transaction_id').in('transaction_id', ids) : { data: [] };
+  if (spl.error) throw spl.error;
+  const sc = new Map();
+  for (const x of spl.data) sc.set(x.transaction_id, (sc.get(x.transaction_id) ?? 0) + 1);
+  const am = new Map(accs.data.map((x) => [x.id, x]));
+  const recent = ops.data.map((t) => mapOp(t, catMap, am, sc));
 
   return {
     total, delta, pct,
@@ -211,6 +207,28 @@ export async function createAccount({ type, name, icon, currency, budgetSource, 
 // ---- Операции за месяц (экран «Операции»)
 const OP_COLS = 'id,date,action,amount,to_amount,category_id,note,account_id,from_account_id,to_account_id,currency,rate,mono_op_id';
 
+// Одна операция для списков (Операции и «Последние операции» на Главной)
+const OP_SYM = { UAH: '₴', USD: '$', EUR: '€' };
+function mapOp(t, cm, am, sc) {
+  const c = cm.get(t.category_id), acc = am.get(t.account_id), fa = am.get(t.from_account_id), ta = am.get(t.to_account_id);
+  const tr = t.action === 'TRANSFER';
+  const foreign = tr ? !!(fa?.is_foreign || ta?.is_foreign) : !!acc?.is_foreign;
+  const cur = tr ? (fa?.is_foreign ? fa.currency : ta?.is_foreign ? ta.currency : 'UAH') : acc?.is_foreign ? acc.currency : 'UAH';
+  const amount = Number(t.amount);
+  return {
+    id: t.id, date: t.date, action: t.action, amount, to_amount: t.to_amount == null ? null : Number(t.to_amount),
+    note: t.note || '', category_id: t.category_id, account_id: t.account_id, from_account_id: t.from_account_id, to_account_id: t.to_account_id,
+    currency: t.currency, rate: t.rate, mono: !!t.mono_op_id, splits: sc.get(t.id) ?? 0,
+    v: t.action === 'INCOME' || t.action === 'RETURN' ? amount : t.action === 'EXPENSE' ? -amount : amount,
+    foreign, sym: OP_SYM[cur] ?? cur,
+    name: clean(t.note) || clean(c?.name) || (tr ? 'Перевод' : 'Операция'),
+    cat: tr ? 'Перевод' : sc.get(t.id) ? `${sc.get(t.id)} категории` : clean(c?.name) || 'Без категории',
+    acc: tr ? `${clean(fa?.name) || '?'} → ${clean(ta?.name) || '?'}` : clean(acc?.name),
+    icon: tr ? 'swap' : c?.icon || 'tag',
+    uncat: !tr && t.category_id == null
+  };
+}
+
 export async function loadMonthOps(y, m) {
   const a = new Date(y, m, 1).toISOString(), b = new Date(y, m + 1, 1).toISOString();
   const rows = [];
@@ -231,26 +249,7 @@ export async function loadMonthOps(y, m) {
   for (const x of spl.data) sc.set(x.transaction_id, (sc.get(x.transaction_id) ?? 0) + 1);
   const cm = new Map(cats.data.map((c) => [c.id, c]));
   const am = new Map(accs.data.map((x) => [x.id, x]));
-  const SYM = { UAH: '₴', USD: '$', EUR: '€' };
-  const ops = rows.map((t) => {
-    const c = cm.get(t.category_id), acc = am.get(t.account_id), fa = am.get(t.from_account_id), ta = am.get(t.to_account_id);
-    const tr = t.action === 'TRANSFER';
-    const foreign = tr ? !!(fa?.is_foreign || ta?.is_foreign) : !!acc?.is_foreign;
-    const cur = tr ? (fa?.is_foreign ? fa.currency : ta?.is_foreign ? ta.currency : 'UAH') : acc?.is_foreign ? acc.currency : 'UAH';
-    const amount = Number(t.amount);
-    return {
-      id: t.id, date: t.date, action: t.action, amount, to_amount: t.to_amount == null ? null : Number(t.to_amount),
-      note: t.note || '', category_id: t.category_id, account_id: t.account_id, from_account_id: t.from_account_id, to_account_id: t.to_account_id,
-      currency: t.currency, rate: t.rate, mono: !!t.mono_op_id, splits: sc.get(t.id) ?? 0,
-      v: t.action === 'INCOME' || t.action === 'RETURN' ? amount : t.action === 'EXPENSE' ? -amount : amount,
-      foreign, sym: SYM[cur] ?? cur,
-      name: clean(t.note) || clean(c?.name) || (tr ? 'Перевод' : 'Операция'),
-      cat: tr ? 'Перевод' : sc.get(t.id) ? `${sc.get(t.id)} категории` : clean(c?.name) || 'Без категории',
-      acc: tr ? `${clean(fa?.name) || '?'} → ${clean(ta?.name) || '?'}` : clean(acc?.name),
-      icon: tr ? 'swap' : c?.icon || 'tag',
-      uncat: !tr && t.category_id == null
-    };
-  });
+  const ops = rows.map((t) => mapOp(t, cm, am, sc));
   return { ops };
 }
 

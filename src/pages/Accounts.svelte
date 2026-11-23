@@ -10,15 +10,18 @@
   import { openCtx } from '../lib/ctxmenu.svelte.js';
   import { openAcct } from '../lib/acctsheet.svelte.js';
   import { openNew } from '../lib/newacct.svelte.js';
+  import { openNewOp } from '../lib/newop.svelte.js';
   import { flyOpen } from '../lib/fly.js';
   import { envIcon } from '../lib/icons.js';
 
-  // Меню по долгому нажатию. Сами действия подключим вместе с их экранами, пока меню просто закрывается
-  const op = { t: 'Новая операция', icon: 'plus' }, tr = { t: 'Перевод', icon: 'swap' }, ed = { t: 'Изменить', icon: 'pen' };
+  // Меню по долгому нажатию: «Новая операция» и «Перевод» открывают окно со счётом, с которого нажали; остальное подключим позже
+  const op = (id) => ({ t: 'Новая операция', icon: 'plus', run: () => openNewOp(null, { acc: id }) });
+  const tr = (id) => ({ t: 'Перевод', icon: 'swap', run: () => openNewOp(null, { acc: id, type: 'TRANSFER' }) });
+  const ed = { t: 'Изменить', icon: 'pen' };
   const del = { t: 'Удалить', icon: 'trash', danger: true, sep: true };
-  const menuCard = (el) => openCtx(el, [op, tr, ed, { t: 'Скрыть счёт', icon: 'eyeoff', sep: true }]);
-  const menuCash = (el) => openCtx(el, [op, tr, ed, del]);
-  const menuEnv = (el) => openCtx(el, [op, { t: 'Перевод', icon: 'swap' }, ed, del]);
+  const menuCard = (el, id) => openCtx(el, [op(id), tr(id), ed, { t: 'Скрыть счёт', icon: 'eyeoff', sep: true }]);
+  const menuCash = (el, id) => openCtx(el, [op(id), tr(id), ed, del]);
+  const menuEnv = (el, id) => openCtx(el, [op(id), tr(id), ed, del]);
 
   let d = $derived(peek('accounts'));
   let rates = $state(cachedRates());
@@ -86,13 +89,13 @@
         {#if monoOpen}
           <div class="sub">
             {#each d.cards as c, i (c.id)}
-              <AccRow icon="card" indent name={c.name} sub={c.limit > 0 ? 'кредитный лимит ' + cash(c.limit, 0) : ''} amount={cash(c.balance)} neg={c.balance < 0} top={true} onclick={() => openAcct({ id: c.id, name: c.name, kind: 'Карта Monobank', balance: c.balance, limit: c.limit })} onlong={menuCard} />
+              <AccRow icon="card" indent name={c.name} sub={c.limit > 0 ? 'кредитный лимит ' + cash(c.limit, 0) : ''} amount={cash(c.balance)} neg={c.balance < 0} top={true} onclick={() => openAcct({ id: c.id, name: c.name, kind: 'Карта Monobank', balance: c.balance, limit: c.limit })} onlong={(el) => menuCard(el, c.id)} />
             {/each}
           </div>
         {/if}
       {/if}
       {#each d.cashes as c, i (c.id)}
-        <AccRow icon={/cash/i.test(c.name) ? 'cash' : 'wallet'} name={c.name} amount={cash(c.balance)} neg={c.balance < 0} top={d.cards.length > 0 || i > 0} onclick={() => openAcct({ id: c.id, name: c.name, kind: /cash/i.test(c.name) ? 'Наличные' : 'Кошелёк', balance: c.balance })} onlong={menuCash} />
+        <AccRow icon={/cash/i.test(c.name) ? 'cash' : 'wallet'} name={c.name} amount={cash(c.balance)} neg={c.balance < 0} top={d.cards.length > 0 || i > 0} onclick={() => openAcct({ id: c.id, name: c.name, kind: /cash/i.test(c.name) ? 'Наличные' : 'Кошелёк', balance: c.balance })} onlong={(el) => menuCash(el, c.id)} />
       {/each}
     </div>
 
@@ -108,13 +111,13 @@
     <div class="sh rise" style="--i:4"><h2>Конверты</h2><span>{cash(d.envsTotal, 0)}</span></div>
     <div class="cd rise" style="--i:4">
       {#each envFull as e, i (e.id)}
-        <AccRow icon={envIcon(e.name)} name={e.name} amount={cash(e.balance, 0)} top={i > 0} onclick={() => openAcct({ id: e.id, name: e.name, kind: 'Конверт', balance: e.balance })} onlong={menuEnv} />
+        <AccRow icon={envIcon(e.name)} name={e.name} amount={cash(e.balance, 0)} top={i > 0} onclick={() => openAcct({ id: e.id, name: e.name, kind: 'Конверт', balance: e.balance })} onlong={(el) => menuEnv(el, e.id)} />
       {/each}
       {#if envEmpty.length}
         <div class="ex" class:o={emptyOpen}>
           <div>
             {#each envEmpty as e, i (e.id)}
-              <div class="exr" style="--d:{i * 35}ms"><AccRow icon={envIcon(e.name)} name={e.name} amount={cash(e.balance, 0)} dim top={envFull.length > 0 || i > 0} onclick={() => openAcct({ id: e.id, name: e.name, kind: 'Конверт', balance: e.balance })} onlong={menuEnv} /></div>
+              <div class="exr" style="--d:{i * 35}ms"><AccRow icon={envIcon(e.name)} name={e.name} amount={cash(e.balance, 0)} dim top={envFull.length > 0 || i > 0} onclick={() => openAcct({ id: e.id, name: e.name, kind: 'Конверт', balance: e.balance })} onlong={(el) => menuEnv(el, e.id)} /></div>
             {/each}
           </div>
         </div>
@@ -133,7 +136,7 @@
         {#each d.foreign as f, gi (f.currency)}
           <div class="cap" class:t={gi > 0}><span>{f.currency === 'USD' ? 'Доллары' : f.currency === 'EUR' ? 'Евро' : f.currency}</span>{#if rates?.[f.currency]}<small>≈ {cash(Math.round(f.balance * rates[f.currency]), 0)}</small>{/if}</div>
           {#each [...(f.list ?? [])].sort((x, y) => y.balance - x.balance || x.name.localeCompare(y.name)) as a, i (a.id)}
-            <AccRow icon={f.currency === 'EUR' ? 'euro' : 'dollar'} name={a.name} amount={cash(a.balance, 2, f.currency)} dim={Math.abs(a.balance) < 0.005} top={i > 0} onclick={() => openAcct({ id: a.id, name: a.name, kind: 'Валютный счёт · ' + (f.currency === 'USD' ? 'доллары' : f.currency === 'EUR' ? 'евро' : f.currency), balance: a.balance, currency: f.currency })} onlong={menuCash} />
+            <AccRow icon={f.currency === 'EUR' ? 'euro' : 'dollar'} name={a.name} amount={cash(a.balance, 2, f.currency)} dim={Math.abs(a.balance) < 0.005} top={i > 0} onclick={() => openAcct({ id: a.id, name: a.name, kind: 'Валютный счёт · ' + (f.currency === 'USD' ? 'доллары' : f.currency === 'EUR' ? 'евро' : f.currency), balance: a.balance, currency: f.currency })} onlong={(el) => menuCash(el, c.id)} />
           {/each}
         {/each}
       </div>

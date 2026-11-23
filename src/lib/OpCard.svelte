@@ -231,7 +231,7 @@
   .q { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; background: var(--fill); color: #E5584D; font-size: 22px; font-weight: 700; }
   .nm { margin-top: 8px; font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
   .am { font-size: 32px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; animation: rise .45s ease .1s both; }
-  .am.pos { color: var(--pos); } .am.tr { color: #5B7FD0; }
+  .am.pos { color: var(--pos); } .am.tr { color: var(--text); }
   .lst { background: var(--card); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
   .lr { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 11px 14px; font-size: 14.5px; text-align: left; animation: rise .35s cubic-bezier(.2, .8, .2, 1) both; }
   .lr + .lr::before { content: ""; position: absolute; top: 0; left: 14px; right: 0; height: .5px; background: var(--line); }

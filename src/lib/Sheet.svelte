@@ -75,11 +75,11 @@
   .ov { position: absolute; inset: 0; width: 100%; background: rgba(0, 0, 0, .4); opacity: 0; transition: opacity .45s cubic-bezier(.32, .72, 0, 1); }
   .sh { position: absolute; left: 14px; right: 14px; bottom: 0; top: calc(env(safe-area-inset-top, 0px) + 14px); display: flex; flex-direction: column;
     background: var(--bg); border-radius: 26px 26px 0 0; overflow: hidden; transform: translateY(105%); transition: transform .5s cubic-bezier(.32, .72, 0, 1);
-    box-shadow: inset 0 1px 0 rgba(255, 236, 170, .9), inset 0 0 0 .5px rgba(214, 164, 62, .4), 0 -3px 16px rgba(226, 172, 62, .26); }
+    box-shadow: inset 0 1px 0 rgba(255, 236, 170, .55), inset 0 0 0 .5px rgba(214, 164, 62, .28), 0 -3px 14px rgba(226, 172, 62, .1); }
   .sh.dragging { transition: none; }
   .sh.fit { top: auto; max-height: calc(100% - env(safe-area-inset-top, 0px) - 14px); }
   .sh.fit .sc { flex: 0 1 auto; min-height: 0; }
-  .sh::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 90px; pointer-events: none; background: radial-gradient(70% 100% at 50% 0, rgba(236, 190, 84, .14), transparent); }
+  .sh::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 90px; pointer-events: none; background: radial-gradient(70% 100% at 50% 0, rgba(236, 190, 84, .06), transparent); }
   .top { position: relative; flex: none; touch-action: none; padding-bottom: 8px; }
   .gr { width: 36px; height: 5px; border-radius: 3px; background: #C9A24A; opacity: .8; margin: 8px auto; }
   h3 { margin: 0; text-align: center; font-size: 16px; font-weight: 700; }
@@ -87,8 +87,8 @@
   .sc { position: relative; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 4px 8px calc(30px + var(--safe-b)); }
   .sc.lock { overflow: hidden; touch-action: none; }
   @media (prefers-color-scheme: dark) {
-    .sh { box-shadow: inset 0 1px 0 rgba(255, 232, 160, .55), inset 0 0 0 .5px rgba(232, 194, 119, .45), 0 -3px 18px rgba(240, 190, 90, .24); }
-    .sh::before { background: radial-gradient(70% 100% at 50% 0, rgba(240, 200, 110, .1), transparent); }
+    .sh { box-shadow: inset 0 1px 0 rgba(255, 232, 160, .3), inset 0 0 0 .5px rgba(232, 194, 119, .26), 0 -3px 14px rgba(240, 190, 90, .09); }
+    .sh::before { background: radial-gradient(70% 100% at 50% 0, rgba(240, 200, 110, .05), transparent); }
   }
   @media (prefers-reduced-motion: reduce) { .ov, .sh { transition: none; } }
 </style>

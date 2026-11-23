@@ -222,7 +222,7 @@
   .nm b { display: block; font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .nm small { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .am { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .am.tr { color: #5B7FD0; }
+  .am.tr { color: var(--text); }
   .msg { text-align: center; color: var(--muted); padding: 40px 0; }
   .more { text-align: center; padding: 18px; font-size: 12.5px; color: var(--muted); }
   .toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); padding: 9px 16px; border-radius: 99px; background: rgba(30, 28, 20, .92); color: #E8C277; font-size: 13px; z-index: 20; }
