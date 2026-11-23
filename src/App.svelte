@@ -5,6 +5,8 @@
   import CtxMenu from './lib/CtxMenu.svelte';
   import AccountSheet from './lib/AccountSheet.svelte';
   import { acct } from './lib/acctsheet.svelte.js';
+  import HomeBlocks from './lib/HomeBlocks.svelte';
+  import { hb } from './lib/homeblocks.svelte.js';
   import { startUpdateWatch } from './lib/update.svelte.js';
   import { onMount } from 'svelte';
   import { auth, startAuth } from './lib/auth.svelte.js';
@@ -25,7 +27,7 @@
   });
 </script>
 
-<main bind:this={scroller} class:back={acct.open}>
+<main bind:this={scroller} class:back={acct.open || hb.open}>
   {#if !auth.ready}
     <!-- проверяем вход -->
   {:else if !auth.session}
@@ -41,7 +43,7 @@
   {/if}
 </main>
 <UpdateBanner />
-{#if auth.session}<AccountSheet /><CtxMenu />{/if}
+{#if auth.session}<AccountSheet /><HomeBlocks /><CtxMenu />{/if}
 {#if auth.session}<TabBar />{/if}
 
 <style>
