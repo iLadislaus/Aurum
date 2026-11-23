@@ -2,6 +2,7 @@
   import { nav } from './lib/nav.svelte.js';
   import TabBar from './lib/TabBar.svelte';
   import UpdateBanner from './lib/UpdateBanner.svelte';
+  import CtxMenu from './lib/CtxMenu.svelte';
   import { startUpdateWatch } from './lib/update.svelte.js';
   import { onMount } from 'svelte';
   import { auth, startAuth } from './lib/auth.svelte.js';
@@ -38,6 +39,7 @@
   {/if}
 </main>
 <UpdateBanner />
+{#if auth.session}<CtxMenu />{/if}
 {#if auth.session}<TabBar />{/if}
 
 <style>
