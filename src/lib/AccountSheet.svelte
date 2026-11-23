@@ -8,13 +8,18 @@
 
   let q = $state('');
   let dy = $state(0), y0 = null, dragging = $state(false);
+  let full = $state(false), H = $state(700), shEl, vel = 0, ly = 0, lt = 0;
+  const half = $derived(Math.round(H * 0.46));
+  const base = $derived(full ? 0 : half);
+  const pos = $derived(Math.max(0, base + dy));
   let data = $derived(acct.id ? peek('ops.' + acct.id) : null);
   let err = $state('');
 
   // при открытии: сохранённое видно сразу, свежее подтягивается в фоне
   $effect(() => {
     if (!acct.open || !acct.id) return;
-    q = ''; err = '';
+    q = ''; err = ''; full = false; dy = 0;
+    if (shEl) H = shEl.offsetHeight;
     const id = acct.id;
     refresh('ops.' + id, () => loadAccountOps(id)).catch((e) => { if (!peek('ops.' + id)) err = e.message || 'Не удалось загрузить операции'; });
   });
@@ -43,29 +48,35 @@
   let used = $derived(acct.limit > 0 ? Math.min(1, Math.max(0, -acct.balance / acct.limit)) : 0);
   const c = (v) => cash(v, 2, acct.currency);
 
-  function down(e) { y0 = e.clientY; dy = 0; }
+  function down(e) { y0 = e.clientY; dy = 0; vel = 0; ly = e.clientY; lt = performance.now(); }
   function move(e) {
     if (y0 == null) return;
-    dy = Math.max(0, e.clientY - y0);
-    if (dy > 4 && !dragging) { dragging = true; e.currentTarget.setPointerCapture(e.pointerId); }
+    dy = Math.max(-base, e.clientY - y0);
+    const t = performance.now();
+    vel = (e.clientY - ly) / Math.max(1, t - lt); ly = e.clientY; lt = t;
+    if (Math.abs(dy) > 4 && !dragging) { dragging = true; e.currentTarget.setPointerCapture(e.pointerId); }
   }
   function up() {
     if (y0 == null) return;
-    y0 = null; dragging = false;
-    if (dy > 110) closeAcct();
-    dy = 0;
+    const p = pos; y0 = null; dragging = false; dy = 0;
+    if (vel < -0.5) full = true;
+    else if (vel > 0.5) { if (full) full = false; else closeAcct(); }
+    else {
+      const d = [[0, 'f'], [half, 'h'], [H, 'c']].sort((m, n) => Math.abs(m[0] - p) - Math.abs(n[0] - p))[0][1];
+      if (d === 'c') closeAcct(); else full = d === 'f';
+    }
   }
 </script>
 
 <div class="as" class:open={acct.open} aria-hidden={!acct.open}>
-  <button class="ov" aria-label="Закрыть" style:opacity={acct.open ? Math.max(0, 1 - dy / 420) : 0} onclick={closeAcct}></button>
-  <div class="sh" class:dragging role="dialog" aria-modal="true" aria-label={acct.name} style:transform={acct.open ? `translateY(${dy}px)` : undefined}>
+  <button class="ov" aria-label="Закрыть" style:opacity={acct.open ? Math.max(0, Math.min(1, 1 - (pos - half) / (H - half))) : 0} onclick={closeAcct}></button>
+  <div class="sh" class:dragging bind:this={shEl} role="dialog" aria-modal="true" aria-label={acct.name} style:transform={acct.open ? `translateY(${pos}px)` : undefined}>
     <div class="top" onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up}>
       <div class="gr"></div>
       <h3>{acct.name}</h3>
       <p class="st">{acct.kind}</p>
     </div>
-    <div class="sc">
+    <div class="sc" class:lock={!full} onpointerdown={(e) => { if (!full) down(e); }} onpointermove={(e) => { if (!full) move(e); }} onpointerup={up} onpointercancel={up}>
       <div class="hero">
         <small>Остаток</small>
         <div class="big" class:neg={acct.balance < 0}>{c(acct.balance)}</div>
@@ -120,7 +131,8 @@
   .gr { width: 36px; height: 5px; border-radius: 3px; background: #C9A24A; opacity: .8; margin: 8px auto; }
   h3 { margin: 0; text-align: center; font-size: 16px; font-weight: 700; }
   .st { margin: 1px 0 0; text-align: center; font-size: 11.5px; color: var(--muted); }
-  .sc { position: relative; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 4px 14px calc(30px + var(--safe-b)); }
+  .sc { position: relative; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 4px 8px calc(30px + var(--safe-b)); }
+  .sc.lock { overflow: hidden; touch-action: none; }
   .hero { border-radius: 22px; padding: 14px 16px; color: #F4EEDD; background: radial-gradient(120% 90% at 85% 0, #2A200C, #120F08 50%, #080807); box-shadow: 0 0 0 .5px rgba(232, 194, 119, .35), 0 14px 30px -18px rgba(232, 194, 119, .45); }
   .hero small { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #B3A47C; }
   .big { font-size: 34px; font-weight: 800; letter-spacing: -.04em; line-height: 1.1; margin: 3px 0 8px; color: #F6E3A1; font-variant-numeric: tabular-nums; }
