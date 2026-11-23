@@ -34,3 +34,9 @@ export function dropCache() {
   for (const k of Object.keys(boxes)) boxes[k].v = null;
   try { Object.keys(localStorage).filter((k) => k.startsWith(PFX)).forEach((k) => localStorage.removeItem(k)); } catch { /* ок */ }
 }
+
+// положить готовые данные в кэш без запроса
+export function put(key, v) {
+  box(key).v = v;
+  try { localStorage.setItem(PFX + key, JSON.stringify(v)); } catch { /* хранилище недоступно */ }
+}
