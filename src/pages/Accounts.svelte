@@ -10,6 +10,7 @@
   import { openCtx } from '../lib/ctxmenu.svelte.js';
   import { openAcct } from '../lib/acctsheet.svelte.js';
   import { openNew } from '../lib/newacct.svelte.js';
+  import { flyOpen } from '../lib/fly.js';
   import { envIcon } from '../lib/icons.js';
 
   // Меню по долгому нажатию. Сами действия подключим вместе с их экранами, пока меню просто закрывается
@@ -66,7 +67,7 @@
       <div class="d">Счета и конверты</div>
       <h1 class="large-title">Счета</h1>
     </div>
-    <button class="plus" aria-label="Новый счёт" onclick={openNew}><Icon name="plus" size={20} /></button>
+    <button class="plus" aria-label="Новый счёт" onclick={(e) => flyOpen(e, openNew)}><Icon name="plus" size={20} /></button>
   </div>
 
   {#if err}
