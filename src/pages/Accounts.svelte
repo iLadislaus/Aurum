@@ -14,7 +14,7 @@
   const del = { t: 'Удалить', icon: 'trash', danger: true, sep: true };
   const menuCard = (el) => openCtx(el, [op, tr, ed, { t: 'Скрыть счёт', icon: 'eyeoff', sep: true }]);
   const menuCash = (el) => openCtx(el, [op, tr, ed, del]);
-  const menuEnv = (el) => openCtx(el, [op, { t: 'Пополнить конверт', icon: 'down' }, ed, del]);
+  const menuEnv = (el) => openCtx(el, [op, { t: 'Перевод', icon: 'swap' }, ed, del]);
 
   let d = $derived(peek('accounts'));
   let rates = $state(cachedRates());
