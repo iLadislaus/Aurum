@@ -6,7 +6,8 @@ function box(key) {
   if (!boxes[key]) {
     let v = null;
     try { v = JSON.parse(localStorage.getItem(PFX + key) || 'null'); } catch { /* пусто */ }
-    boxes[key] = $state({ v });
+    const b = $state({ v });
+    boxes[key] = b;
   }
   return boxes[key];
 }
