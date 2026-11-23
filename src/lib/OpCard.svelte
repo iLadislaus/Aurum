@@ -5,14 +5,11 @@
   import { prefetchAll } from './prefetch.js';
   import { openNewOp } from './newop.svelte.js';
   import { fmt } from './format.js';
+  import { cardTheme } from './format.js';
   import Icon from './Icon.svelte';
   import OpAvatar from './OpAvatar.svelte';
-
-  let dy = $state(0), y0 = null, dragging = $state(false);
-  let full = $state(false), H = $state(700), shEl, vel = 0, ly = 0, lt = 0;
-  const half = $derived(Math.round(H * 0.5));
-  const base = $derived(full ? 0 : half);
-  const pos = $derived(Math.max(0, base + dy));
+  import Sheet from './Sheet.svelte';
+  import CardFace from './CardFace.svelte';
 
   let split = $state(false), parts = $state([]), typePick = $state(false), pick = $state(false), remember = $state(true), armed = $state(false), busy = $state(false), err = $state(''), more = $state(0), timer;
   let cats = $derived(peek('cats')?.list ?? []);
@@ -20,15 +17,15 @@
   let o = $derived(oc.op ? (peek(oc.key)?.ops.find((x) => x.id === oc.op.id) ?? oc.op) : null);
   const kind = { EXPENSE: 'Расход', INCOME: 'Доход', RETURN: 'Возврат', TRANSFER: 'Перевод' };
   const tr = $derived(o?.action === 'TRANSFER');
-  const sgn = $derived(!o || tr ? '' : o.v > 0 ? '+' : '−');
-  const amt = $derived(o ? sgn + fmt(Math.abs(tr ? o.amount : o.v), o.foreign || Math.abs(o.amount) % 1 ? 2 : 0) + ' ' + o.sym : '');
+  const amt = $derived(o ? fmt(Math.abs(tr ? o.amount : o.v), o.foreign || Math.abs(o.amount) % 1 ? 2 : 0) : '');
+  const theme = $derived(o && !tr ? cardTheme(o.acc) : null);
+  const ends = $derived(tr ? (o?.acc ?? '').split(' → ') : []);
   const when = $derived(o ? new Date(o.date).toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Kyiv' }) : '');
   const list = $derived(cats.filter((c) => (o?.action === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE')));
 
   $effect(() => {
     if (!oc.open) return;
-    pick = false; typePick = false; split = false; parts = []; remember = true; armed = false; err = ''; more = 0; full = false; dy = 0;
-    if (shEl) H = shEl.offsetHeight;
+    pick = false; typePick = false; split = false; parts = []; remember = true; armed = false; err = ''; more = 0;
     refresh('cats', loadCategories).catch(() => {});
   });
 
@@ -65,7 +62,7 @@
   const left = $derived(+(total - parts.reduce((t, p) => t + (Number(p.v) || 0), 0)).toFixed(2));
   const catOf = (id) => cats.find((c) => c.id === id);
   async function openSplit() {
-    split = true; pick = false; typePick = false; full = true;
+    split = true; pick = false; typePick = false;
     let ex = [];
     if (o.splits) { try { ex = await loadSplits(o.id); } catch {} }
     parts = ex.length ? ex.map((x) => ({ id: x.category_id, v: x.amount })) : [{ id: o.category_id ?? list[0]?.id, v: total }];
@@ -110,50 +107,39 @@
     busy = false;
   }
 
-  function down(e) { y0 = e.clientY; dy = 0; vel = 0; ly = e.clientY; lt = performance.now(); }
-  function move(e) {
-    if (y0 == null) return;
-    dy = Math.max(-base, e.clientY - y0);
-    const t = performance.now();
-    vel = (e.clientY - ly) / Math.max(1, t - lt); ly = e.clientY; lt = t;
-    if (Math.abs(dy) > 4 && !dragging) { dragging = true; e.currentTarget?.setPointerCapture?.(e.pointerId); }
-  }
-  function up() {
-    if (y0 == null) return;
-    const p = pos; y0 = null; dragging = false; dy = 0;
-    if (vel < -0.5) full = true;
-    else if (vel > 0.5) { if (full) full = false; else closeOp(); }
-    else {
-      const d = [[0, 'f'], [half, 'h'], [H, 'c']].sort((m, n) => Math.abs(m[0] - p) - Math.abs(n[0] - p))[0][1];
-      if (d === 'c') closeOp(); else full = d === 'f';
-    }
-  }
 </script>
 
-<div class="oc" class:open={oc.open} aria-hidden={!oc.open}>
-  <button class="ov" aria-label="Закрыть" style:opacity={oc.open ? Math.max(0, Math.min(1, 1 - (pos - half) / (H - half))) : 0} onclick={closeOp}></button>
-  <div class="sh" class:dragging bind:this={shEl} role="dialog" aria-modal="true" aria-label="Операция" style:transform={oc.open ? `translateY(${pos}px)` : undefined}>
-    <div class="top" onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up}><div class="gr"></div></div>
-    {#if o}
-      <div class="sc" class:lock={!full && !pick}>
-        <div class="hd">
-          <div class="av">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={54} />{/if}</div>
-          <div class="nm">{o.name}</div>
-          <div class="am" class:pos={o.v > 0 && !tr} class:tr>{amt}</div>
-        </div>
+<Sheet open={oc.open} onclose={closeOp} fit title="Операция" z={56}>
+  {#if o}
+    <div class="bd" class:in={oc.open}>
+      <CardFace {theme} kind={kind[o.action].toUpperCase()}>
+        {#snippet amount()}<div class="big"><span class="v">{amt}</span><u>{o.sym}</u></div>{/snippet}
+        {#snippet chip()}
+          {#if !tr}<div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} />{/if}<span class="cn">{o.name}{#if o.cat !== o.name}<small>{o.cat}</small>{/if}</span></div>{/if}
+        {/snippet}
+        {#snippet acct()}
+          {#if tr}
+            <span class="dd ro"><small>Откуда</small><span>{ends[0] ?? '—'}</span></span>
+            <span class="sw"><Icon name="swap" size={22} /></span>
+            <span class="dd ro"><small>Куда</small><span>{ends[1] ?? '—'}</span></span>
+          {:else}
+            <span class="dd ro"><small>{o.action === 'EXPENSE' ? 'Со счёта' : 'На счёт'}</small><span>{o.acc || '—'}</span></span>
+          {/if}
+        {/snippet}
+      </CardFace>
 
+      <div class="grp">
         <div class="lst">
           {#if !o.mono && !tr}
-            <button class="lr cat" onclick={() => { typePick = !typePick; if (typePick) { pick = false; full = true; } }}><span>Тип</span><b>{kind[o.action]}</b><Icon name="chevron" size={14} /></button>
-          {:else}
-            <div class="lr"><span>Тип</span><b>{kind[o.action]}</b></div>
+            <button class="lr cat" onclick={() => { typePick = !typePick; if (typePick) pick = false; }}><span>Тип</span><b>{kind[o.action]}</b><Icon name="chevron" size={14} /></button>
           {/if}
-          <button class="lr cat" onclick={() => { pick = !pick; if (pick) { typePick = false; full = true; } }}>
-            <span>Категория</span>
-            <b class:red={o.uncat}>{o.cat}</b>
-            <Icon name="chevron" size={14} />
-          </button>
-          <div class="lr"><span>{tr ? 'Перевод' : 'Счёт'}</span><b>{o.acc || '—'}</b></div>
+          {#if !tr}
+            <button class="lr cat" onclick={() => { pick = !pick; if (pick) typePick = false; }}>
+              <span>Категория</span>
+              <b class:red={o.uncat}>{o.cat}</b>
+              <Icon name="chevron" size={14} />
+            </button>
+          {/if}
           <div class="lr"><span>Дата</span><b>{when}</b></div>
           {#if o.rate}<div class="lr"><span>Курс</span><b>{fmt(Number(o.rate), 2)}</b></div>{/if}
           {#if o.note.trim() && o.note.trim() !== o.name}<div class="lr"><span>Заметка</span><b>{o.note}</b></div>{/if}
@@ -178,84 +164,68 @@
             {/if}
           </div>
         {/if}
-
-        {#if split}
-          <div class="sp">
-            <div class="sbar">{#each parts as p}<i style:width="{Math.min(100, (Number(p.v) || 0) / total * 100)}%"></i>{/each}</div>
-            <div class="sleft"><span>Сумма {fmt(total, 2)} {o.sym}</span><b class:ok={left === 0}>Осталось {fmt(left, 2)}</b></div>
-            {#each parts as p, i (i)}
-              <div class="pt"><OpAvatar icon={catOf(p.id)?.icon ?? 'tag'} size={30} /><span>{catOf(p.id)?.name ?? '—'}</span>
-                <input inputmode="decimal" value={fmt(p.v, 2)} oninput={(e) => setPart(i, e.currentTarget.value)} onblur={(e) => (e.currentTarget.value = fmt(p.v, 2))} />
-                {#if parts.length > 1}<button aria-label="Убрать" onclick={() => (parts = parts.filter((_, k) => k !== i))}>✕</button>{/if}
-              </div>
-            {/each}
-            <div class="chips add">{#each list.filter((c) => !parts.some((p) => p.id === c.id)) as c (c.id)}<button onclick={() => addPart(c)}><OpAvatar icon={c.icon} size={22} /><span>{c.name}</span></button>{/each}</div>
-            <button class="ap" disabled={busy || left !== 0 || parts.length < 2} onclick={doSplit}>Сохранить разделение</button>
-          </div>
-        {:else if !tr}
-          <button class="ap" onclick={openSplit}>{o.splits ? 'Изменить разделение' : 'Разделить на категории'}</button>
-          {#if o.splits}<button class="ap un" onclick={undoSplit}>Убрать разделение</button>{/if}
-        {/if}
-
-        {#if more > 0}
-          <button class="ap" onclick={applyMore}>Применить ещё к {more} операциям без категории</button>
-        {/if}
-        {#if err}<p class="er">{err}</p>{/if}
-
-        <div class="act">
-          {#if !o.mono}<button class="g" onclick={() => { const e = o; closeOp(); setTimeout(() => openNewOp(e), 250); }}>Изменить</button>{/if}
-          {#if !o.mono}<button class="s" disabled={busy} onclick={rep}>Повторить</button>{/if}
-          {#if !o.mono}<button class="d" class:armed onclick={del}>{armed ? 'Точно удалить?' : 'Удалить'}</button>{/if}
-        </div>
       </div>
-    {/if}
-  </div>
-</div>
+
+      {#if split}
+        <div class="sp">
+          <div class="sbar">{#each parts as p}<i style:width="{Math.min(100, (Number(p.v) || 0) / total * 100)}%"></i>{/each}</div>
+          <div class="sleft"><span>Сумма {fmt(total, 2)} {o.sym}</span><b class:ok={left === 0}>Осталось {fmt(left, 2)}</b></div>
+          {#each parts as p, i (i)}
+            <div class="pt"><OpAvatar icon={catOf(p.id)?.icon ?? 'tag'} size={30} /><span>{catOf(p.id)?.name ?? '—'}</span>
+              <input inputmode="decimal" value={fmt(p.v, 2)} oninput={(e) => setPart(i, e.currentTarget.value)} onblur={(e) => (e.currentTarget.value = fmt(p.v, 2))} />
+              {#if parts.length > 1}<button aria-label="Убрать" onclick={() => (parts = parts.filter((_, k) => k !== i))}>✕</button>{/if}
+            </div>
+          {/each}
+          <div class="chips add">{#each list.filter((c) => !parts.some((p) => p.id === c.id)) as c (c.id)}<button onclick={() => addPart(c)}><OpAvatar icon={c.icon} size={22} /><span>{c.name}</span></button>{/each}</div>
+          <button class="ap" disabled={busy || left !== 0 || parts.length < 2} onclick={doSplit}>Сохранить разделение</button>
+        </div>
+      {/if}
+
+      {#if o.splits && !split}<button class="ap un" onclick={undoSplit}>Убрать разделение</button>{/if}
+      {#if more > 0}<button class="ap" onclick={applyMore}>Применить ещё к {more} операциям без категории</button>{/if}
+      {#if err}<p class="er">{err}</p>{/if}
+
+      <div class="act">
+        {#if !o.mono}<button class="g" onclick={() => { const e = o; closeOp(); setTimeout(() => openNewOp(e), 250); }}><Icon name="pen" size={22} />Изменить</button>{/if}
+        {#if !o.mono}<button disabled={busy} onclick={rep}><Icon name="swap" size={22} />Повторить</button>{/if}
+        {#if !tr}<button disabled={split} onclick={openSplit}><Icon name="sliders" size={22} />Разделить</button>{/if}
+        {#if !o.mono}<button class="d" class:armed onclick={del}><Icon name="trash" size={22} />{armed ? 'Точно?' : 'Удалить'}</button>{/if}
+      </div>
+    </div>
+  {/if}
+</Sheet>
 
 <style>
-  .oc { position: absolute; inset: 0; z-index: 56; pointer-events: none; }
-  .oc.open { pointer-events: auto; }
-  .ov { position: absolute; inset: 0; width: 100%; background: rgba(0, 0, 0, .4); opacity: 0; transition: opacity .45s cubic-bezier(.32, .72, 0, 1); }
-  .sh { position: absolute; left: 14px; right: 14px; bottom: 0; top: calc(env(safe-area-inset-top, 0px) + 14px); display: flex; flex-direction: column;
-    background: var(--bg); border-radius: 26px 26px 0 0; overflow: hidden; transform: translateY(105%); transition: transform .5s cubic-bezier(.32, .72, 0, 1);
-    box-shadow: inset 0 1px 0 rgba(255, 236, 170, .9), inset 0 0 0 .5px rgba(214, 164, 62, .4), 0 -3px 16px rgba(226, 172, 62, .26); }
-  .sh.dragging { transition: none; }
-  .top { flex: none; touch-action: none; padding-bottom: 4px; }
-  .gr { width: 36px; height: 5px; border-radius: 3px; background: #C9A24A; opacity: .8; margin: 8px auto; }
-  .sc { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 0 12px calc(24px + var(--safe-b)); }
-  .sc.lock { overflow: hidden; }
-  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-  @keyframes pop { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: none; } }
-  .hd { text-align: center; padding: 2px 0 12px; }
-  .av { display: grid; place-items: center; animation: pop .55s cubic-bezier(.2, .9, .3, 1.1) both; }
-  .q { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; background: var(--fill); color: #E5584D; font-size: 22px; font-weight: 700; }
-  .nm { margin-top: 8px; font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
-  .am { font-size: 32px; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; animation: rise .45s ease .1s both; }
-  .am.pos { color: var(--pos); } .am.tr { color: var(--text); }
+  .bd { display: flex; flex-direction: column; gap: 20px; padding: 0 12px 14px; }
+  .bd.in > :global(.cf), .bd.in .grp, .bd.in .act { animation: rise .55s cubic-bezier(.2, .9, .3, 1) both; }
+  .bd.in .grp { animation-delay: .1s; } .bd.in .act { animation-delay: .16s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+  .q { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--fill); color: #E5584D; font-size: 16px; font-weight: 700; flex: none; }
+  .grp > * + * { margin-top: 10px; }
   .lst { background: var(--card); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
-  .lr { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 11px 14px; font-size: 14.5px; text-align: left; animation: rise .35s cubic-bezier(.2, .8, .2, 1) both; }
-  .lr + .lr::before { content: ""; position: absolute; top: 0; left: 14px; right: 0; height: .5px; background: var(--line); }
+  .lr { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 13px 16px; font-size: 15px; text-align: left; }
+  .lr + .lr::before { content: ""; position: absolute; top: 0; left: 16px; right: 0; height: .5px; background: var(--line); }
   .lr span { color: var(--muted); flex: none; }
   .lr b { font-weight: 500; text-align: right; margin-left: auto; overflow-wrap: anywhere; }
   .lr b.red { color: #E5584D; }
   .cat :global(svg) { color: var(--muted); flex: none; }
-  .lk { justify-content: flex-start; gap: 7px; font-size: 12px; color: var(--muted); padding: 9px 14px; }
+  .lk { justify-content: flex-start; gap: 7px; font-size: 12px; color: var(--muted); padding: 9px 16px; }
   .lk svg { flex: none; fill: none; stroke: #C9A24A; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-  .lk span { color: var(--muted); }
-  .seg { display: flex; gap: 4px; margin-top: 10px; padding: 3px; border-radius: 12px; background: var(--fill); animation: rise .3s cubic-bezier(.2, .8, .2, 1) both; }
+  .seg { display: flex; gap: 4px; padding: 3px; border-radius: 12px; background: var(--fill); animation: rise2 .3s cubic-bezier(.2, .8, .2, 1) both; }
+  @keyframes rise2 { from { opacity: 0; transform: translateY(8px); } }
   .seg button { flex: 1; padding: 8px 0; border-radius: 9px; font-size: 13.5px; font-weight: 600; transition: background .25s, color .25s; }
-  .seg button.on { background: linear-gradient(180deg, #F0D18A, #C9963A); color: #1a1206; }
-  .pk { margin-top: 10px; animation: rise .3s cubic-bezier(.2, .8, .2, 1) both; }
+  .seg button.on { background: linear-gradient(180deg, #F2D58F, #CD9A3A); color: #1a1206; }
+  .pk { animation: rise2 .3s cubic-bezier(.2, .8, .2, 1) both; }
   .chips { display: flex; flex-wrap: wrap; gap: 7px; }
   .chips button { display: flex; align-items: center; gap: 6px; padding: 4px 11px 4px 4px; border-radius: 99px; background: var(--fill); font-size: 13px; font-weight: 500; }
   .chips button.on { background: var(--gold-soft); color: var(--gold); }
   .rm { position: relative; display: flex; align-items: center; justify-content: space-between; margin-top: 10px; padding: 9px 14px; border-radius: 14px; background: var(--card); font-size: 13.5px; }
   .rm input { position: absolute; opacity: 0; inset: 0; width: 100%; height: 100%; margin: 0; }
-  .tg { flex: none; width: 51px; height: 31px; border-radius: 99px; background: rgba(120, 120, 128, .32); position: relative; transition: background .25s; }
-  .tg::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, .25); transition: transform .25s cubic-bezier(.32, .72, 0, 1); }
-  .rm input:checked + .tg { background: #D9A93F; }
+  .tg { flex: none; width: 51px; height: 31px; border-radius: 99px; background: rgba(120, 120, 128, .32); position: relative; transition: background .3s, box-shadow .3s; }
+  .tg::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, .25); transition: transform .38s cubic-bezier(.3, 1.5, .5, 1); }
+  .rm input:checked + .tg { background: linear-gradient(180deg, #F2D58F, #D49E36); box-shadow: 0 0 14px -2px rgba(226, 172, 62, .55); }
   .rm input:checked + .tg::after { transform: translateX(20px); }
-  .sp { margin-top: 10px; animation: rise .3s cubic-bezier(.2, .8, .2, 1) both; }
+  .sp { animation: rise2 .3s cubic-bezier(.2, .8, .2, 1) both; }
   .sbar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--fill); }
   .sbar i { background: linear-gradient(90deg, #C99A3C, #F0D18A); border-right: 1px solid var(--bg); transition: width .4s cubic-bezier(.32, .72, 0, 1); }
   .sleft { display: flex; justify-content: space-between; margin: 7px 2px 8px; font-size: 12.5px; color: var(--muted); }
@@ -265,16 +235,16 @@
   .pt input { width: 92px; padding: 7px 9px; border: 0; outline: 0; border-radius: 9px; background: var(--fill); color: var(--text); font: inherit; font-weight: 600; text-align: right; -webkit-user-select: text; user-select: text; }
   .pt button { color: var(--muted); font-size: 15px; padding: 0 2px; }
   .chips.add { margin: 8px 0 2px; }
+  .ap { display: block; width: 100%; margin-top: 10px; padding: 12px; border-radius: 14px; background: var(--gold-soft); color: var(--gold); font-size: 13.5px; font-weight: 600; }
   .ap:disabled { opacity: .4; }
-  .ap.un { background: var(--fill); color: var(--muted); margin-top: 8px; }
-  .ap { display: block; width: 100%; margin-top: 10px; padding: 11px; border-radius: 14px; background: var(--gold-soft); color: var(--gold); font-size: 13.5px; font-weight: 600; }
-  .er { margin: 10px 0 0; text-align: center; font-size: 13px; color: #E5584D; }
-  .act { display: flex; gap: 8px; margin-top: 14px; }
-  .act button { flex: 1; height: 46px; border-radius: 14px; font-size: 15px; font-weight: 600; transition: background .25s, color .25s; }
-  .act .g { background: linear-gradient(180deg, #F0D18A, #C9963A); color: #1a1206; }
-  .act .s { background: var(--fill); }
-  .act .d { background: rgba(229, 72, 77, .14); color: #E5484D; }
+  .ap.un { background: var(--fill); color: var(--muted); margin-top: -10px; }
+  .er { margin: 0; text-align: center; font-size: 13px; color: #E5584D; }
+  .act { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 12px; }
+  .act button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; height: 72px; border-radius: 18px; background: var(--card); box-shadow: var(--shadow); font-size: 12.5px; font-weight: 600; transition: background .25s, color .25s, transform .2s; }
+  .act button:active { transform: scale(.96); }
+  .act button:disabled { opacity: .45; }
+  .act .g { background: linear-gradient(180deg, #F4D48A, #D09A32); color: #1a1206; box-shadow: 0 8px 18px -8px rgba(226, 172, 62, .6); }
+  .act .d { background: rgba(229, 72, 77, .14); color: #E5484D; box-shadow: none; }
   .act .d.armed { background: #E5484D; color: #fff; }
-  @media (prefers-color-scheme: dark) { .sh { box-shadow: inset 0 1px 0 rgba(255, 232, 160, .55), inset 0 0 0 .5px rgba(232, 194, 119, .45), 0 -3px 18px rgba(240, 190, 90, .24); } }
-  @media (prefers-reduced-motion: reduce) { .ov, .sh { transition: none; } .av, .am, .lr, .pk { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .bd.in > :global(.cf), .bd.in .grp, .bd.in .act, .seg, .pk, .sp { animation: none; } }
 </style>

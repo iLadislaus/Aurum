@@ -8,6 +8,8 @@
   import OpAvatar from './OpAvatar.svelte';
   import Icon from './Icon.svelte';
   import { envIcon } from './icons.js';
+  import CardFace from './CardFace.svelte';
+  import { cardTheme } from './format.js';
 
   const TYPES = [['EXPENSE', 'Расход'], ['INCOME', 'Доход'], ['RETURN', 'Возврат'], ['TRANSFER', 'Перевод']];
   const SYM = { UAH: '₴', USD: '$', EUR: '€' };
@@ -88,7 +90,7 @@
   const catName = $derived(split ? 'Несколько категорий' : catOf(catId)?.name ?? 'Выбери категорию');
   const heroIcon = $derived((split ? catOf(parts[0]?.id) : catOf(catId))?.icon ?? 'tag');
   const kind = $derived(TYPES.find((t) => t[0] === type)[1].toUpperCase());
-  const THREADS = Array.from({ length: 14 }, (_, k) => ({ d: `M120 ${250 - k * 2.8} C 210 ${200 - k * 7}, 250 ${120 + k * 4.2}, 380 ${40 + k * 8.4}`, o: +(0.5 - k * 0.025).toFixed(3) }));
+  const theme = $derived(type === 'TRANSFER' ? null : cardTheme(acc(accId)?.name));
   // что не так — подсказываем текстом при нажатии «Сохранить», как в старом приложении
   const problem = $derived.by(() => {
     if (!(total > 0)) return 'Введи сумму больше нуля.';
@@ -148,20 +150,14 @@
       {#each TYPES as t (t[0])}<button class:on={type === t[0]} onclick={() => setType(t[0])}>{t[1]}</button>{/each}
     </div>
 
-    <div class="card">
-      <div class="art" aria-hidden="true">
-        <svg viewBox="0 0 360 236" preserveAspectRatio="xMidYMid slice">
-          <defs>
-            <linearGradient id="nfl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#E8C277" stop-opacity="0" /><stop offset=".55" stop-color="#F4DDA6" stop-opacity=".55" /><stop offset="1" stop-color="#E8C277" stop-opacity="0" /></linearGradient>
-            <radialGradient id="ngl" cx=".9" cy=".1" r=".7"><stop offset="0" stop-color="#E8C277" stop-opacity=".14" /><stop offset="1" stop-color="#E8C277" stop-opacity="0" /></radialGradient>
-          </defs>
-          <rect width="360" height="236" fill="url(#ngl)" />
-          <g class="th">{#each THREADS as t, k (k)}<path d={t.d} fill="none" stroke="url(#nfl)" stroke-width=".7" opacity={t.o} />{/each}</g>
-        </svg>
-      </div>
-      <div class="c1"><span class="lg">A</span><b>AURUM</b><em>{kind}</em></div>
-      <div class="big"><input inputmode="decimal" placeholder="0" style:width="{Math.max(1, (amt || '0').length)}ch" bind:value={amt} oninput={() => (err = '')} /><u>{SYM[cur] ?? cur}</u></div>
-      <div class="c3">
+    <CardFace {theme} {kind}>
+      {#snippet amount()}
+        <div class="big"><input inputmode="decimal" placeholder="0" style:width="{Math.max(1, (amt || '0').length)}ch" bind:value={amt} oninput={() => (err = '')} /><u>{SYM[cur] ?? cur}</u></div>
+      {/snippet}
+      {#snippet chip()}
+        {#if type !== 'TRANSFER'}<div class="ct"><OpAvatar icon={heroIcon} size={34} /><span>{catName}</span></div>{/if}
+      {/snippet}
+      {#snippet acct()}
         {#if type === 'TRANSFER'}
           <div class="dw">
             <button class="dd" class:o={menu === 'from'} onclick={() => (menu = menu === 'from' ? null : 'from')}><small>Откуда</small><span><b>{acc(fromId)?.name ?? '…'}</b><Icon name="chevron" size={14} /></span></button>
@@ -173,14 +169,13 @@
             {#if menu === 'to'}{@render list(toId, pickTo, 'r')}{/if}
           </div>
         {:else}
-          <div class="ct"><OpAvatar icon={heroIcon} size={34} /><span>{catName}</span></div>
           <div class="dw">
             <button class="dd" class:o={menu === 'acc'} onclick={() => (menu = menu === 'acc' ? null : 'acc')}><small>{type === 'INCOME' || type === 'RETURN' ? 'На счёт' : 'Со счёта'}</small><span><b>{acc(accId)?.name ?? '…'}</b><Icon name="chevron" size={14} /></span></button>
-            {#if menu === 'acc'}{@render list(accId, pickAcc, 'r')}{/if}
+            {#if menu === 'acc'}{@render list(accId, pickAcc, theme ? 'l' : 'r')}{/if}
           </div>
         {/if}
-      </div>
-    </div>
+      {/snippet}
+    </CardFace>
 
     {#if type !== 'TRANSFER' && !split}
       <div class="lb">Категория</div>
@@ -233,37 +228,13 @@
 
 <style>
   .bd { padding: 0 12px 14px; }
+  .bd.in .seg, .bd.in :global(.cf), .bd.in .lb, .bd.in .rb, .bd.in .rows { animation: rise .55s cubic-bezier(.2, .9, .3, 1) both; }
+  .bd.in :global(.cf) { animation-delay: .06s; } .bd.in .lb { animation-delay: .12s; } .bd.in .rb { animation-delay: .16s; } .bd.in .rows { animation-delay: .22s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
   .seg { position: relative; display: flex; padding: 2px; border-radius: 11px; background: var(--fill); margin: 0 0 18px; }
   .seg .pl { position: absolute; top: 2px; bottom: 2px; left: 2px; width: calc((100% - 4px) / 4); border-radius: 9px; background: linear-gradient(180deg, #F2D58F, #CD9A3A); transform: translateX(calc(var(--n) * 100%)); transition: transform .4s cubic-bezier(.3, 1.3, .5, 1); }
   .seg button { position: relative; z-index: 1; flex: 1; padding: 7px 0; font-size: 12.5px; font-weight: 600; color: var(--muted); transition: color .25s; }
   .seg button.on { color: #1a1206; }
-  .card { position: relative; z-index: 3; border-radius: 24px; padding: 18px 20px 18px; color: #F4EEDD; background: linear-gradient(135deg, #25201a 0%, #14110d 55%, #0a0807 100%); box-shadow: inset 0 0 0 .6px rgba(232, 194, 119, .32), 0 12px 24px -16px rgba(0, 0, 0, .8); }
-  .art { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
-  .art svg { width: 100%; height: 100%; display: block; }
-  .th { transform-origin: 120px 240px; animation: sway 7s ease-in-out infinite alternate; }
-  @keyframes sway { from { transform: rotate(-1.2deg); opacity: .75; } to { transform: rotate(1.6deg); opacity: 1; } }
-  .bd.in .seg, .bd.in .card, .bd.in .lb, .bd.in .rb, .bd.in .rows { animation: rise .55s cubic-bezier(.2, .9, .3, 1) both; }
-  .bd.in .card { animation-delay: .06s; } .bd.in .lb { animation-delay: .12s; } .bd.in .rb { animation-delay: .16s; } .bd.in .rows { animation-delay: .22s; }
-  @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
-  .c1, .big, .c3 { position: relative; z-index: 1; }
-  .c1 { display: flex; align-items: center; gap: 9px; }
-  .lg { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 800; color: #3a2806; background: linear-gradient(160deg, #F2D58F, #B8862C); box-shadow: 0 0 0 1.5px rgba(246, 219, 156, .25); }
-  .c1 b { font-size: 15px; font-weight: 800; letter-spacing: .2em; color: #F4DDA6; }
-  .c1 em { margin-left: auto; font-style: normal; font-size: 12px; letter-spacing: .16em; font-weight: 600; color: #a99366; }
-  .big { display: flex; align-items: baseline; gap: 8px; margin-top: 26px; }
-  .big input { flex: none; max-width: calc(100% - 44px); min-width: 1ch; padding: 0; margin: 0; text-align: left; border: 0; outline: 0; background: none; font: inherit; font-size: 52px; font-weight: 700; letter-spacing: -1.6px; color: #F4DDA6; font-variant-numeric: tabular-nums; -webkit-user-select: text; user-select: text; }
-  .big input::placeholder { color: #6f6150; }
-  .big u { text-decoration: none; font-size: 30px; color: #8a7857; font-weight: 600; }
-  .c3 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 22px; }
-  .ct { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 16px; font-weight: 600; color: #F4DDA6; }
-  .ct span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dw { position: relative; min-width: 0; }
-  .dd { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; max-width: 100%; padding: 6px 12px 7px 14px; border-radius: 16px; background: rgba(232, 194, 119, .11); color: #E8C277; transition: background .2s, box-shadow .2s; }
-  .dd small { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: #a99366; font-weight: 600; }
-  .dd span { display: flex; align-items: center; gap: 5px; max-width: 100%; font-size: 15px; font-weight: 600; }
-  .dd span b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; max-width: 118px; }
-  .dd.o { background: rgba(232, 194, 119, .2); box-shadow: 0 0 0 1px rgba(240, 203, 130, .45); }
-  .sw { flex: none; color: #cfae6a; padding: 4px; }
   .mb { position: fixed; inset: 0; z-index: 2; width: 100%; background: none; }
   .mn { position: absolute; z-index: 6; top: calc(100% + 8px); width: 240px; max-height: 232px; overflow-y: auto; padding: 6px; border-radius: 18px; background: #201d18; box-shadow: 0 18px 40px rgba(0, 0, 0, .7), inset 0 0 0 .6px rgba(232, 194, 119, .28); transform-origin: top; animation: mn .22s cubic-bezier(.3, 1.2, .5, 1); }
   .mn.r { right: 0; } .mn.l { left: 0; }
@@ -316,5 +287,5 @@
   .go:disabled:not(.ok) { opacity: .6; }
   .rg { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; border: 2px solid #E3B95E; pointer-events: none; animation: ring .7s ease-out .6s both; }
   @keyframes ring { from { transform: scale(1); opacity: .8; } to { transform: scale(2.1); opacity: 0; } }
-  @media (prefers-reduced-motion: reduce) { .mn, .th, .bd.in .seg, .bd.in .card, .bd.in .lb, .bd.in .rb, .bd.in .rows, .go::before { animation: none; } .seg .pl, .go, .go::before, .go::after, .go .t, .go svg, .rg { transition: none; animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .mn, .bd.in .seg, .bd.in :global(.cf), .bd.in .lb, .bd.in .rb, .bd.in .rows, .go::before { animation: none; } .seg .pl, .go, .go::before, .go::after, .go .t, .go svg, .rg { transition: none; animation: none; } }
 </style>

@@ -14,3 +14,6 @@ export const daysLabel = (d) => (d <= 0 ? 'сегодня' : d === 1 ? 'завт
 const SYM = { UAH: '₴', USD: '$', EUR: '€' };
 // «−1 313,04 ₴»: настоящий минус, символ валюты после числа
 export const cash = (v, d = 2, cur = 'UAH') => (v < 0 ? '−' : '') + fmt(Math.abs(v), d) + ' ' + (SYM[cur] ?? cur);
+
+// Карта Monobank BLACK / WHITE — для картинки карты в окнах операции
+export const cardTheme = (name = '') => (/mono/i.test(name) ? (/\bblack\b/i.test(name) ? 'black' : /\bwhite\b/i.test(name) ? 'white' : null) : null);
