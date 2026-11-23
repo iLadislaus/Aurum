@@ -112,6 +112,7 @@
     catch (e) { put(key, old); err = e.message || 'Не удалось удалить'; }
   }
   async function repeat(t) {
+    if (t.mono) return;
     busy = true;
     try { await repeatOp(t); await load(mi); prefetchAll(true); }
     catch (e) { err = e.message || 'Не удалось повторить'; }
@@ -160,7 +161,7 @@
       <div class="dh"><span>{g.title}</span><b>{g.sum ? (g.sum > 0 ? '+' : '−') + cash(Math.abs(g.sum), 0) : ''}</b></div>
       <div class="cd">
         {#each g.items as t, i (t.id)}
-          <SwipeRow id={t.id} nodelete={t.mono} ondelete={() => remove(t)} onrepeat={() => repeat(t)}>
+          <SwipeRow id={t.id} nodelete={t.mono} norepeat={t.mono} ondelete={() => remove(t)} onrepeat={() => repeat(t)}>
             <div class="op" class:top={i > 0} role="button" tabindex="0" onclick={() => !sw.id && openOp(t, 'ops.m.' + cur.key)} onkeydown={(e) => e.key === 'Enter' && openOp(t, 'ops.m.' + cur.key)}>
               {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} />{/if}
               <div class="nm"><b>{t.name}</b><small>{t.cat}{t.acc ? ' · ' + t.acc : ''}</small></div>

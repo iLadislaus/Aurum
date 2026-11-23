@@ -103,6 +103,7 @@
     try { await deleteOp(id); prefetchAll(true); } catch (e) { put(oc.key, old); }
   }
   async function rep() {
+    if (o?.mono) return;
     busy = true;
     try { await repeatOp(o); closeOp(); prefetchAll(true); } catch (e) { err = e.message || 'Не удалось повторить'; }
     busy = false;
@@ -201,7 +202,7 @@
         {#if err}<p class="er">{err}</p>{/if}
 
         <div class="act">
-          <button class="s" disabled={busy} onclick={rep}>Повторить</button>
+          {#if !o.mono}<button class="s" disabled={busy} onclick={rep}>Повторить</button>{/if}
           {#if !o.mono}<button class="d" class:armed onclick={del}>{armed ? 'Точно удалить?' : 'Удалить'}</button>{/if}
         </div>
       </div>

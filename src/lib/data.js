@@ -265,6 +265,7 @@ export async function deleteOp(id) {
 
 // Повтор операции: та же запись с сегодняшней датой
 export async function repeatOp(o) {
+  if (o.mono) throw new Error('Банковскую операцию повторить нельзя: в банке её не было');
   const row = {
     date: new Date().toISOString(), action: o.action, amount: o.amount, to_amount: o.to_amount, rate: o.rate, currency: o.currency,
     category_id: o.category_id, account_id: o.account_id, from_account_id: o.from_account_id, to_account_id: o.to_account_id, note: o.note || null
