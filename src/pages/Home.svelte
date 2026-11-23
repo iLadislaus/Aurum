@@ -17,7 +17,9 @@
   const month = new Date().toLocaleDateString('ru-RU', { month: 'long' });
   let d = $derived(peek('home'));
   let err = $state('');
-  let shown = $state(false);
+  let shown = $state(false), settled = $state(false);
+  // анимация появления блоков — один раз: при перестановке блоки переносятся в DOM и без этого мигали бы
+  $effect(() => { if (shown) { const t = setTimeout(() => (settled = true), 1500); return () => clearTimeout(t); } });
   // данные приходят из Supabase; анимации стартуют, когда экран уже нарисован
   onMount(async () => {
     if (d) requestAnimationFrame(() => requestAnimationFrame(() => (shown = true)));
@@ -46,7 +48,7 @@
   <div class="blocks">
     {#each hb.list as bl, i (bl.id)}
       {#if bl.on}
-        <div class="rise" class:bal={bl.id === 'balance'} style="--i:{Math.min(i + 1, 5)}">
+        <div class:rise={!settled} class:bal={bl.id === 'balance'} style="--i:{Math.min(i + 1, 5)}">
           {#if bl.id === 'balance'}
             <BalanceCard total={d.total} delta={d.delta} pct={d.pct} {shown} onopen={() => (nav.tab = 'accounts')} />
           {:else if bl.id === 'budget'}

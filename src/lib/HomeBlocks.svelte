@@ -3,6 +3,9 @@
   import { hb, meta, toggle, move, closeBlocks, endLesson } from './homeblocks.svelte.js';
 
   const RH = 68;
+  // появление строк — только при открытии окна: при перестановке Svelte переносит узлы, и CSS-анимация запускалась бы заново (строки мигали бы и пропадали)
+  let intro = $state(false), introT;
+  $effect(() => { clearTimeout(introT); intro = hb.open; if (hb.open) introT = setTimeout(() => (intro = false), 1000); });
   let drag = $state(null); // { id, y }
   let dy0 = 0, from = 0;
   
@@ -59,7 +62,7 @@
     <div class="ls" style:height="{hb.list.length * RH}px">
       {#each hb.list as b, i (b.id)}
         {@const m = meta(b.id)}
-        <div class="r" class:off={!b.on} class:lift={drag?.id === b.id} style:--n={i} style:transform="translateY({top(b.id, i)}px)">
+        <div class="r" class:intro class:off={!b.on} class:lift={drag?.id === b.id} style:--n={i} style:transform="translateY({top(b.id, i)}px)">
           <span class="hd" role="presentation" onpointerdown={(e) => lift(e, b.id)} onpointermove={pull} onpointerup={drop} onpointercancel={drop}>≡</span>
           <span class="ic"><Icon name={m.i} size={18} /></span>
           <span class="t">{m.n}</span>
@@ -99,7 +102,8 @@
   .tt b { font-size: 24px; font-weight: 700; letter-spacing: -.3px; }
   .ok { border-radius: 99px; padding: 8px 17px; background: var(--gold-soft); color: var(--gold); font-size: 15px; font-weight: 600; }
   .ls { position: relative; margin: 8px 14px 0; flex: none; }
-  .r { position: absolute; left: 0; right: 0; height: 58px; display: flex; align-items: center; gap: 4px; padding: 0 14px 0 4px; border-radius: 99px; background: var(--card); box-shadow: var(--shadow, none), inset 0 0 0 .5px var(--line); transition: transform .28s cubic-bezier(.32, .72, 0, 1), box-shadow .2s; animation: hbIn .45s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(.12s + var(--n, 0) * 55ms); }
+  .r { position: absolute; left: 0; right: 0; height: 58px; display: flex; align-items: center; gap: 4px; padding: 0 14px 0 4px; border-radius: 99px; background: var(--card); box-shadow: var(--shadow, none), inset 0 0 0 .5px var(--line); transition: transform .28s cubic-bezier(.32, .72, 0, 1), box-shadow .2s; }
+  .r.intro { animation: hbIn .45s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(.12s + var(--n, 0) * 55ms); }
   @keyframes hbIn { from { opacity: 0; } }
   .r.lift { z-index: 3; transition: box-shadow .2s; box-shadow: 0 10px 24px -6px rgba(0, 0, 0, .55), inset 0 0 0 .5px rgba(232, 194, 119, .6); }
   .hd { width: 30px; height: 44px; display: grid; place-items: center; color: var(--muted); font-size: 19px; touch-action: none; flex: none; }
