@@ -5,7 +5,7 @@ const MON = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл
 const MON_FULL = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
 
 // Убираем эмодзи из названий («Groceries 🥦» → «Groceries»)
-const clean = (s) => (s || '').replace(/[\p{Extended_Pictographic}️‍]/gu, '').replace(/\s+/g, ' ').trim();
+const clean = (s) => (s || '').replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}️‍]/gu, '').replace(/\s+/g, ' ').trim();
 const ymd = (d) => d.toLocaleDateString('sv-SE', { timeZone: 'Europe/Kyiv' });
 
 function whenLabel(iso) {
