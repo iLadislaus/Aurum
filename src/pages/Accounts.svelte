@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { loadAccounts } from '../lib/data.js';
   import { loadRates, cachedRates } from '../lib/rate.js';
   import { peek, refresh } from '../lib/cache.svelte.js';
@@ -20,13 +20,34 @@
   let rates = $state(cachedRates());
   let err = $state('');
   let shown = $state(false);
-  let monoOpen = $state(false);
-  let subH = $state(0);
-  // на время раскрытия притормаживаем бесконечные блики, чтобы кадры не рвались
-  function toggleMono() {
-    monoOpen = !monoOpen;
+  let monoOpen = $state(false), monoShow = $state(false), busy = false;
+  let cardEl, subEl, tailEl, restEl;
+  const EASE = 'cubic-bezier(.32, .72, 0, 1)', MS = 380;
+  const cut = (p) => `inset(0 0 ${p}px 0 round 20px)`;
+
+  // Раскрытие без пересчёта вёрстки: список появляется сразу на своём месте,
+  // а нижняя часть экрана плавно съезжает вниз сдвигом (его считает видеочип, а не процессор)
+  async function toggleMono() {
+    if (busy) return;
+    busy = true;
+    const opening = !monoOpen;
+    monoOpen = opening;
     document.body.classList.add('calm');
-    setTimeout(() => document.body.classList.remove('calm'), 420);
+    if (opening) { monoShow = true; await tick(); }
+    const H = subEl.offsetHeight;
+    const up = `translateY(${-H}px)`;
+    const run = (el, a, b) => el.animate(opening ? [a, b] : [b, a], { duration: MS, easing: EASE, fill: 'forwards' });
+    const anims = [
+      run(tailEl, { transform: up }, { transform: 'none' }),
+      run(restEl, { transform: up }, { transform: 'none' }),
+      run(subEl, { clipPath: 'inset(0 0 100% 0)' }, { clipPath: 'inset(0 0 0% 0)' }),
+      run(cardEl, { clipPath: cut(H) }, { clipPath: cut(0) })
+    ];
+    await Promise.all(anims.map((a) => a.finished));
+    if (!opening) { monoShow = false; await tick(); }
+    anims.forEach((a) => a.cancel());
+    document.body.classList.remove('calm');
+    busy = false;
   }
   let envAll = $state(false);
 
@@ -85,23 +106,26 @@
     <div class="rise" style="--i:1"><BalanceCard total={d.total} delta={d.delta} pct={d.pct} {shown} {cols} /></div>
 
     <div class="sh rise" style="--i:2"><h2>Карта и наличные</h2><span>{cash(d.cardCashTotal)}</span></div>
-    <div class="cd rise" style="--i:2">
+    <div class="cd rise" style="--i:2" bind:this={cardEl}>
       {#if d.cards.length}
         <AccRow icon="card" name="Monobank" sub="на всех картах" amount={cash(d.cardsTotal)} neg={d.cardsTotal < 0} top={false} onclick={toggleMono}>
           <span class="cp">{d.cards.length} {d.cards.length === 1 ? 'card' : 'cards'}<span class="ch" class:o={monoOpen}><Icon name="chevron" size={13} /></span></span>
         </AccRow>
-        <div class="sub" style:height={monoOpen ? subH + 'px' : '0px'} aria-hidden={!monoOpen}>
-          <div class="in" bind:clientHeight={subH}>
+        {#if monoShow}
+          <div class="sub" bind:this={subEl}>
             {#each d.cards as c, i (c.id)}
               <AccRow icon="card" indent name={c.name} sub={c.limit > 0 ? 'кредитный лимит ' + cash(c.limit, 0) : ''} amount={cash(c.balance)} neg={c.balance < 0} top={true} onlong={menuCard} />
             {/each}
           </div>
-        </div>
+        {/if}
       {/if}
+      <div bind:this={tailEl}>
       {#each d.cashes as c, i (c.id)}
         <AccRow icon={/cash/i.test(c.name) ? 'cash' : 'wallet'} name={c.name} sub={/wallet/i.test(c.name) ? 'основной для трат' : /cash/i.test(c.name) ? 'откуда идёт распределение' : ''} amount={cash(c.balance)} neg={c.balance < 0} top={d.cards.length > 0 || i > 0} onlong={menuCash} />
       {/each}
+      </div>
     </div>
+    <div bind:this={restEl}>
     <p class="note rise" style="--i:2">Белые карты без лимита и без денег не показываются.</p>
 
     {#if debts.length}
@@ -136,6 +160,7 @@
         {/each}
       </div>
     {/if}
+    </div>
   {/if}
 </section>
 
@@ -155,8 +180,6 @@
   .cp { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; padding: 1px 6px 1px 9px; border-radius: 99px; font-size: 11.5px; font-weight: 600; color: var(--gold); background: var(--gold-soft); vertical-align: 1px; }
   .ch { display: inline-grid; transition: transform .2s ease; }
   .ch.o { transform: rotate(180deg); }
-  .sub { height: 0; overflow: hidden; background: var(--fill); transition: height .36s cubic-bezier(.32, .72, 0, 1); will-change: height; contain: layout paint; }
-  .sub .in { display: block; }
-  @media (prefers-reduced-motion: reduce) { .sub { transition: none; } }
+  .sub { position: relative; z-index: 1; background: var(--fill); }
   .more { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 42px; font-size: 13px; font-weight: 500; color: var(--muted); border-top: .5px solid var(--line); }
 </style>
