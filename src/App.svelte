@@ -1,11 +1,16 @@
 <script>
   import { nav } from './lib/nav.svelte.js';
   import TabBar from './lib/TabBar.svelte';
+  import UpdateBanner from './lib/UpdateBanner.svelte';
+  import { startUpdateWatch } from './lib/update.svelte.js';
+  import { onMount } from 'svelte';
   import Home from './pages/Home.svelte';
   import Accounts from './pages/Accounts.svelte';
   import Operations from './pages/Operations.svelte';
   import Budget from './pages/Budget.svelte';
   import More from './pages/More.svelte';
+
+  onMount(startUpdateWatch);
 
   let scroller;
   // При переходе между вкладками показываем верх страницы
@@ -24,6 +29,7 @@
     {:else}<More />{/if}
   {/key}
 </main>
+<UpdateBanner />
 <TabBar />
 
 <style>
