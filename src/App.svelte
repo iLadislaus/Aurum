@@ -6,6 +6,8 @@
   import AccountSheet from './lib/AccountSheet.svelte';
   import NewAccount from './lib/NewAccount.svelte';
   import OpCard from './lib/OpCard.svelte';
+  import NewOp from './lib/NewOp.svelte';
+  import { no } from './lib/newop.svelte.js';
   import { oc } from './lib/opcard.svelte.js';
   import { na } from './lib/newacct.svelte.js';
   import { acct } from './lib/acctsheet.svelte.js';
@@ -40,7 +42,7 @@
   });
 </script>
 
-<main bind:this={scroller} class:back={acct.open || na.open || hb.open || oc.open}>
+<main bind:this={scroller} class:back={acct.open || na.open || hb.open || oc.open || no.open}>
   {#if !auth.ready}
     <!-- проверяем вход -->
   {:else if !auth.session}
@@ -56,7 +58,7 @@
   {/if}
 </main>
 <UpdateBanner />
-{#if auth.session}<AccountSheet /><HomeBlocks /><NewAccount /><OpCard /><CtxMenu />{/if}
+{#if auth.session}<AccountSheet /><HomeBlocks /><NewAccount /><OpCard /><NewOp /><CtxMenu />{/if}
 {#if auth.session}<TabBar />{/if}
 
 <style>

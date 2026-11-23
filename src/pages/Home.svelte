@@ -10,6 +10,7 @@
   import Horizon from '../home/Horizon.svelte';
   import RecentOps from '../home/RecentOps.svelte';
   import { hb, isOn, openBlocks } from '../lib/homeblocks.svelte.js';
+  import { openNewOp } from '../lib/newop.svelte.js';
 
   const date = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
   const month = new Date().toLocaleDateString('ru-RU', { month: 'long' });
@@ -32,7 +33,7 @@
     </div>
     <div class="hb">
       <button class="rf" aria-label="Блоки главной" onclick={openBlocks}><Icon name="sliders" size={20} /></button>
-      <button class="rf plus" aria-label="Новая операция"><Icon name="plus" size={20} /></button>
+      <button class="rf plus" aria-label="Новая операция" onclick={() => openNewOp()}><Icon name="plus" size={20} /></button>
     </div>
   </div>
 

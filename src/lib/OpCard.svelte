@@ -3,6 +3,7 @@
   import { peek, refresh, put } from './cache.svelte.js';
   import { loadCategories, setOpCategory, setOpType, loadSplits, saveSplits, clearSplits, rememberRule, countUncat, applyUncat, deleteOp, repeatOp } from './data.js';
   import { prefetchAll } from './prefetch.js';
+  import { openNewOp } from './newop.svelte.js';
   import { fmt } from './format.js';
   import Icon from './Icon.svelte';
   import OpAvatar from './OpAvatar.svelte';
@@ -202,6 +203,7 @@
         {#if err}<p class="er">{err}</p>{/if}
 
         <div class="act">
+          {#if !o.mono}<button class="g" onclick={() => { const e = o; closeOp(); setTimeout(() => openNewOp(e), 250); }}>Изменить</button>{/if}
           {#if !o.mono}<button class="s" disabled={busy} onclick={rep}>Повторить</button>{/if}
           {#if !o.mono}<button class="d" class:armed onclick={del}>{armed ? 'Точно удалить?' : 'Удалить'}</button>{/if}
         </div>
@@ -269,6 +271,7 @@
   .er { margin: 10px 0 0; text-align: center; font-size: 13px; color: #E5584D; }
   .act { display: flex; gap: 8px; margin-top: 14px; }
   .act button { flex: 1; height: 46px; border-radius: 14px; font-size: 15px; font-weight: 600; transition: background .25s, color .25s; }
+  .act .g { background: linear-gradient(180deg, #F0D18A, #C9963A); color: #1a1206; }
   .act .s { background: var(--fill); }
   .act .d { background: rgba(229, 72, 77, .14); color: #E5484D; }
   .act .d.armed { background: #E5484D; color: #fff; }

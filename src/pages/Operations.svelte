@@ -9,6 +9,7 @@
   import SwipeRow from '../lib/SwipeRow.svelte';
   import { sw } from '../lib/swipe.svelte.js';
   import { openOp } from '../lib/opcard.svelte.js';
+  import { openNewOp } from '../lib/newop.svelte.js';
   import Skeleton from '../lib/Skeleton.svelte';
 
   const SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
@@ -127,6 +128,7 @@
     <h1 class="large-title">Операции</h1>
     <div class="hb">
       <button class="rf" class:on={searching} aria-label="Поиск" onclick={toggleSearch}><Icon name={searching ? 'plus' : 'search'} size={20} /></button>
+      <button class="rf" aria-label="Новая операция" onclick={() => openNewOp()}><Icon name="plus" size={20} /></button>
     </div>
   </div>
 
@@ -181,7 +183,7 @@
 <style>
   section { padding: 0 16px calc(110px + var(--safe-b)); }
   .head { display: flex; justify-content: space-between; align-items: flex-end; padding: calc(env(safe-area-inset-top, 0px) + 33px) 4px 12px; }
-  .hb { display: flex; }
+  .hb { display: flex; gap: 4px; }
   .rf { width: 44px; height: 44px; display: grid; place-items: center; }
   .rf :global(svg) { width: 36px !important; height: 36px !important; padding: 9px; border-radius: 50%; background: var(--fill); color: var(--gold); box-sizing: border-box; transition: transform .4s cubic-bezier(.32, .72, 0, 1), background .3s; }
   .rf.on :global(svg) { transform: rotate(45deg); background: var(--gold-soft); }
