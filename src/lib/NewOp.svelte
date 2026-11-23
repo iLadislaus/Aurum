@@ -7,29 +7,39 @@
   import Sheet from './Sheet.svelte';
   import OpAvatar from './OpAvatar.svelte';
   import Icon from './Icon.svelte';
+  import { envIcon } from './icons.js';
 
   const TYPES = [['EXPENSE', 'Расход'], ['INCOME', 'Доход'], ['RETURN', 'Возврат'], ['TRANSFER', 'Перевод']];
   const SYM = { UAH: '₴', USD: '$', EUR: '€' };
   let type = $state('EXPENSE'), note = $state(''), amt = $state(''), amt2 = $state('');
   let accId = $state(null), fromId = $state(null), toId = $state(null), catId = $state(null);
   let when = $state(''), split = $state(false), parts = $state([]), remember = $state(true);
-  let busy = $state(false), ok = $state(false), err = $state('');
+  let busy = $state(false), ok = $state(false), err = $state(''), menu = $state(null), fsEdit = $state(null);
 
   const accs = $derived.by(() => {
     const d = peek('accounts');
     if (!d) return [];
-    const l = [...d.cards, ...d.cashes, ...d.envs].map((a) => ({ id: a.id, name: a.name, currency: a.currency || 'UAH' }));
-    for (const g of d.foreign ?? []) for (const a of g.list ?? []) l.push({ id: a.id, name: a.name, currency: g.currency });
+    const l = [];
+    const add = (a, grp, icon, currency) => l.push({ id: a.id, name: a.name, currency: currency || a.currency || 'UAH', grp, icon });
+    for (const a of d.cards) add(a, 'Карты и наличные', 'card');
+    for (const a of d.cashes) add(a, 'Карты и наличные', /cash/i.test(a.name) ? 'cash' : 'wallet');
+    for (const a of d.envs) add(a, 'Конверты', envIcon(a.name));
+    for (const g of d.foreign ?? []) for (const a of g.list ?? []) add(a, 'Валютные', g.currency === 'EUR' ? 'euro' : 'dollar', g.currency);
     return l;
+  });
+  const groups = $derived.by(() => {
+    const m = new Map();
+    for (const a of accs) { if (!m.has(a.grp)) m.set(a.grp, []); m.get(a.grp).push(a); }
+    return [...m].map(([t, l]) => ({ t, l }));
   });
   const cats = $derived((peek('cats')?.list ?? []).filter((c) => (type === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE')));
   const acc = (id) => accs.find((a) => a.id === id);
   const num = (v) => Number(String(v).replace(/\s/g, '').replace(',', '.')) || 0;
   const total = $derived(num(amt));
-  // как в старом: первая часть сама добирает остаток, остальные вводятся руками
-  const rest = $derived(parts.slice(1).reduce((t, p) => t + (Number(p.v) || 0), 0));
+  // первая часть — основная: из неё вычитаются остальные; если поправить её, меняется сумма операции
+  const rest = $derived(parts.slice(1).reduce((t, p) => t + num(p.s), 0));
   const first = $derived(Math.max(0, +(total - rest).toFixed(2)));
-  const eff = $derived(parts.map((p, i) => ({ id: p.id, v: i === 0 ? first : Number(p.v) || 0 })));
+  const eff = $derived(parts.map((p, i) => ({ id: p.id, v: i === 0 ? first : num(p.s) })));
   const left = $derived(+(total - eff.reduce((t, p) => t + p.v, 0)).toFixed(2));
   const cur = $derived(type === 'TRANSFER' ? acc(fromId)?.currency ?? 'UAH' : acc(accId)?.currency ?? 'UAH');
   const cur2 = $derived(acc(toId)?.currency ?? 'UAH');
@@ -39,18 +49,23 @@
 
   $effect(() => {
     if (!no.open) return;
-    busy = false; ok = false; err = ''; split = false; parts = []; remember = true;
+    busy = false; ok = false; err = ''; split = false; parts = []; remember = true; menu = null; fsEdit = null;
     refresh('accounts', loadAccounts).catch(() => {});
     refresh('cats', loadCategories).catch(() => {});
     const e = no.edit;
     if (e) {
       type = e.action; note = e.note || ''; amt = String(e.amount).replace('.', ','); amt2 = e.to_amount != null ? String(e.to_amount).replace('.', ',') : '';
       accId = e.account_id; fromId = e.from_account_id; toId = e.to_account_id; catId = e.category_id; when = localInput(e.date);
-      if (e.splits) loadSplits(e.id).then((x) => { parts = x.map((p, i) => ({ id: p.category_id, v: i === 0 ? 0 : p.amount })); split = true; }).catch(() => {});
+      if (e.splits) loadSplits(e.id).then((x) => { parts = x.map((p, i) => ({ id: p.category_id, s: i === 0 ? '' : String(p.amount).replace('.', ',') })); split = true; }).catch(() => {});
     } else {
-      type = 'EXPENSE'; note = ''; amt = ''; amt2 = ''; catId = null; when = localInput(new Date());
+      type = no.type ?? 'EXPENSE'; note = ''; amt = ''; amt2 = ''; catId = null; when = localInput(new Date());
       const last = Number(localStorage.getItem('aurum.lastAcc')) || null;
-      accId = last; fromId = last; toId = null;
+      let lp = null;
+      try { lp = JSON.parse(localStorage.getItem('aurum.lastTransfer') || 'null'); } catch { /* пусто */ }
+      // из счёта: он всегда первый («Откуда» в переводе, счёт в расходе и доходе); иначе — последний счёт и последняя пара перевода
+      accId = no.acc ?? last;
+      fromId = no.acc ?? lp?.from ?? accId;
+      toId = lp?.to && lp.to !== fromId ? lp.to : null;
     }
   });
   // когда счета загрузились — подставим счёт по умолчанию
@@ -58,15 +73,22 @@
     if (!no.open || !accs.length) return;
     if (!acc(accId)) accId = (accs.find((a) => a.name.toLowerCase().includes('cash')) ?? accs[0]).id;
     if (!acc(fromId)) fromId = accId;
-    if (!acc(toId)) toId = (accs.find((a) => a.id !== fromId) ?? accs[0]).id;
+    if (!acc(toId) || toId === fromId) toId = (accs.find((a) => a.id !== fromId) ?? accs[0]).id;
   });
 
-  function setType(t) { type = t; catId = null; if (t === 'TRANSFER') split = false; }
-  function openSplit() { split = !split; err = ''; if (split) parts = [{ id: catId, v: 0 }, { id: null, v: 0 }]; else if (parts[0]?.id) catId = parts[0].id; }
+  function setType(t) { type = t; catId = null; menu = null; if (t === 'TRANSFER') split = false; }
+  const pickAcc = (id) => { accId = id; menu = null; };
+  const pickFrom = (id) => { if (id === toId) toId = fromId; fromId = id; menu = null; };
+  const pickTo = (id) => { if (id === fromId) fromId = toId; toId = id; menu = null; };
+  const swap = () => { [fromId, toId] = [toId, fromId]; };
+  const fmtIn = (v) => (v ? String(+v.toFixed(2)).replace('.', ',') : '');
+  function openSplit() { split = !split; err = ''; if (split) parts = [{ id: catId, s: '' }, { id: null, s: '' }]; else if (parts[0]?.id) catId = parts[0].id; }
   const catOf = (id) => cats.find((c) => c.id === id);
 
-  const sub = $derived(type === 'TRANSFER' ? 'между своими счетами' : (split ? catOf(parts[0]?.id) : catOf(catId))?.name ?? 'выбери категорию');
-  const heroIcon = $derived(type === 'TRANSFER' ? 'swap' : (split ? catOf(parts[0]?.id) : catOf(catId))?.icon ?? 'tag');
+  const catName = $derived(split ? 'Несколько категорий' : catOf(catId)?.name ?? 'Выбери категорию');
+  const heroIcon = $derived((split ? catOf(parts[0]?.id) : catOf(catId))?.icon ?? 'tag');
+  const kind = $derived(TYPES.find((t) => t[0] === type)[1].toUpperCase());
+  const THREADS = Array.from({ length: 14 }, (_, k) => ({ d: `M120 ${250 - k * 2.8} C 210 ${200 - k * 7}, 250 ${120 + k * 4.2}, 380 ${40 + k * 8.4}`, o: +(0.5 - k * 0.025).toFixed(3) }));
   // что не так — подсказываем текстом при нажатии «Сохранить», как в старом приложении
   const problem = $derived.by(() => {
     if (!(total > 0)) return 'Введи сумму больше нуля.';
@@ -97,35 +119,67 @@
       else if (no.edit?.splits) await clearSplits(id);
       if (!split && remember && catId && note.trim() && type !== 'TRANSFER') await rememberRule(type, note.trim(), catId);
       if (type !== 'TRANSFER' && accId) localStorage.setItem('aurum.lastAcc', String(accId));
+      // пару перевода запоминаем, если операцию открыли не из счёта
+      if (type === 'TRANSFER' && !no.acc && !no.edit) localStorage.setItem('aurum.lastTransfer', JSON.stringify({ from: fromId, to: toId }));
       ok = true; prefetchAll(true);
       setTimeout(closeNewOp, 850);
     } catch (e) { err = e.message || 'Не удалось сохранить'; busy = false; }
   }
 </script>
 
+{#snippet list(cur, pick, side)}
+  <div class="mn {side}" role="listbox">
+    {#each groups as g (g.t)}
+      <h6>{g.t}</h6>
+      {#each g.l as a (a.id)}
+        <button class="mi" class:on={a.id === cur} role="option" aria-selected={a.id === cur} onclick={() => pick(a.id)}>
+          <Icon name={a.icon} size={19} /><span>{a.name}</span>{#if a.id === cur}<i class="ck"><Icon name="check" size={17} /></i>{/if}
+        </button>
+      {/each}
+    {/each}
+  </div>
+{/snippet}
+
 <Sheet open={no.open} onclose={closeNewOp} fit {title} z={57}>
   <div class="bd">
+    {#if menu}<button class="mb" aria-label="Закрыть список" onclick={() => (menu = null)}></button>{/if}
     <div class="seg" style:--n={TYPES.findIndex((t) => t[0] === type)}>
       <i class="pl"></i>
       {#each TYPES as t (t[0])}<button class:on={type === t[0]} onclick={() => setType(t[0])}>{t[1]}</button>{/each}
     </div>
 
-    <div class="hero">
-      <div class="who">
-        <OpAvatar icon={heroIcon} size={44} />
-        <div class="wn"><input class="nm" placeholder={type === 'TRANSFER' ? 'Заметка к переводу' : 'Название или магазин'} bind:value={note} /><small>{sub}</small></div>
+    <div class="card">
+      <div class="art" aria-hidden="true">
+        <svg viewBox="0 0 360 236" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <linearGradient id="nfl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#E8C277" stop-opacity="0" /><stop offset=".55" stop-color="#F4DDA6" stop-opacity=".55" /><stop offset="1" stop-color="#E8C277" stop-opacity="0" /></linearGradient>
+            <radialGradient id="ngl" cx=".9" cy=".1" r=".7"><stop offset="0" stop-color="#E8C277" stop-opacity=".14" /><stop offset="1" stop-color="#E8C277" stop-opacity="0" /></radialGradient>
+          </defs>
+          <rect width="360" height="236" fill="url(#ngl)" />
+          {#each THREADS as t, k (k)}<path d={t.d} fill="none" stroke="url(#nfl)" stroke-width=".7" opacity={t.o} />{/each}
+        </svg>
       </div>
+      <div class="c1"><span class="lg">A</span><b>AURUM</b><em>{kind}</em></div>
       <div class="big"><input inputmode="decimal" placeholder="0" bind:value={amt} oninput={() => (err = '')} /><u>{SYM[cur] ?? cur}</u></div>
-      {#if type === 'TRANSFER'}
-        <div class="pills">
-          <label class="pill"><span>{acc(fromId)?.name ?? 'Откуда'} ▾</span><select bind:value={fromId}>{#each accs as a (a.id)}<option value={a.id}>{a.name}</option>{/each}</select></label>
-          <b>→</b>
-          <label class="pill"><span>{acc(toId)?.name ?? 'Куда'} ▾</span><select bind:value={toId}>{#each accs as a (a.id)}<option value={a.id}>{a.name}</option>{/each}</select></label>
-        </div>
-        {#if fx}<div class="big sm"><input inputmode="decimal" placeholder="Зачислено" bind:value={amt2} /><u>{SYM[cur2] ?? cur2}</u></div>{/if}
-      {:else}
-        <div class="pills"><label class="pill"><span>{type === 'INCOME' || type === 'RETURN' ? 'На счёт' : 'Со счёта'}: {acc(accId)?.name ?? '…'} ▾</span><select bind:value={accId}>{#each accs as a (a.id)}<option value={a.id}>{a.name}</option>{/each}</select></label></div>
-      {/if}
+      <div class="c3">
+        {#if type === 'TRANSFER'}
+          <div class="dw">
+            <button class="dd" class:o={menu === 'from'} onclick={() => (menu = menu === 'from' ? null : 'from')}><small>Откуда</small><span><b>{acc(fromId)?.name ?? '…'}</b><Icon name="chevron" size={14} /></span></button>
+            {#if menu === 'from'}{@render list(fromId, pickFrom, 'l')}{/if}
+          </div>
+          <button class="sw" aria-label="Поменять счета местами" onclick={swap}><Icon name="swap" size={22} /></button>
+          <div class="dw">
+            <button class="dd" class:o={menu === 'to'} onclick={() => (menu = menu === 'to' ? null : 'to')}><small>Куда</small><span><b>{acc(toId)?.name ?? '…'}</b><Icon name="chevron" size={14} /></span></button>
+            {#if menu === 'to'}{@render list(toId, pickTo, 'r')}{/if}
+          </div>
+        {:else}
+          <div class="ct"><OpAvatar icon={heroIcon} size={34} /><span>{catName}</span></div>
+          <div class="dw">
+            <button class="dd" class:o={menu === 'acc'} onclick={() => (menu = menu === 'acc' ? null : 'acc')}><small>{type === 'INCOME' || type === 'RETURN' ? 'На счёт' : 'Со счёта'}</small><span><b>{acc(accId)?.name ?? '…'}</b><Icon name="chevron" size={14} /></span></button>
+            {#if menu === 'acc'}{@render list(accId, pickAcc, 'r')}{/if}
+          </div>
+        {/if}
+      </div>
     </div>
 
     {#if type !== 'TRANSFER' && !split}
@@ -136,10 +190,12 @@
     {/if}
 
     <div class="rows">
+      {#if fx}<label class="rr"><span>Зачислится, {SYM[cur2] ?? cur2}</span><input inputmode="decimal" placeholder="0" bind:value={amt2} /></label>{/if}
       <label class="rr"><span>Дата</span><input type="datetime-local" bind:value={when} /></label>
+      <label class="rr"><span>Заметка</span><input class="tx" placeholder={type === 'TRANSFER' ? 'Заметка к переводу' : 'Магазин или заметка'} bind:value={note} /></label>
       {#if type !== 'TRANSFER'}
-        <button class="rr" onclick={openSplit}><span>Разделить на категории</span><i class="tg" class:on={split}></i></button>
-        {#if !split && note.trim()}<button class="rr" onclick={() => (remember = !remember)}><span>Запомнить категорию для «{note.trim().slice(0, 18)}»</span><i class="tg" class:on={remember}></i></button>{/if}
+        {#if !split}<button class="rr" onclick={() => (remember = !remember)}><span>Запомнить для этой категории</span><i class="tg" class:on={remember}></i></button>{/if}
+        <button class="rr" onclick={openSplit}><span>Разделить</span><i class="tg" class:on={split}></i></button>
       {/if}
     </div>
 
@@ -150,12 +206,16 @@
           <div class="pt">
             <label class="pc"><span class="pi"><Icon name={catOf(p.id)?.icon ?? 'tag'} size={17} /></span><span class="pn" class:ph={!p.id}>{catOf(p.id)?.name ?? 'Категория'}</span>
               <select value={p.id ?? 0} onchange={(e) => { parts[i].id = Number(e.currentTarget.value) || null; err = ''; }}><option value={0}>Категория</option>{#each cats as c (c.id)}<option value={c.id}>{c.name}</option>{/each}</select></label>
-            {#if i === 0}<span class="pa auto">{fmt(first, 2)}</span>
-            {:else}<input class="pa" inputmode="decimal" placeholder="0" value={p.v ? fmt(p.v, 2) : ''} oninput={(e) => { parts[i].v = num(e.currentTarget.value); err = ''; }} onblur={(e) => (e.currentTarget.value = parts[i].v ? fmt(parts[i].v, 2) : '')} />{/if}
+            {#if i === 0}
+              <input class="pa main" inputmode="decimal" placeholder="0" value={fsEdit ?? (first ? fmt(first, 2) : '')}
+                onfocus={() => (fsEdit = fmtIn(first))}
+                oninput={(e) => { fsEdit = e.currentTarget.value; amt = fmtIn(+(rest + num(e.currentTarget.value)).toFixed(2)); err = ''; }}
+                onblur={() => (fsEdit = null)} />
+            {:else}<input class="pa" inputmode="decimal" placeholder="0" bind:value={parts[i].s} oninput={() => (err = '')} />{/if}
             {#if parts.length > 2 && i > 0}<button class="px" aria-label="Убрать" onclick={() => (parts = parts.filter((_, k) => k !== i))}>✕</button>{/if}
           </div>
         {/each}
-        <button class="add" onclick={() => (parts = [...parts, { id: null, v: 0 }])}>+ Добавить категорию</button>
+        <button class="add" onclick={() => (parts = [...parts, { id: null, s: '' }])}>+ Добавить категорию</button>
       </div>
       <div class="tt" class:okc={total > 0 && left === 0} class:bad={left !== 0}>
         {left === 0 && total > 0 ? `✓ Итого ${fmt(total, 2)} ${SYM[cur] ?? cur} — сходится` : `Итого ${fmt(total - left, 2)} из ${fmt(total, 2)} ${SYM[cur] ?? cur}`}
@@ -165,7 +225,7 @@
   {#snippet footer()}
     {#if err}<p class="er">{err}</p>{/if}
     <div class="gw"><button class="go" class:ok disabled={busy && !ok} onclick={save}>
-      <span class="t">{busy && !ok ? 'Сохраняю…' : 'Сохранить'}</span>
+      <span class="t">{busy && !ok ? 'Сохраняю…' : no.edit ? 'Сохранить изменения' : 'Сохранить'}</span>
       <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
     </button>{#if ok}<i class="rg"></i>{/if}</div>
   {/snippet}
@@ -174,51 +234,70 @@
 <style>
   .bd { padding: 0 12px 14px; }
   .seg { position: relative; display: flex; padding: 2px; border-radius: 11px; background: var(--fill); margin-bottom: 10px; }
-  .seg .pl { position: absolute; top: 2px; bottom: 2px; left: 2px; width: calc((100% - 4px) / 4); border-radius: 9px; background: linear-gradient(180deg, #F0D18A, #C9963A); transform: translateX(calc(var(--n) * 100%)); transition: transform .4s cubic-bezier(.3, 1.3, .5, 1); }
+  .seg .pl { position: absolute; top: 2px; bottom: 2px; left: 2px; width: calc((100% - 4px) / 4); border-radius: 9px; background: linear-gradient(180deg, #E3C07C, #BF9444); transform: translateX(calc(var(--n) * 100%)); transition: transform .4s cubic-bezier(.3, 1.3, .5, 1); }
   .seg button { position: relative; z-index: 1; flex: 1; padding: 7px 0; font-size: 12.5px; font-weight: 600; color: var(--muted); transition: color .25s; }
   .seg button.on { color: #1a1206; }
-  .hero { border-radius: 20px; padding: 12px 14px 14px; color: #F4EEDD; background: linear-gradient(150deg, #1a1410, #0a0807); box-shadow: inset 0 0 0 .5px rgba(232, 194, 119, .25); }
-  .who { display: flex; align-items: center; gap: 11px; }
-  .wn { flex: 1; min-width: 0; } .wn small { display: block; margin-top: 1px; font-size: 11.5px; color: #b9a27a; }
-  .nm { width: 100%; box-sizing: border-box; border: 0; outline: 0; background: none; color: #F4DDA6; font: inherit; font-size: 15px; font-weight: 600; -webkit-user-select: text; user-select: text; }
-  .nm::placeholder, .big input::placeholder { color: #8a7857; }
-  .big { display: flex; align-items: baseline; gap: 6px; margin-top: 4px; }
-  .big input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 40px; font-weight: 700; letter-spacing: -1px; color: #F4DDA6; font-variant-numeric: tabular-nums; -webkit-user-select: text; user-select: text; }
-  .big u { text-decoration: none; font-size: 26px; color: #8a7857; }
-  .big.sm input { font-size: 26px; } .big.sm u { font-size: 20px; }
-  .pills { display: flex; align-items: center; gap: 7px; margin-top: 8px; flex-wrap: wrap; }
-  .pills b { color: #E8C277; }
-  .pill { position: relative; border-radius: 99px; padding: 6px 12px; font-size: 12.5px; background: rgba(232, 194, 119, .16); color: #E8C277; max-width: 100%; }
-  .pill span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pill select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; }
+  .card { position: relative; z-index: 3; border-radius: 24px; padding: 16px 18px 16px; color: #F4EEDD; background: linear-gradient(135deg, #25201a 0%, #14110d 55%, #0a0807 100%); box-shadow: inset 0 0 0 .6px rgba(232, 194, 119, .32), 0 12px 24px -16px rgba(0, 0, 0, .8); }
+  .art { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
+  .art svg { width: 100%; height: 100%; display: block; }
+  .c1, .big, .c3 { position: relative; z-index: 1; }
+  .c1 { display: flex; align-items: center; gap: 9px; }
+  .lg { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; font-weight: 800; color: #3a2806; background: linear-gradient(160deg, #F2D58F, #B8862C); box-shadow: 0 0 0 1.5px rgba(246, 219, 156, .25); }
+  .c1 b { font-size: 15px; font-weight: 800; letter-spacing: .2em; color: #F4DDA6; }
+  .c1 em { margin-left: auto; font-style: normal; font-size: 12px; letter-spacing: .16em; font-weight: 600; color: #a99366; }
+  .big { display: flex; align-items: baseline; gap: 6px; margin-top: 22px; }
+  .big input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 52px; font-weight: 700; letter-spacing: -1.6px; color: #F4DDA6; font-variant-numeric: tabular-nums; -webkit-user-select: text; user-select: text; }
+  .big input::placeholder { color: #6f6150; }
+  .big u { text-decoration: none; font-size: 30px; color: #8a7857; font-weight: 600; }
+  .c3 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 16px; }
+  .ct { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 16px; font-weight: 600; color: #F4DDA6; }
+  .ct span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dw { position: relative; min-width: 0; }
+  .dd { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; max-width: 100%; padding: 6px 12px 7px 14px; border-radius: 16px; background: rgba(232, 194, 119, .11); color: #E8C277; transition: background .2s, box-shadow .2s; }
+  .dd small { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: #a99366; font-weight: 600; }
+  .dd span { display: flex; align-items: center; gap: 5px; max-width: 100%; font-size: 15px; font-weight: 600; }
+  .dd span b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; max-width: 118px; }
+  .dd.o { background: rgba(232, 194, 119, .2); box-shadow: 0 0 0 1px rgba(240, 203, 130, .45); }
+  .sw { flex: none; color: #cfae6a; padding: 4px; }
+  .mb { position: fixed; inset: 0; z-index: 2; width: 100%; background: none; }
+  .mn { position: absolute; z-index: 6; top: calc(100% + 8px); width: 240px; max-height: 232px; overflow-y: auto; padding: 6px; border-radius: 18px; background: #201d18; box-shadow: 0 18px 40px rgba(0, 0, 0, .7), inset 0 0 0 .6px rgba(232, 194, 119, .28); transform-origin: top; animation: mn .22s cubic-bezier(.3, 1.2, .5, 1); }
+  .mn.r { right: 0; } .mn.l { left: 0; }
+  @keyframes mn { from { opacity: 0; transform: translateY(-6px) scale(.96); } }
+  .mn h6 { margin: 0; padding: 8px 10px 4px; font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #8e8a80; font-weight: 600; }
+  .mi { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border-radius: 12px; font-size: 15px; color: #f2e6c9; text-align: left; }
+  .mi :global(svg:first-child) { color: #D9B66E; flex: none; }
+  .mi span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mi.on { background: rgba(232, 194, 119, .13); color: #F4DDA6; font-weight: 600; }
+  .ck { color: #EBC77A; display: grid; }
   .lb { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 14px 4px 6px; }
   .rb { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding: 8px 10px 4px; margin: 0 -10px; }
   .rb::-webkit-scrollbar { display: none; }
   .cc { flex: none; width: 66px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; line-height: 13px; color: var(--muted); text-align: center; }
-  .cc span { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: var(--gold-soft); color: var(--gold); transition: transform .25s cubic-bezier(.3, 1.5, .5, 1), background .2s, color .2s; }
-  .cc.on { color: var(--text); font-weight: 600; } .cc.on span { background: linear-gradient(160deg, #EBC77A, #B8862C); color: #fff; transform: scale(1.08); }
+  .cc span { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: rgba(232, 194, 119, .1); color: var(--gold); transition: transform .25s cubic-bezier(.3, 1.5, .5, 1), background .2s, color .2s; }
+  .cc.on { color: var(--text); font-weight: 600; } .cc.on span { background: linear-gradient(160deg, #E0BC72, #B08437); color: #fff; transform: scale(1.08); }
   .rows { margin-top: 12px; background: var(--card); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
   .rr { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 11px 14px; font-size: 14.5px; text-align: left; }
   .rr + .rr::before { content: ""; position: absolute; top: 0; left: 14px; right: 0; height: .5px; background: var(--line); }
-  .rr input { border: 0; outline: 0; background: none; color: var(--muted); font: inherit; font-size: 14px; text-align: right; }
+  .rr input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; color: var(--muted); font: inherit; font-size: 14px; text-align: right; }
+  .rr input.tx { color: var(--text); font-size: 15px; -webkit-user-select: text; user-select: text; }
   .tg { flex: none; width: 51px; height: 31px; border-radius: 99px; background: rgba(120, 120, 128, .32); position: relative; transition: background .25s; }
   .tg::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, .25); transition: transform .25s cubic-bezier(.32, .72, 0, 1); }
-  .tg.on { background: #D9A93F; } .tg.on::after { transform: translateX(20px); }
+  .tg.on { background: #C9A04A; } .tg.on::after { transform: translateX(20px); }
   .pt { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 14px; }
   .pt + .pt::before { content: ""; position: absolute; top: 0; left: 14px; right: 0; height: .5px; background: var(--line); }
   .pc { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; }
-  .pi { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--gold-soft); color: var(--gold); }
+  .pi { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: rgba(232, 194, 119, .1); color: var(--gold); }
   .pn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14.5px; font-weight: 600; } .pn.ph { color: var(--muted); font-weight: 400; }
   .pc select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; }
   .pa { width: 96px; padding: 7px 10px; border: 0; outline: 0; border-radius: 10px; background: var(--fill); color: var(--text); font: inherit; font-size: 16px; font-weight: 600; text-align: right; -webkit-user-select: text; user-select: text; }
-  .pa.auto { color: var(--muted); }
+  .pa.main { color: var(--text); }
   .px { color: var(--muted); font-size: 15px; padding: 0 2px; }
   .add { width: 100%; text-align: left; padding: 12px 14px; color: var(--gold); font-weight: 500; border-top: .5px solid var(--line); }
   .tt { text-align: center; font-size: 12.5px; color: var(--muted); margin: 8px 0 0; transition: color .3s; } .tt.okc { color: var(--pos); } .tt.bad { color: var(--neg); }
   .er { flex: none; margin: 6px 14px 0; font-size: 13px; color: #E5584D; text-align: center; }
   .gw { position: relative; flex: none; margin: 6px 12px calc(14px + var(--safe-b)); }
   .go { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 48px; color: #2A1D05; font-size: 16px; font-weight: 600; transition: opacity .2s; }
-  .go::before, .go::after { content: ""; position: absolute; background: linear-gradient(#EBC77A, #C99A3C); box-shadow: 0 6px 16px -6px rgba(226, 172, 62, .6); will-change: transform, opacity; transition: transform .5s cubic-bezier(.32, .72, 0, 1), opacity .3s ease; }
+  .go::before, .go::after { content: ""; position: absolute; background: linear-gradient(#E6C57F, #C39A47); box-shadow: 0 6px 14px -8px rgba(226, 172, 62, .35); will-change: transform, opacity; transition: transform .5s cubic-bezier(.32, .72, 0, 1), opacity .3s ease; }
   .go::before { inset: 0; border-radius: 24px; }
   .go::after { left: 50%; top: 0; width: 48px; height: 48px; margin-left: -24px; border-radius: 24px; opacity: 0; transform: scale(.5); }
   .go.ok::before { opacity: 0; transform: scaleX(.16); }
@@ -230,5 +309,5 @@
   .go:disabled:not(.ok) { opacity: .6; }
   .rg { position: absolute; left: 50%; top: 50%; width: 48px; height: 48px; margin: -24px 0 0 -24px; border-radius: 50%; border: 2px solid #E3B95E; pointer-events: none; animation: ring .7s ease-out .6s both; }
   @keyframes ring { from { transform: scale(1); opacity: .8; } to { transform: scale(2.1); opacity: 0; } }
-  @media (prefers-reduced-motion: reduce) { .seg .pl, .go, .go::before, .go::after, .go .t, .go svg, .rg { transition: none; animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .mn { animation: none; } .seg .pl, .go, .go::before, .go::after, .go .t, .go svg, .rg { transition: none; animation: none; } }
 </style>
