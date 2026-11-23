@@ -3,19 +3,21 @@
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
   --bg: #F2F2F7; --card: #ffffff; --text: #000000; --muted: #6C6C70; --line: rgba(60,60,67,.14);
   --gold: #9A6B12; --gold-soft: rgba(184,137,43,.18);
-  /* Liquid Glass */
-  --glass: rgba(255,255,255,.28); --glass-sel: rgba(255,255,255,.6);
-  --spec1: #ffffff; --spec2: rgba(255,255,255,.4); --glass-shadow: rgba(60,45,10,.2);
-  --tab-muted: rgba(60,60,67,.75);
+  /* Золотое стекло нижнего меню */
+  --glass: rgba(255,255,255,.55); --rim: rgba(255,255,255,.9); --hi: #ffffff;
+  --glass-sel: rgba(184,137,43,.13); --glass-ring: rgba(184,137,43,.5); --glow: rgba(184,137,43,.28);
+  --glass-shadow: rgba(60,45,10,.2); --hole: #efe6d3;
+  --tab-muted: rgba(60,60,67,.62);
   --safe-b: env(safe-area-inset-bottom, 0px);
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #000000; --card: #1C1C1E; --text: #ffffff; --muted: #98989F; --line: rgba(84,84,88,.55);
     --gold: #F0CB82; --gold-soft: rgba(240,203,130,.22);
-    --glass: rgba(255,255,255,.07); --glass-sel: rgba(255,255,255,.16);
-    --spec1: rgba(255,255,255,.7); --spec2: rgba(255,255,255,.12); --glass-shadow: rgba(0,0,0,.5);
-    --tab-muted: rgba(255,255,255,.72);
+    --glass: rgba(26,21,14,.55); --rim: rgba(240,200,110,.3); --hi: rgba(255,236,190,.4);
+    --glass-sel: rgba(232,194,119,.15); --glass-ring: rgba(240,200,110,.6); --glow: rgba(235,185,85,.55);
+    --glass-shadow: rgba(0,0,0,.65); --hole: #1a150d;
+    --tab-muted: rgba(235,225,205,.55);
   }
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
