@@ -8,7 +8,7 @@
 
   let q = $state('');
   let dy = $state(0), y0 = null, dragging = $state(false);
-  let k = $state(0), kn = 0;
+  let k = $state(0), kn = 0, scEl;
   let full = $state(false), H = $state(700), shEl, vel = 0, ly = 0, lt = 0;
   const half = $derived(Math.round(H * 0.46));
   const base = $derived(full ? 0 : half);
@@ -20,6 +20,7 @@
   $effect(() => {
     if (!acct.open || !acct.id) return;
     q = ''; err = ''; full = false; dy = 0; k = ++kn;
+    if (scEl) scEl.scrollTop = 0;
     if (shEl) H = shEl.offsetHeight;
     const id = acct.id;
     refresh('ops.' + id, () => loadAccountOps(id)).catch((e) => { if (!peek('ops.' + id)) err = e.message || 'Не удалось загрузить операции'; });
@@ -94,7 +95,7 @@
       <h3>{acct.name}</h3>
       <p class="st">{acct.kind}</p>
     </div>
-    <div class="sc" class:lock={!full} use:grab>
+    <div class="sc" class:lock={!full} bind:this={scEl} use:grab>
       {#key k}
       <div class="hero">
         <small>Остаток</small>
