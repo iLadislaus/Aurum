@@ -24,7 +24,8 @@
   let onlyUncat = $state(false);
   let limit = $state(PAGE);
   let busy = $state(false);
-  let chipsEl, sentinel;
+  let chipsEl;
+  let sentinel = $state();
 
   let cur = $derived(months[mi]);
   let data = $derived(peek('ops.m.' + cur.key));
