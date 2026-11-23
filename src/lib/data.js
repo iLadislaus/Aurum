@@ -209,7 +209,7 @@ export async function createAccount({ type, name, icon, currency, budgetSource, 
 }
 
 // ---- Операции за месяц (экран «Операции»)
-const OP_COLS = 'id,date,action,amount,to_amount,category_id,note,account_id,from_account_id,to_account_id,currency,rate';
+const OP_COLS = 'id,date,action,amount,to_amount,category_id,note,account_id,from_account_id,to_account_id,currency,rate,mono_op_id';
 
 export async function loadMonthOps(y, m) {
   const a = new Date(y, m, 1).toISOString(), b = new Date(y, m + 1, 1).toISOString();
@@ -238,7 +238,7 @@ export async function loadMonthOps(y, m) {
     return {
       id: t.id, date: t.date, action: t.action, amount, to_amount: t.to_amount == null ? null : Number(t.to_amount),
       note: t.note || '', category_id: t.category_id, account_id: t.account_id, from_account_id: t.from_account_id, to_account_id: t.to_account_id,
-      currency: t.currency, rate: t.rate,
+      currency: t.currency, rate: t.rate, mono: !!t.mono_op_id,
       v: t.action === 'INCOME' || t.action === 'RETURN' ? amount : t.action === 'EXPENSE' ? -amount : amount,
       foreign, sym: SYM[cur] ?? cur,
       name: clean(t.note) || clean(c?.name) || (tr ? 'Перевод' : 'Операция'),
@@ -263,5 +263,42 @@ export async function repeatOp(o) {
     category_id: o.category_id, account_id: o.account_id, from_account_id: o.from_account_id, to_account_id: o.to_account_id, note: o.note || null
   };
   const r = await sb.from('transactions').insert(row);
+  if (r.error) throw r.error;
+}
+
+// Категории для выбора в карточке и создании
+export async function loadCategories() {
+  const r = await sb.from('categories').select('id,name,type,icon,sort_order').order('sort_order');
+  if (r.error) throw r.error;
+  return { list: r.data.map((c) => ({ id: c.id, name: clean(c.name), type: c.type, icon: c.icon || 'tag' })) };
+}
+
+// Смена категории у операции
+export async function setOpCategory(id, categoryId) {
+  const r = await sb.from('transactions').update({ category_id: categoryId }).eq('id', id);
+  if (r.error) throw r.error;
+}
+
+// «Запомнить»: правило «название → категория» (одно на пару действие + название)
+export async function rememberRule(action, note, categoryId) {
+  const n = (note || '').trim();
+  if (!n) return;
+  const f = await sb.from('rules').select('id').eq('action', action).eq('note', n).limit(1);
+  if (f.error) throw f.error;
+  const r = f.data.length
+    ? await sb.from('rules').update({ category_id: categoryId }).eq('id', f.data[0].id)
+    : await sb.from('rules').insert({ action, note: n, category_id: categoryId });
+  if (r.error) throw r.error;
+}
+
+// Сколько прошлых операций без категории с таким же названием
+export async function countUncat(action, note, exceptId) {
+  const r = await sb.from('transactions').select('id', { count: 'exact', head: true })
+    .eq('action', action).eq('note', note).is('category_id', null).neq('id', exceptId);
+  if (r.error) throw r.error;
+  return r.count ?? 0;
+}
+export async function applyUncat(action, note, categoryId) {
+  const r = await sb.from('transactions').update({ category_id: categoryId }).eq('action', action).eq('note', note).is('category_id', null);
   if (r.error) throw r.error;
 }
