@@ -8,6 +8,7 @@
 
   let q = $state('');
   let dy = $state(0), y0 = null, dragging = $state(false);
+  let k = $state(0), kn = 0;
   let full = $state(false), H = $state(700), shEl, vel = 0, ly = 0, lt = 0;
   const half = $derived(Math.round(H * 0.46));
   const base = $derived(full ? 0 : half);
@@ -18,7 +19,7 @@
   // при открытии: сохранённое видно сразу, свежее подтягивается в фоне
   $effect(() => {
     if (!acct.open || !acct.id) return;
-    q = ''; err = ''; full = false; dy = 0;
+    q = ''; err = ''; full = false; dy = 0; k = ++kn;
     if (shEl) H = shEl.offsetHeight;
     const id = acct.id;
     refresh('ops.' + id, () => loadAccountOps(id)).catch((e) => { if (!peek('ops.' + id)) err = e.message || 'Не удалось загрузить операции'; });
@@ -77,7 +78,8 @@
       <p class="st">{acct.kind}</p>
     </div>
     <div class="sc" class:lock={!full} onpointerdown={(e) => { if (!full) down(e); }} onpointermove={(e) => { if (!full) move(e); }} onpointerup={up} onpointercancel={up}>
-      <div class="hero">
+      {#key k}
+      <div class="hero rise" style="--i:0">
         <small>Остаток</small>
         <div class="big" class:neg={acct.balance < 0}>{c(acct.balance)}</div>
         {#if acct.limit > 0}
@@ -90,14 +92,14 @@
       </div>
 
       {#if data}
-        <div class="mo">
+        <div class="mo rise" style="--i:1">
           <div><span>Пришло за месяц</span><b class="pos">{data.inc > 0 ? '+' : ''}{cash(data.inc, 0, acct.currency)}</b></div>
           <div><span>Ушло за месяц</span><b>{cash(data.out, 0, acct.currency)}</b></div>
         </div>
-        <label class="srch"><Icon name="search" size={16} /><input type="search" placeholder="Поиск по операциям" bind:value={q} /></label>
-        {#each groups as g (g.key)}
-          <div class="dh"><span>{g.title}</span><span>{g.sum > 0 ? '+' : ''}{cash(g.sum, 0, acct.currency)}</span></div>
-          <div class="cd">
+        <label class="srch rise" style="--i:2"><Icon name="search" size={16} /><input type="search" placeholder="Поиск по операциям" bind:value={q} /></label>
+        {#each groups as g, gi (g.key)}
+          <div class="dh rise" style="--i:{Math.min(3 + gi * 2, 11)}"><span>{g.title}</span><span>{g.sum > 0 ? '+' : ''}{cash(g.sum, 0, acct.currency)}</span></div>
+          <div class="cd rise" style="--i:{Math.min(4 + gi * 2, 12)}">
             {#each g.ops as o (o.id)}
               <div class="r">
                 <OpAvatar icon={o.icon} size={34} />
@@ -114,6 +116,7 @@
       {:else}
         <p class="empty">Загружаю…</p>
       {/if}
+      {/key}
     </div>
   </div>
 </div>
@@ -122,7 +125,7 @@
   .as { position: absolute; inset: 0; z-index: 55; pointer-events: none; }
   .as.open { pointer-events: auto; }
   .ov { position: absolute; inset: 0; width: 100%; background: rgba(0, 0, 0, .4); opacity: 0; transition: opacity .45s cubic-bezier(.32, .72, 0, 1); }
-  .sh { position: absolute; left: 0; right: 0; bottom: 0; top: calc(env(safe-area-inset-top, 0px) + 14px); display: flex; flex-direction: column;
+  .sh { position: absolute; left: 14px; right: 14px; bottom: 0; top: calc(env(safe-area-inset-top, 0px) + 14px); display: flex; flex-direction: column;
     background: var(--bg); border-radius: 26px 26px 0 0; overflow: hidden; transform: translateY(105%); transition: transform .5s cubic-bezier(.32, .72, 0, 1);
     box-shadow: inset 0 1px 0 rgba(255, 236, 170, .9), inset 0 0 0 .5px rgba(214, 164, 62, .4), 0 -3px 16px rgba(226, 172, 62, .26); }
   .sh.dragging { transition: none; }
@@ -131,7 +134,7 @@
   .gr { width: 36px; height: 5px; border-radius: 3px; background: #C9A24A; opacity: .8; margin: 8px auto; }
   h3 { margin: 0; text-align: center; font-size: 16px; font-weight: 700; }
   .st { margin: 1px 0 0; text-align: center; font-size: 11.5px; color: var(--muted); }
-  .sc { position: relative; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 4px 4px calc(30px + var(--safe-b)); }
+  .sc { position: relative; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 4px 8px calc(30px + var(--safe-b)); }
   .sc.lock { overflow: hidden; touch-action: none; }
   .hero { border-radius: 22px; padding: 14px 16px; color: #F4EEDD; background: radial-gradient(120% 90% at 85% 0, #2A200C, #120F08 50%, #080807); box-shadow: 0 0 0 .5px rgba(232, 194, 119, .35), 0 14px 30px -18px rgba(232, 194, 119, .45); }
   .hero small { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #B3A47C; }
@@ -152,7 +155,7 @@
   .srch { display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 10px; margin-bottom: 4px; border-radius: 11px; background: var(--fill); color: var(--muted); }
   .srch input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 15px; color: var(--text); -webkit-user-select: text; user-select: text; }
   .srch input::-webkit-search-cancel-button { display: none; }
-  .dh { display: flex; justify-content: space-between; margin: 12px 8px 5px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; font-variant-numeric: tabular-nums; }
+  .dh { display: flex; justify-content: space-between; margin: 12px 6px 5px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; font-variant-numeric: tabular-nums; }
   .cd { background: var(--card); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
   .r { position: relative; display: flex; align-items: center; gap: 12px; padding: 9px 14px; min-height: 56px; }
   .r + .r::before { content: ""; position: absolute; top: 0; left: 60px; right: 0; height: .5px; background: var(--line); }
@@ -160,10 +163,12 @@
   .n { font-size: 15px; line-height: 20px; overflow-wrap: anywhere; }
   .s { font-size: 12px; color: var(--muted); line-height: 16px; }
   .r b { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  .rise { animation: rise .35s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(.12s + var(--i, 0) * 28ms); }
   .empty { margin: 24px 0; text-align: center; color: var(--muted); font-size: 14px; }
   @media (prefers-color-scheme: dark) {
     .sh { box-shadow: inset 0 1px 0 rgba(255, 232, 160, .55), inset 0 0 0 .5px rgba(232, 194, 119, .45), 0 -3px 18px rgba(240, 190, 90, .24); }
     .sh::before { background: radial-gradient(70% 100% at 50% 0, rgba(240, 200, 110, .1), transparent); }
   }
-  @media (prefers-reduced-motion: reduce) { .ov, .sh { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .ov, .sh { transition: none; } .rise { animation: none; } }
 </style>
