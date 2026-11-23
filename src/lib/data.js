@@ -306,3 +306,14 @@ export async function applyUncat(action, note, categoryId) {
   const r = await sb.from('transactions').update({ category_id: categoryId }).eq('action', action).eq('note', note).is('category_id', null);
   if (r.error) throw r.error;
 }
+
+// Смена типа обычной операции (расход / доход / возврат); банковские и переводы не трогаем
+export async function setOpType(id, action, categoryId) {
+  if (!['EXPENSE', 'INCOME', 'RETURN'].includes(action)) throw new Error('Недопустимый тип');
+  const chk = await sb.from('transactions').select('mono_op_id,action').eq('id', id).limit(1);
+  if (chk.error) throw chk.error;
+  if (chk.data[0]?.mono_op_id) throw new Error('У банковской операции тип менять нельзя');
+  if (chk.data[0]?.action === 'TRANSFER') throw new Error('Перевод меняется в режиме «Изменить»');
+  const r = await sb.from('transactions').update({ action, category_id: categoryId }).eq('id', id);
+  if (r.error) throw r.error;
+}

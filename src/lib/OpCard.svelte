@@ -1,7 +1,7 @@
 <script>
   import { oc, closeOp } from './opcard.svelte.js';
   import { peek, refresh, put } from './cache.svelte.js';
-  import { loadCategories, setOpCategory, rememberRule, countUncat, applyUncat, deleteOp, repeatOp } from './data.js';
+  import { loadCategories, setOpCategory, setOpType, rememberRule, countUncat, applyUncat, deleteOp, repeatOp } from './data.js';
   import { prefetchAll } from './prefetch.js';
   import { fmt } from './format.js';
   import Icon from './Icon.svelte';
@@ -13,7 +13,7 @@
   const base = $derived(full ? 0 : half);
   const pos = $derived(Math.max(0, base + dy));
 
-  let pick = $state(false), remember = $state(true), armed = $state(false), busy = $state(false), err = $state(''), more = $state(0), timer;
+  let typePick = $state(false), pick = $state(false), remember = $state(true), armed = $state(false), busy = $state(false), err = $state(''), more = $state(0), timer;
   let cats = $derived(peek('cats')?.list ?? []);
   // всегда берём свежую версию операции из списка (после смены категории и т. п.)
   let o = $derived(oc.op ? (peek(oc.key)?.ops.find((x) => x.id === oc.op.id) ?? oc.op) : null);
@@ -26,7 +26,7 @@
 
   $effect(() => {
     if (!oc.open) return;
-    pick = false; remember = true; armed = false; err = ''; more = 0; full = false; dy = 0;
+    pick = false; typePick = false; remember = true; armed = false; err = ''; more = 0; full = false; dy = 0;
     if (shEl) H = shEl.offsetHeight;
     refresh('cats', loadCategories).catch(() => {});
   });
@@ -48,6 +48,16 @@
       }
       prefetchAll(true);
     } catch (e) { err = e.message || 'Не удалось сохранить'; patch(() => was); }
+    busy = false;
+  }
+  async function chooseType(a) {
+    if (a === o.action) { typePick = false; return; }
+    busy = true; err = ''; const was = o;
+    const keep = cats.find((c) => c.id === was.category_id && (a === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE'));
+    patch((x) => ({ ...x, action: a, v: a === 'EXPENSE' ? -x.amount : x.amount, category_id: keep ? keep.id : null, cat: keep ? keep.name : 'Без категории', icon: keep ? keep.icon : 'tag', uncat: !keep, name: x.note.trim() ? x.name : keep ? keep.name : 'Операция' }));
+    typePick = false;
+    try { await setOpType(was.id, a, keep ? keep.id : null); prefetchAll(true); }
+    catch (e) { err = e.message || 'Не удалось сменить тип'; patch(() => was); }
     busy = false;
   }
   async function applyMore() {
@@ -103,8 +113,12 @@
         </div>
 
         <div class="lst">
-          <div class="lr"><span>Тип</span><b>{kind[o.action]}</b></div>
-          <button class="lr cat" onclick={() => (pick = !pick)}>
+          {#if !o.mono && !tr}
+            <button class="lr cat" onclick={() => { typePick = !typePick; if (typePick) { pick = false; full = true; } }}><span>Тип</span><b>{kind[o.action]}</b><Icon name="chevron" size={14} /></button>
+          {:else}
+            <div class="lr"><span>Тип</span><b>{kind[o.action]}</b></div>
+          {/if}
+          <button class="lr cat" onclick={() => { pick = !pick; if (pick) { typePick = false; full = true; } }}>
             <span>Категория</span>
             <b class:red={o.uncat}>{o.cat}</b>
             <Icon name="chevron" size={14} />
@@ -115,6 +129,12 @@
           {#if o.note.trim() && o.note.trim() !== o.name}<div class="lr"><span>Заметка</span><b>{o.note}</b></div>{/if}
           {#if o.mono}<div class="lr lk"><svg viewBox="0 0 24 24" width="13" height="13"><rect x="5" y="11" width="14" height="9" rx="2.5" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg><span>Банковская операция: можно менять только категорию</span></div>{/if}
         </div>
+
+        {#if typePick}
+          <div class="seg">
+            {#each ['EXPENSE', 'INCOME', 'RETURN'] as a}<button class:on={o.action === a} onclick={() => chooseType(a)}>{kind[a]}</button>{/each}
+          </div>
+        {/if}
 
         {#if pick}
           <div class="pk">
@@ -173,6 +193,9 @@
   .lk { justify-content: flex-start; gap: 7px; font-size: 12px; color: var(--muted); padding: 9px 14px; }
   .lk svg { flex: none; fill: none; stroke: #C9A24A; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .lk span { color: var(--muted); }
+  .seg { display: flex; gap: 4px; margin-top: 10px; padding: 3px; border-radius: 12px; background: var(--fill); animation: rise .3s cubic-bezier(.2, .8, .2, 1) both; }
+  .seg button { flex: 1; padding: 8px 0; border-radius: 9px; font-size: 13.5px; font-weight: 600; transition: background .25s, color .25s; }
+  .seg button.on { background: linear-gradient(180deg, #F0D18A, #C9963A); color: #1a1206; }
   .pk { margin-top: 10px; animation: rise .3s cubic-bezier(.2, .8, .2, 1) both; }
   .chips { display: flex; flex-wrap: wrap; gap: 7px; }
   .chips button { display: flex; align-items: center; gap: 6px; padding: 4px 11px 4px 4px; border-radius: 99px; background: var(--fill); font-size: 13px; font-weight: 500; }
