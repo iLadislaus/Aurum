@@ -24,7 +24,7 @@ export async function loadHome() {
   const now = new Date();
   const y = now.getFullYear(), m = now.getMonth();
   // три месяца: два прошлых и текущий
-  const mons = [m - 2, m - 1, m].map((k) => new Date(Date.UTC(y, k, 1)));
+  const mons = [m - 5, m - 4, m - 3, m - 2, m - 1, m].map((k) => new Date(Date.UTC(y, k, 1)));
   const [bal, cats, ops, rec, ...sums] = await Promise.all([
     sb.from('account_balances').select('balance,is_foreign'),
     sb.from('categories').select('id,name,icon'),
@@ -46,7 +46,7 @@ export async function loadHome() {
       expense: Number(s.expense) - Number(s.returns)
     };
   });
-  const cur = sums[2].data;
+  const cur = sums[sums.length - 1].data;
   const delta = Number(cur.income) - (Number(cur.expense) - Number(cur.returns));
   const start = total - delta;
   const pct = start > 0 ? (delta / start) * 100 : 0;
