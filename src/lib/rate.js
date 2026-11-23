@@ -6,6 +6,8 @@ function readCache() {
   try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch { return null; }
 }
 
+export function cachedRates() { const c = readCache(); return c ? c.r : null; }
+
 export async function loadRates() {
   const c = readCache();
   if (c && Date.now() - c.t < 3600_000) return c.r;

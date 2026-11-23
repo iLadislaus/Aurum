@@ -1,25 +1,33 @@
 <script>
   import { onMount } from 'svelte';
   import { loadAccounts } from '../lib/data.js';
-  import { loadRates } from '../lib/rate.js';
+  import { loadRates, cachedRates } from '../lib/rate.js';
+  import { peek, refresh } from '../lib/cache.svelte.js';
   import { cash, fmt } from '../lib/format.js';
   import Icon from '../lib/Icon.svelte';
   import BalanceCard from '../home/BalanceCard.svelte';
   import AccRow from '../accounts/AccRow.svelte';
 
-  let d = $state(null);
-  let rates = $state(null);
+  let d = $derived(peek('accounts'));
+  let rates = $state(cachedRates());
   let err = $state('');
   let shown = $state(false);
   let monoOpen = $state(false);
+  let subH = $state(0);
+  // на время раскрытия притормаживаем бесконечные блики, чтобы кадры не рвались
+  function toggleMono() {
+    monoOpen = !monoOpen;
+    document.body.classList.add('calm');
+    setTimeout(() => document.body.classList.remove('calm'), 480);
+  }
   let envAll = $state(false);
 
   onMount(async () => {
+    if (d) requestAnimationFrame(() => requestAnimationFrame(() => (shown = true)));
     try {
-      const [data, r] = await Promise.all([loadAccounts(), loadRates()]);
-      d = data;
-      rates = r;
-    } catch (e) { err = e.message || 'Не удалось загрузить данные'; return; }
+      const [, r] = await Promise.all([refresh('accounts', loadAccounts), loadRates()]);
+      if (r) rates = r;
+    } catch (e) { if (!d) { err = e.message || 'Не удалось загрузить данные'; return; } }
     requestAnimationFrame(() => requestAnimationFrame(() => (shown = true)));
   });
 
@@ -71,11 +79,11 @@
     <div class="sh rise" style="--i:2"><h2>Карта и наличные</h2><span>{cash(d.cardCashTotal)}</span></div>
     <div class="cd rise" style="--i:2">
       {#if d.cards.length}
-        <AccRow icon="card" name="Monobank" sub="на всех картах" amount={cash(d.cardsTotal)} neg={d.cardsTotal < 0} top={false} onclick={() => (monoOpen = !monoOpen)}>
+        <AccRow icon="card" name="Monobank" sub="на всех картах" amount={cash(d.cardsTotal)} neg={d.cardsTotal < 0} top={false} onclick={toggleMono}>
           <span class="cp">{d.cards.length} {d.cards.length === 1 ? 'card' : 'cards'}<span class="ch" class:o={monoOpen}><Icon name="chevron" size={13} /></span></span>
         </AccRow>
-        <div class="sub" class:o={monoOpen}>
-          <div class="in">
+        <div class="sub" style:height={monoOpen ? subH + 'px' : '0px'} aria-hidden={!monoOpen}>
+          <div class="in" bind:clientHeight={subH}>
             {#each d.cards as c, i (c.id)}
               <AccRow icon="card" indent name={c.name} sub={c.limit > 0 ? 'кредитный лимит ' + cash(c.limit, 0) : ''} amount={cash(c.balance)} neg={c.balance < 0} top={true} />
             {/each}
@@ -139,8 +147,8 @@
   .cp { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; padding: 1px 6px 1px 9px; border-radius: 99px; font-size: 11.5px; font-weight: 600; color: var(--gold); background: var(--gold-soft); vertical-align: 1px; }
   .ch { display: inline-grid; transition: transform .2s ease; }
   .ch.o { transform: rotate(180deg); }
-  .sub { display: grid; grid-template-rows: 0fr; background: var(--fill); transition: grid-template-rows .2s ease; }
-  .sub.o { grid-template-rows: 1fr; }
-  .sub .in { overflow: hidden; min-height: 0; }
+  .sub { height: 0; overflow: hidden; background: var(--fill); transition: height .45s cubic-bezier(.32, .72, 0, 1); will-change: height; contain: layout paint; }
+  .sub .in { display: block; }
+  @media (prefers-reduced-motion: reduce) { .sub { transition: none; } }
   .more { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 42px; font-size: 13px; font-weight: 500; color: var(--muted); border-top: .5px solid var(--line); }
 </style>
