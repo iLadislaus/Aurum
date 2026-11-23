@@ -4,6 +4,8 @@
   import UpdateBanner from './lib/UpdateBanner.svelte';
   import CtxMenu from './lib/CtxMenu.svelte';
   import AccountSheet from './lib/AccountSheet.svelte';
+  import NewAccount from './lib/NewAccount.svelte';
+  import { na } from './lib/newacct.svelte.js';
   import { acct } from './lib/acctsheet.svelte.js';
   import { startUpdateWatch } from './lib/update.svelte.js';
   import { onMount } from 'svelte';
@@ -25,7 +27,7 @@
   });
 </script>
 
-<main bind:this={scroller} class:back={acct.open}>
+<main bind:this={scroller} class:back={acct.open || na.open}>
   {#if !auth.ready}
     <!-- проверяем вход -->
   {:else if !auth.session}
@@ -41,7 +43,7 @@
   {/if}
 </main>
 <UpdateBanner />
-{#if auth.session}<AccountSheet /><CtxMenu />{/if}
+{#if auth.session}<AccountSheet /><NewAccount /><CtxMenu />{/if}
 {#if auth.session}<TabBar />{/if}
 
 <style>

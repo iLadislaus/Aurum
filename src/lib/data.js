@@ -163,3 +163,21 @@ export async function loadAccountOps(id) {
   });
   return { ops, inc, out };
 }
+
+// Новый счёт. Начальный остаток записывается операцией «Коррекция баланса» (категория 25), как уже сделано в базе
+export async function createAccount({ type, name, icon, currency, budgetSource, balance }) {
+  const { data, error } = await sb.from('accounts').insert({
+    name, icon, currency,
+    block: type === 'env' ? 'env' : type === 'cash' ? 'card' : null,
+    is_foreign: type === 'fx', is_budget_source: budgetSource
+  }).select('id').single();
+  if (error) throw error;
+  if (balance) {
+    const { error: e2 } = await sb.from('transactions').insert({
+      date: new Date().toISOString(), action: balance > 0 ? 'INCOME' : 'EXPENSE', amount: Math.abs(balance),
+      category_id: 25, account_id: data.id, currency, note: 'Начальный остаток'
+    });
+    if (e2) throw e2;
+  }
+  return data.id;
+}
