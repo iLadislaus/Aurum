@@ -7,6 +7,14 @@
   import Icon from '../lib/Icon.svelte';
   import BalanceCard from '../home/BalanceCard.svelte';
   import AccRow from '../accounts/AccRow.svelte';
+  import { openCtx } from '../lib/ctxmenu.svelte.js';
+
+  // Меню по долгому нажатию. Сами действия подключим вместе с их экранами, пока меню просто закрывается
+  const op = { t: 'Новая операция', icon: 'plus' }, tr = { t: 'Перевод', icon: 'swap' }, ed = { t: 'Изменить', icon: 'pen' };
+  const del = { t: 'Удалить', icon: 'trash', danger: true, sep: true };
+  const menuCard = (el) => openCtx(el, [op, tr, ed, { t: 'Скрыть счёт', icon: 'eyeoff', sep: true }]);
+  const menuCash = (el) => openCtx(el, [op, tr, ed, del]);
+  const menuEnv = (el) => openCtx(el, [op, { t: 'Пополнить конверт', icon: 'down' }, ed, del]);
 
   let d = $derived(peek('accounts'));
   let rates = $state(cachedRates());
@@ -85,13 +93,13 @@
         <div class="sub" style:height={monoOpen ? subH + 'px' : '0px'} aria-hidden={!monoOpen}>
           <div class="in" bind:clientHeight={subH}>
             {#each d.cards as c, i (c.id)}
-              <AccRow icon="card" indent name={c.name} sub={c.limit > 0 ? 'кредитный лимит ' + cash(c.limit, 0) : ''} amount={cash(c.balance)} neg={c.balance < 0} top={true} />
+              <AccRow icon="card" indent name={c.name} sub={c.limit > 0 ? 'кредитный лимит ' + cash(c.limit, 0) : ''} amount={cash(c.balance)} neg={c.balance < 0} top={true} onlong={menuCard} />
             {/each}
           </div>
         </div>
       {/if}
       {#each d.cashes as c, i (c.id)}
-        <AccRow icon={/cash/i.test(c.name) ? 'cash' : 'wallet'} name={c.name} sub={/wallet/i.test(c.name) ? 'основной для трат' : /cash/i.test(c.name) ? 'откуда идёт распределение' : ''} amount={cash(c.balance)} neg={c.balance < 0} top={d.cards.length > 0 || i > 0} />
+        <AccRow icon={/cash/i.test(c.name) ? 'cash' : 'wallet'} name={c.name} sub={/wallet/i.test(c.name) ? 'основной для трат' : /cash/i.test(c.name) ? 'откуда идёт распределение' : ''} amount={cash(c.balance)} neg={c.balance < 0} top={d.cards.length > 0 || i > 0} onlong={menuCash} />
       {/each}
     </div>
     <p class="note rise" style="--i:2">Белые карты без лимита и без денег не показываются.</p>
@@ -108,7 +116,7 @@
     <div class="sh rise" style="--i:4"><h2>Конверты</h2><span>{cash(d.envsTotal, 0)}</span></div>
     <div class="cd rise" style="--i:4">
       {#each envList as e, i (e.id)}
-        <AccRow icon="mail" name={e.name} amount={cash(e.balance, 0)} dim={Math.abs(e.balance) < 0.005} top={i > 0} />
+        <AccRow icon="mail" name={e.name} amount={cash(e.balance, 0)} dim={Math.abs(e.balance) < 0.005} top={i > 0} onlong={menuEnv} />
       {:else}
         <p class="empty">Конвертов пока нет</p>
       {/each}

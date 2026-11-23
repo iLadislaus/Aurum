@@ -1,13 +1,22 @@
 <script>
+  import { tween } from '../lib/anim.js';
   import { fmt, signed } from '../lib/format.js';
   let { total, delta, pct, shown, onopen, cols = [] } = $props();
+  let disp = $state(0);
+
+  // сумма отсчитывается от нуля при появлении карточки
+  $effect(() => {
+    if (!shown) { disp = 0; return; }
+    return tween(total, 1300, 200, (v) => (disp = v));
+  });
+
   const parts = (v) => { const s = fmt(Math.abs(v), 2), i = s.lastIndexOf(','); return [s.slice(0, i), s.slice(i)]; };
-  let sp = $derived(parts(total));
+  let sp = $derived(parts(disp));
 </script>
 
 <div class="bc" role="button" tabindex="0" aria-label="Открыть счета" onclick={onopen} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onopen?.())}>
   <div class="cap">Общий баланс</div>
-  <div class="sw pop" class:in={shown}><div class="sum"><span class="num">{sp[0]}</span><small>{sp[1]}&nbsp;₴</small></div></div>
+  <div class="sum"><span class="num">{sp[0]}</span><small>{sp[1]}&nbsp;₴</small></div>
   <div class="chip" class:dn={delta < 0}>{delta >= 0 ? '▲' : '▼'} {signed(delta)} · {pct >= 0 ? '+' : '−'}{Math.abs(pct).toFixed(1).replace('.', ',')}% за месяц</div>
   {#if cols.length}
     <div class="cols" style:grid-template-columns="repeat({cols.length}, minmax(0, 1fr))">

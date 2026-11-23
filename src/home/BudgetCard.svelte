@@ -1,4 +1,5 @@
 <script>
+  import { tween } from '../lib/anim.js';
   import { fmt, money } from '../lib/format.js';
   let { budget, shown } = $props();
 
@@ -11,7 +12,15 @@
   // дней до конца месяца, включая сегодня
   const daysLeft = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate() + 1;
 
-  let disp = $derived(target), pcDisp = $derived(Math.round(ratio * 100));
+  let disp = $state(0), pcDisp = $state(0);
+  $effect(() => {
+    if (!shown) { disp = 0; return; }
+    return tween(target, 1400, 500, (v) => (disp = v));
+  });
+  $effect(() => {
+    if (!shown) { pcDisp = 0; return; }
+    return tween(Math.round(ratio * 100), 2000, 400, (v) => (pcDisp = v));
+  });
 </script>
 
 <div class="grp">
@@ -33,7 +42,7 @@
     </svg>
     <div class="rt">
       <div class="l">{over ? 'Перерасход' : 'Осталось'}</div>
-      <div class="n pop" class:in={shown} class:over>{fmt(disp)}<small>₴</small></div>
+      <div class="n" class:over>{fmt(disp)}<small>₴</small></div>
       <div class="l">{over ? 'лимит' : 'из'} {money(budget.plan)} · потрачено {money(budget.spent)}</div>
     </div>
   </div>

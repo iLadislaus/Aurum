@@ -60,9 +60,3 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 
 @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .rise { animation: rise .35s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 28ms); }
-
-/* Плавный выезд готовой суммы: только прозрачность и сдвиг, без перерисовки текста */
-.pop { opacity: 0; }
-.pop.in { animation: popIn .75s cubic-bezier(.2, .8, .2, 1) .1s both; }
-@keyframes popIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .pop.in { animation: none; opacity: 1; } }

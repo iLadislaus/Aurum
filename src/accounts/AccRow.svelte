@@ -1,7 +1,8 @@
 <script>
   import Icon from '../lib/Icon.svelte';
+  import { longpress } from '../lib/longpress.js';
   // Строка счёта: при нажатии двигается только значок
-  let { icon = 'card', name, sub = '', amount, small = '', neg = false, dim = false, top = true, indent = false, onclick, children } = $props();
+  let { icon = 'card', name, sub = '', amount, small = '', neg = false, dim = false, top = true, indent = false, onclick, onlong, children } = $props();
   let on = $state(false);
   function tap() {
     on = false;
@@ -10,7 +11,7 @@
   }
 </script>
 
-<button class="rw" class:top class:indent onclick={tap}>
+<button class="rw" class:top class:indent onclick={tap} use:longpress={onlong}>
   <span class="av" class:on class:sm={indent} class:dim><Icon name={icon} size={indent ? 16 : 19} /></span>
   <span class="m">
     <span class="t">{name}{@render children?.()}</span>
