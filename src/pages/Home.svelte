@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { nav } from '../lib/nav.svelte.js';
-  import { sample as d } from '../lib/sample.js';
+  import { loadHome } from '../lib/data.js';
   import Icon from '../lib/Icon.svelte';
   import BalanceCard from '../home/BalanceCard.svelte';
   import BudgetCard from '../home/BudgetCard.svelte';
@@ -11,9 +11,14 @@
 
   const date = new Date().toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' });
   const month = new Date().toLocaleDateString('ru-RU', { month: 'long' });
+  let d = $state(null);
+  let err = $state('');
   let shown = $state(false);
-  // анимации стартуют, когда экран уже нарисован
-  onMount(() => requestAnimationFrame(() => requestAnimationFrame(() => (shown = true))));
+  // данные приходят из Supabase; анимации стартуют, когда экран уже нарисован
+  onMount(async () => {
+    try { d = await loadHome(); } catch (e) { err = e.message || 'Не удалось загрузить данные'; return; }
+    requestAnimationFrame(() => requestAnimationFrame(() => (shown = true)));
+  });
 </script>
 
 <section>
@@ -28,6 +33,11 @@
     </div>
   </div>
 
+  {#if err}
+    <p class="msg">{err}</p>
+  {:else if !d}
+    <p class="msg">Загружаю…</p>
+  {:else}
   <div class="rise" style="--i:1"><BalanceCard total={d.total} delta={d.delta} pct={d.pct} {shown} onopen={() => (nav.tab = 'accounts')} /></div>
 
   <div class="sh rise" style="--i:2"><h2>Бюджет на {month}</h2></div>
@@ -41,6 +51,7 @@
 
   <div class="sh rise" style="--i:5"><h2>Последние операции</h2><button class="all" onclick={() => (nav.tab = 'ops')}>Все</button></div>
   <div class="rise" style="--i:5"><RecentOps rows={d.recent} {shown} /></div>
+  {/if}
 </section>
 
 <style>
@@ -54,6 +65,7 @@
   .sh { display: flex; justify-content: space-between; align-items: baseline; margin: 26px 4px 8px; }
   .sh h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: .35px; }
   .all { font-size: 15px; color: var(--gold); min-height: 28px; }
+  .msg { text-align: center; color: var(--muted); padding: 40px 0; }
   .bt { display: block; width: 100%; text-align: left; border-radius: 28px; transition: transform .15s; }
   .bt:active { transform: scale(.98); }
 </style>
