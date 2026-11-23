@@ -1,7 +1,7 @@
 <script>
   // Строка со свайпом как в iOS: влево — «Удалить», вправо — «Повторить». Первое нажатие на кнопку просит подтверждения
   import { sw } from './swipe.svelte.js';
-  let { id, ondelete, onrepeat, children } = $props();
+  let { id, ondelete, onrepeat, nodelete = false, children } = $props();
   const W = 92;
   let x = $state(0), drag = $state(false), armed = $state(''), timer;
   let open = $derived(sw.id === id);
@@ -16,7 +16,7 @@
       if (!lock) { if (Math.max(Math.abs(dx), Math.abs(dy)) < 7) return; lock = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'; if (lock === 'h') { drag = true; sw.id = id; } }
       if (lock !== 'h') return;
       e.preventDefault();
-      x = Math.max(-W, Math.min(W, base + dx));
+      x = Math.max(nodelete ? 0 : -W, Math.min(W, base + dx));
     };
     const te = () => {
       if (lock === 'h') { x = x < -W / 2 ? -W : x > W / 2 ? W : 0; if (x === 0) { sw.id = ''; arm(''); } }
@@ -28,13 +28,13 @@
     return { destroy() { node.removeEventListener('touchstart', ts); node.removeEventListener('touchmove', tm); node.removeEventListener('touchend', te); node.removeEventListener('touchcancel', te); } };
   }
   function close() { x = 0; sw.id = ''; arm(''); }
-  function del() { if (armed === 'd') { close(); ondelete?.(); } else arm('d'); }
+  function del() { if (nodelete) return; if (armed === 'd') { close(); ondelete?.(); } else arm('d'); }
   function rep() { if (armed === 'r') { close(); onrepeat?.(); } else arm('r'); }
 </script>
 
 <div class="sr" use:swipe>
   <button class="a l" class:armed={armed === 'r'} style:width="{W}px" onclick={rep} tabindex={x > 0 ? 0 : -1}>{armed === 'r' ? 'Точно?' : 'Повторить'}</button>
-  <button class="a r" class:armed={armed === 'd'} style:width="{W}px" onclick={del} tabindex={x < 0 ? 0 : -1}>{armed === 'd' ? 'Точно?' : 'Удалить'}</button>
+  {#if !nodelete}<button class="a r" class:armed={armed === 'd'} style:width="{W}px" onclick={del} tabindex={x < 0 ? 0 : -1}>{armed === 'd' ? 'Точно?' : 'Удалить'}</button>{/if}
   <div class="c" class:drag style:transform="translateX({x}px)" onclick={() => x !== 0 && close()} role="presentation">{@render children()}</div>
 </div>
 

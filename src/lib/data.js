@@ -252,6 +252,10 @@ export async function loadMonthOps(y, m) {
 }
 
 export async function deleteOp(id) {
+  // страховка: операции банка удалять нельзя никогда
+  const chk = await sb.from('transactions').select('mono_op_id').eq('id', id).limit(1);
+  if (chk.error) throw chk.error;
+  if (chk.data[0]?.mono_op_id) throw new Error('Банковские операции удалять нельзя');
   const r = await sb.from('transactions').delete().eq('id', id);
   if (r.error) throw r.error;
 }

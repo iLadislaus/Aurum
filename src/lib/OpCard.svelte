@@ -57,6 +57,7 @@
     busy = false;
   }
   async function del() {
+    if (o?.mono) return;
     if (!armed) { armed = true; clearTimeout(timer); timer = setTimeout(() => (armed = false), 3000); return; }
     const old = peek(oc.key), id = o.id;
     put(oc.key, { ...old, ops: old.ops.filter((x) => x.id !== id) });
@@ -135,7 +136,7 @@
 
         <div class="act">
           <button class="s" disabled={busy} onclick={rep}>Повторить</button>
-          <button class="d" class:armed onclick={del}>{armed ? 'Точно удалить?' : 'Удалить'}</button>
+          {#if !o.mono}<button class="d" class:armed onclick={del}>{armed ? 'Точно удалить?' : 'Удалить'}</button>{/if}
         </div>
       </div>
     {/if}
