@@ -35,6 +35,11 @@
       <stop offset=".55" stop-color="#D9A542" />
       <stop offset="1" stop-color="#A9792A" />
     </linearGradient>
+    <linearGradient id="ggd" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#D9A542" />
+      <stop offset=".55" stop-color="#B07C22" />
+      <stop offset="1" stop-color="#7A540F" />
+    </linearGradient>
   </defs>
 </svg>
 
@@ -116,5 +121,10 @@
   .on { color: var(--gold); }
   .on svg { stroke: url(#gg); animation: spr .55s cubic-bezier(.3,1.6,.5,1); filter: drop-shadow(0 0 5px var(--glow)); }
   .on .f, .on svg.dots .d { fill: url(#gg); }
+  @media (prefers-color-scheme: light) {
+    .on { color: #8A6414; font-weight: 600; }
+    .on svg { stroke: url(#ggd); }
+    .on .f, .on svg.dots .d { fill: url(#ggd); }
+  }
   @keyframes spr { 0% { transform: scale(.78); } 55% { transform: scale(1.15); } 100% { transform: scale(1); } }
 </style>

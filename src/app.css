@@ -5,7 +5,7 @@
   --gold: #9A6B12; --gold-soft: rgba(184,137,43,.18);
   /* Золотое стекло нижнего меню */
   --glass: rgba(255,255,255,.55); --rim: rgba(255,255,255,.9); --hi: #ffffff;
-  --glass-sel: rgba(184,137,43,.13); --glass-ring: rgba(184,137,43,.5); --glow: rgba(184,137,43,.28);
+  --glass-sel: rgba(184,137,43,.24); --glass-ring: rgba(160,116,30,.8); --glow: rgba(184,137,43,.28);
   --glass-shadow: rgba(60,45,10,.2); --hole: #efe6d3;
   --tab-muted: rgba(60,60,67,.62);
   --pos: #248A3D; --neg: #D70015; --fill: rgba(118,118,128,.12); --seg-on: #ffffff; --ter: #AEAEB2;
