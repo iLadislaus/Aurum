@@ -96,7 +96,7 @@
     </div>
     <div class="sc" class:lock={!full} use:grab>
       {#key k}
-      <div class="hero rise" style="--i:0">
+      <div class="hero">
         <small>Остаток</small>
         <div class="big" class:neg={acct.balance < 0}>{c(acct.balance)}</div>
         {#if acct.limit > 0}
@@ -153,7 +153,7 @@
   .st { margin: 1px 0 0; text-align: center; font-size: 11.5px; color: var(--muted); }
   .sc { position: relative; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 4px 8px calc(30px + var(--safe-b)); }
   .sc.lock { overflow: hidden; touch-action: none; }
-  .hero { border-radius: 22px; padding: 14px 16px; color: #F4EEDD; background: radial-gradient(120% 90% at 85% 0, #2A200C, #120F08 50%, #080807); box-shadow: 0 0 0 .5px rgba(232, 194, 119, .35), 0 14px 30px -18px rgba(232, 194, 119, .45); }
+  .hero { position: relative; border-radius: 22px; padding: 14px 16px; color: #F4EEDD; background: radial-gradient(120% 90% at 85% 0, #2A200C, #120F08 50%, #080807); box-shadow: 0 0 0 .5px rgba(232, 194, 119, .35), 0 14px 30px -18px rgba(232, 194, 119, .45); }
   .hero small { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #B3A47C; }
   .big { font-size: 34px; font-weight: 800; letter-spacing: -.04em; line-height: 1.1; margin: 3px 0 8px; color: #F6E3A1; font-variant-numeric: tabular-nums; }
   .big.neg { color: #FF8A7E; }
@@ -181,11 +181,15 @@
   .s { font-size: 12px; color: var(--muted); line-height: 16px; }
   .r b { flex: none; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
   @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-  .rise { animation: rise .35s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(.12s + var(--i, 0) * 28ms); }
+  .rise { animation: rise .35s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(.14s + var(--i, 0) * 45ms); }
+  @keyframes pop { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
+  @keyframes sweep { from { left: -70%; } to { left: 130%; } }
+  .hero { overflow: hidden; animation: pop .6s cubic-bezier(.2, .9, .3, 1.1) .1s both; }
+  .hero::after { content: ""; position: absolute; top: 0; bottom: 0; width: 60%; left: -70%; pointer-events: none; transform: skewX(-18deg); background: linear-gradient(100deg, transparent, rgba(255, 236, 170, .22), transparent); animation: sweep .9s cubic-bezier(.4, 0, .2, 1) .45s both; }
   .empty { margin: 24px 0; text-align: center; color: var(--muted); font-size: 14px; }
   @media (prefers-color-scheme: dark) {
     .sh { box-shadow: inset 0 1px 0 rgba(255, 232, 160, .55), inset 0 0 0 .5px rgba(232, 194, 119, .45), 0 -3px 18px rgba(240, 190, 90, .24); }
     .sh::before { background: radial-gradient(70% 100% at 50% 0, rgba(240, 200, 110, .1), transparent); }
   }
-  @media (prefers-reduced-motion: reduce) { .ov, .sh { transition: none; } .rise { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .ov, .sh { transition: none; } .rise, .hero, .hero::after { animation: none; } }
 </style>
