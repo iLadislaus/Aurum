@@ -30,6 +30,9 @@
 input, textarea { -webkit-user-select: text; user-select: text; }
 /* на время раскрытий бесконечные блики стоят, чтобы анимация шла ровно */
 body.calm .bc::before, body.calm .sum { animation-play-state: paused !important; }
+/* пока список раскрывается, под нижним меню всё движется: размытие стекла облегчаем, чтобы не рвались кадры */
+body.calm nav, body.calm .upd { -webkit-backdrop-filter: blur(8px) saturate(1.5) !important; backdrop-filter: blur(8px) saturate(1.5) !important; }
+body.calm .halo { animation-play-state: paused !important; }
 html, body { margin: 0; height: 100%; overflow: hidden; overscroll-behavior: none; }
 body {
   font-family: var(--font); font-size: 15px; line-height: 1.3; color: var(--text); background: var(--bg);

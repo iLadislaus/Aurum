@@ -26,7 +26,7 @@
   function toggleMono() {
     monoOpen = !monoOpen;
     document.body.classList.add('calm');
-    setTimeout(() => document.body.classList.remove('calm'), 480);
+    setTimeout(() => document.body.classList.remove('calm'), 420);
   }
   let envAll = $state(false);
 
@@ -155,7 +155,7 @@
   .cp { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; padding: 1px 6px 1px 9px; border-radius: 99px; font-size: 11.5px; font-weight: 600; color: var(--gold); background: var(--gold-soft); vertical-align: 1px; }
   .ch { display: inline-grid; transition: transform .2s ease; }
   .ch.o { transform: rotate(180deg); }
-  .sub { height: 0; overflow: hidden; background: var(--fill); transition: height .45s cubic-bezier(.32, .72, 0, 1); will-change: height; contain: layout paint; }
+  .sub { height: 0; overflow: hidden; background: var(--fill); transition: height .36s cubic-bezier(.32, .72, 0, 1); will-change: height; contain: layout paint; }
   .sub .in { display: block; }
   @media (prefers-reduced-motion: reduce) { .sub { transition: none; } }
   .more { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 42px; font-size: 13px; font-weight: 500; color: var(--muted); border-top: .5px solid var(--line); }
