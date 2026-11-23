@@ -80,7 +80,7 @@
   .sh.fit { top: auto; max-height: calc(100% - env(safe-area-inset-top, 0px) - 14px); }
   .sh.fit .sc { flex: 0 1 auto; min-height: 0; }
   .sh::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 90px; pointer-events: none; background: radial-gradient(70% 100% at 50% 0, rgba(236, 190, 84, .06), transparent); }
-  .top { position: relative; flex: none; touch-action: none; padding-bottom: 8px; }
+  .top { position: relative; flex: none; touch-action: none; padding-bottom: 12px; }
   .gr { width: 36px; height: 5px; border-radius: 3px; background: #C9A24A; opacity: .8; margin: 8px auto; }
   h3 { margin: 0; text-align: center; font-size: 16px; font-weight: 700; }
   .st { margin: 1px 0 0; text-align: center; font-size: 11.5px; color: var(--muted); }
