@@ -131,3 +131,35 @@ export async function loadAccounts() {
     debts: debts.data.map((d) => ({ id: d.id, name: clean(d.name), currency: d.currency, amount: nz(d.amount) }))
   };
 }
+
+// Операции одного счёта: со знаком для этого счёта, по дням, плюс итоги текущего месяца
+export async function loadAccountOps(id) {
+  const [tx, cats] = await Promise.all([
+    sb.from('transactions')
+      .select('id,date,action,amount,to_amount,category_id,note,account_id,from_account_id,to_account_id')
+      .or(`account_id.eq.${id},from_account_id.eq.${id},to_account_id.eq.${id}`)
+      .order('date', { ascending: false }).limit(300),
+    sb.from('categories').select('id,name,icon')
+  ]);
+  for (const r of [tx, cats]) if (r.error) throw r.error;
+  const cm = new Map(cats.data.map((c) => [c.id, c]));
+  const now = new Date();
+  const mk = now.getFullYear() * 12 + now.getMonth();
+  let inc = 0, out = 0;
+  const ops = tx.data.map((t) => {
+    const c = cm.get(t.category_id);
+    let v;
+    if (t.action === 'INCOME' || t.action === 'RETURN') v = Number(t.amount);
+    else if (t.action === 'EXPENSE') v = -Number(t.amount);
+    else v = t.to_account_id === id ? Number(t.to_amount ?? t.amount) : -Number(t.amount);
+    const d = new Date(t.date);
+    if (d.getFullYear() * 12 + d.getMonth() === mk) { if (v > 0) inc += v; else out += v; }
+    return {
+      id: t.id, date: t.date, amount: v,
+      name: clean(t.note) || clean(c?.name) || (t.action === 'TRANSFER' ? 'Перевод' : 'Операция'),
+      cat: t.action === 'TRANSFER' ? 'Перевод' : clean(c?.name) || 'Без категории',
+      icon: t.action === 'TRANSFER' ? 'swap' : c?.icon || 'tag'
+    };
+  });
+  return { ops, inc, out };
+}

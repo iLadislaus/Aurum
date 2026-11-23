@@ -8,13 +8,14 @@
   import BalanceCard from '../home/BalanceCard.svelte';
   import AccRow from '../accounts/AccRow.svelte';
   import { openCtx } from '../lib/ctxmenu.svelte.js';
+  import { openAcct } from '../lib/acctsheet.svelte.js';
 
   // Меню по долгому нажатию. Сами действия подключим вместе с их экранами, пока меню просто закрывается
   const op = { t: 'Новая операция', icon: 'plus' }, tr = { t: 'Перевод', icon: 'swap' }, ed = { t: 'Изменить', icon: 'pen' };
   const del = { t: 'Удалить', icon: 'trash', danger: true, sep: true };
   const menuCard = (el) => openCtx(el, [op, tr, ed, { t: 'Скрыть счёт', icon: 'eyeoff', sep: true }]);
   const menuCash = (el) => openCtx(el, [op, tr, ed, del]);
-  const menuEnv = (el) => openCtx(el, [op, { t: 'Пополнить конверт', icon: 'down' }, ed, del]);
+  const menuEnv = (el) => openCtx(el, [op, { t: 'Перевод', icon: 'swap' }, ed, del]);
 
   let d = $derived(peek('accounts'));
   let rates = $state(cachedRates());
@@ -87,13 +88,13 @@
         {#if monoOpen}
           <div class="sub">
             {#each d.cards as c, i (c.id)}
-              <AccRow icon="card" indent name={c.name} sub={c.limit > 0 ? 'кредитный лимит ' + cash(c.limit, 0) : ''} amount={cash(c.balance)} neg={c.balance < 0} top={true} onlong={menuCard} />
+              <AccRow icon="card" indent name={c.name} sub={c.limit > 0 ? 'кредитный лимит ' + cash(c.limit, 0) : ''} amount={cash(c.balance)} neg={c.balance < 0} top={true} onclick={() => openAcct({ id: c.id, name: c.name, kind: 'Карта Monobank', balance: c.balance, limit: c.limit })} onlong={menuCard} />
             {/each}
           </div>
         {/if}
       {/if}
       {#each d.cashes as c, i (c.id)}
-        <AccRow icon={/cash/i.test(c.name) ? 'cash' : 'wallet'} name={c.name} sub={/wallet/i.test(c.name) ? 'основной для трат' : /cash/i.test(c.name) ? 'откуда идёт распределение' : ''} amount={cash(c.balance)} neg={c.balance < 0} top={d.cards.length > 0 || i > 0} onlong={menuCash} />
+        <AccRow icon={/cash/i.test(c.name) ? 'cash' : 'wallet'} name={c.name} sub={/wallet/i.test(c.name) ? 'основной для трат' : /cash/i.test(c.name) ? 'откуда идёт распределение' : ''} amount={cash(c.balance)} neg={c.balance < 0} top={d.cards.length > 0 || i > 0} onclick={() => openAcct({ id: c.id, name: c.name, kind: /cash/i.test(c.name) ? 'Наличные' : 'Кошелёк', balance: c.balance })} onlong={menuCash} />
       {/each}
     </div>
     <p class="note rise" style="--i:2">Белые карты без лимита и без денег не показываются.</p>
@@ -110,7 +111,7 @@
     <div class="sh rise" style="--i:4"><h2>Конверты</h2><span>{cash(d.envsTotal, 0)}</span></div>
     <div class="cd rise" style="--i:4">
       {#each envList as e, i (e.id)}
-        <AccRow icon="mail" name={e.name} amount={cash(e.balance, 0)} dim={Math.abs(e.balance) < 0.005} top={i > 0} onlong={menuEnv} />
+        <AccRow icon="mail" name={e.name} amount={cash(e.balance, 0)} dim={Math.abs(e.balance) < 0.005} top={i > 0} onclick={() => openAcct({ id: e.id, name: e.name, kind: 'Конверт', balance: e.balance })} onlong={menuEnv} />
       {:else}
         <p class="empty">Конвертов пока нет</p>
       {/each}
