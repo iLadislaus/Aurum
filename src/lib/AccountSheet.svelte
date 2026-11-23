@@ -55,7 +55,7 @@
     dy = Math.max(-base, e.clientY - y0);
     const t = performance.now();
     vel = (e.clientY - ly) / Math.max(1, t - lt); ly = e.clientY; lt = t;
-    if (Math.abs(dy) > 4 && !dragging) { dragging = true; e.currentTarget.setPointerCapture(e.pointerId); }
+    if (Math.abs(dy) > 4 && !dragging) { dragging = true; e.currentTarget?.setPointerCapture?.(e.pointerId); }
   }
   function up() {
     if (y0 == null) return;
@@ -67,6 +67,23 @@
       if (d === 'c') closeAcct(); else full = d === 'f';
     }
   }
+
+  // содержимое: на половине тянется само окно; на весь экран — только когда список в самом верху и тянут вниз (как в iOS)
+  function grab(node) {
+    let on = false, y = 0, live = false;
+    const ts = (e) => { y = e.touches[0].clientY; live = true; on = false; if (!full) { down({ clientY: y }); on = true; } };
+    const tm = (e) => {
+      if (!live) return;
+      const c = e.touches[0].clientY;
+      if (!on) { if (node.scrollTop <= 0 && c - y > 4) { down({ clientY: c }); on = true; } else return; }
+      e.preventDefault(); move({ clientY: c });
+    };
+    const te = () => { live = false; if (on) { on = false; up(); } };
+    node.addEventListener('touchstart', ts, { passive: true });
+    node.addEventListener('touchmove', tm, { passive: false });
+    node.addEventListener('touchend', te); node.addEventListener('touchcancel', te);
+    return { destroy() { node.removeEventListener('touchstart', ts); node.removeEventListener('touchmove', tm); node.removeEventListener('touchend', te); node.removeEventListener('touchcancel', te); } };
+  }
 </script>
 
 <div class="as" class:open={acct.open} aria-hidden={!acct.open}>
@@ -77,7 +94,7 @@
       <h3>{acct.name}</h3>
       <p class="st">{acct.kind}</p>
     </div>
-    <div class="sc" class:lock={!full} onpointerdown={(e) => { if (!full) down(e); }} onpointermove={(e) => { if (!full) move(e); }} onpointerup={up} onpointercancel={up}>
+    <div class="sc" class:lock={!full} use:grab>
       {#key k}
       <div class="hero rise" style="--i:0">
         <small>Остаток</small>
