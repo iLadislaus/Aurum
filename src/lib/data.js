@@ -115,9 +115,10 @@ export async function loadAccounts() {
   // валютные счета по валютам
   const fx = new Map();
   for (const a of rows.filter((x) => x.foreign)) {
-    const g = fx.get(a.currency) || { currency: a.currency, balance: 0, names: [] };
+    const g = fx.get(a.currency) || { currency: a.currency, balance: 0, names: [], list: [] };
     g.balance += a.balance;
     g.names.push(a.name);
+    g.list.push({ id: a.id, name: a.name, balance: a.balance });
     fx.set(a.currency, g);
   }
 

@@ -116,10 +116,14 @@
     </div>
 
     {#if d.foreign.length}
-      <div class="sh rise" style="--i:5"><h2>Валютные счета</h2></div>
+      {@const fxSum = d.foreign.reduce((t, f) => t + (rates?.[f.currency] ? f.balance * rates[f.currency] : 0), 0)}
+      <div class="sh rise" style="--i:5"><h2>Валютные счета</h2><span>{fxSum ? '≈ ' + cash(Math.round(fxSum), 0) : ''}</span></div>
       <div class="cd rise" style="--i:5">
-        {#each d.foreign as f, i (f.currency)}
-          <AccRow icon={f.currency === 'EUR' ? 'euro' : 'dollar'} name={f.currency === 'USD' ? 'Доллары' : f.currency === 'EUR' ? 'Евро' : f.currency} sub={uniq(f.names).join(' · ')} amount={cash(f.balance, 2, f.currency)} top={i > 0} />
+        {#each d.foreign as f, gi (f.currency)}
+          <div class="cap" class:t={gi > 0}><span>{f.currency === 'USD' ? 'Доллары' : f.currency === 'EUR' ? 'Евро' : f.currency}</span>{#if rates?.[f.currency]}<small>≈ {cash(Math.round(f.balance * rates[f.currency]), 0)}</small>{/if}</div>
+          {#each [...f.list].sort((x, y) => y.balance - x.balance || x.name.localeCompare(y.name)) as a, i (a.id)}
+            <AccRow icon={f.currency === 'EUR' ? 'euro' : 'dollar'} name={a.name} amount={cash(a.balance, 2, f.currency)} dim={Math.abs(a.balance) < 0.005} top={i > 0} onclick={() => openAcct({ id: a.id, name: a.name, kind: 'Валютный счёт · ' + (f.currency === 'USD' ? 'доллары' : f.currency === 'EUR' ? 'евро' : f.currency), balance: a.balance, currency: f.currency })} onlong={menuCash} />
+          {/each}
         {/each}
       </div>
     {/if}
@@ -145,5 +149,7 @@
   .cp { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; padding: 1px 6px 1px 9px; border-radius: 99px; font-size: 11.5px; font-weight: 600; color: var(--gold); background: var(--gold-soft); vertical-align: 1px; }
   .ch { display: inline-grid; transition: transform .2s ease; }
   .ch.o { transform: rotate(180deg); }
+  .cap { position: relative; display: flex; justify-content: space-between; align-items: baseline; padding: 12px 14px 2px; font-size: 13px; color: var(--muted); }
+  .cap.t::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: .5px; background: var(--line); }
   .sub { background: var(--fill); }
 </style>
