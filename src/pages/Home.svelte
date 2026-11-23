@@ -56,7 +56,7 @@
 
 <style>
   section { padding: 0 16px calc(110px + var(--safe-b)); }
-  .head { display: flex; justify-content: space-between; align-items: flex-end; padding: calc(env(safe-area-inset-top, 0px) + 12px) 4px 14px; }
+  .head { display: flex; justify-content: space-between; align-items: flex-end; padding: calc(env(safe-area-inset-top, 0px) + 28px) 4px 14px; }
   .d { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
   .hb { display: flex; gap: 4px; }
   .rf { width: 44px; height: 44px; display: grid; place-items: center; }
