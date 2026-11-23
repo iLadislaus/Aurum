@@ -4,24 +4,18 @@
   import { loadAccountOps } from './data.js';
   import { cash } from './format.js';
   import Icon from './Icon.svelte';
+  import Sheet from './Sheet.svelte';
   import OpAvatar from './OpAvatar.svelte';
 
   let q = $state('');
-  let dy = $state(0), y0 = null, dragging = $state(false);
-  let k = $state(0), kn = 0, scEl;
-  let full = $state(false), H = $state(700), shEl, vel = 0, ly = 0, lt = 0;
-  const half = $derived(Math.round(H * 0.46));
-  const base = $derived(full ? 0 : half);
-  const pos = $derived(Math.max(0, base + dy));
   let data = $derived(acct.id ? peek('ops.' + acct.id) : null);
   let err = $state('');
+  let k = $state(0), kn = 0;
 
   // при открытии: сохранённое видно сразу, свежее подтягивается в фоне
   $effect(() => {
     if (!acct.open || !acct.id) return;
-    q = ''; err = ''; full = false; dy = 0; k = ++kn;
-    if (scEl) scEl.scrollTop = 0;
-    if (shEl) H = shEl.offsetHeight;
+    q = ''; err = ''; k = ++kn;
     const id = acct.id;
     refresh('ops.' + id, () => loadAccountOps(id)).catch((e) => { if (!peek('ops.' + id)) err = e.message || 'Не удалось загрузить операции'; });
   });
@@ -49,53 +43,9 @@
   let avail = $derived(acct.balance + acct.limit);
   let used = $derived(acct.limit > 0 ? Math.min(1, Math.max(0, -acct.balance / acct.limit)) : 0);
   const c = (v) => cash(v, 2, acct.currency);
-
-  function down(e) { y0 = e.clientY; dy = 0; vel = 0; ly = e.clientY; lt = performance.now(); }
-  function move(e) {
-    if (y0 == null) return;
-    dy = Math.max(-base, e.clientY - y0);
-    const t = performance.now();
-    vel = (e.clientY - ly) / Math.max(1, t - lt); ly = e.clientY; lt = t;
-    if (Math.abs(dy) > 4 && !dragging) { dragging = true; e.currentTarget?.setPointerCapture?.(e.pointerId); }
-  }
-  function up() {
-    if (y0 == null) return;
-    const p = pos; y0 = null; dragging = false; dy = 0;
-    if (vel < -0.5) full = true;
-    else if (vel > 0.5) { if (full) full = false; else closeAcct(); }
-    else {
-      const d = [[0, 'f'], [half, 'h'], [H, 'c']].sort((m, n) => Math.abs(m[0] - p) - Math.abs(n[0] - p))[0][1];
-      if (d === 'c') closeAcct(); else full = d === 'f';
-    }
-  }
-
-  // содержимое: на половине тянется само окно; на весь экран — только когда список в самом верху и тянут вниз (как в iOS)
-  function grab(node) {
-    let on = false, y = 0, live = false;
-    const ts = (e) => { y = e.touches[0].clientY; live = true; on = false; if (!full) { down({ clientY: y }); on = true; } };
-    const tm = (e) => {
-      if (!live) return;
-      const c = e.touches[0].clientY;
-      if (!on) { if (node.scrollTop <= 0 && c - y > 4) { down({ clientY: c }); on = true; } else return; }
-      e.preventDefault(); move({ clientY: c });
-    };
-    const te = () => { live = false; if (on) { on = false; up(); } };
-    node.addEventListener('touchstart', ts, { passive: true });
-    node.addEventListener('touchmove', tm, { passive: false });
-    node.addEventListener('touchend', te); node.addEventListener('touchcancel', te);
-    return { destroy() { node.removeEventListener('touchstart', ts); node.removeEventListener('touchmove', tm); node.removeEventListener('touchend', te); node.removeEventListener('touchcancel', te); } };
-  }
 </script>
 
-<div class="as" class:open={acct.open} aria-hidden={!acct.open}>
-  <button class="ov" aria-label="Закрыть" style:opacity={acct.open ? Math.max(0, Math.min(1, 1 - (pos - half) / (H - half))) : 0} onclick={closeAcct}></button>
-  <div class="sh" class:dragging bind:this={shEl} role="dialog" aria-modal="true" aria-label={acct.name} style:transform={acct.open ? `translateY(${pos}px)` : undefined}>
-    <div class="top" onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up}>
-      <div class="gr"></div>
-      <h3>{acct.name}</h3>
-      <p class="st">{acct.kind}</p>
-    </div>
-    <div class="sc" class:lock={!full} bind:this={scEl} use:grab>
+<Sheet open={acct.open} onclose={closeAcct} title={acct.name} sub={acct.kind} z={55}>
       {#key k}
       <div class="hero">
         <small>Остаток</small>
@@ -135,25 +85,9 @@
         <p class="empty">Загружаю…</p>
       {/if}
       {/key}
-    </div>
-  </div>
-</div>
+</Sheet>
 
 <style>
-  .as { position: absolute; inset: 0; z-index: 55; pointer-events: none; }
-  .as.open { pointer-events: auto; }
-  .ov { position: absolute; inset: 0; width: 100%; background: rgba(0, 0, 0, .4); opacity: 0; transition: opacity .45s cubic-bezier(.32, .72, 0, 1); }
-  .sh { position: absolute; left: 14px; right: 14px; bottom: 0; top: calc(env(safe-area-inset-top, 0px) + 14px); display: flex; flex-direction: column;
-    background: var(--bg); border-radius: 26px 26px 0 0; overflow: hidden; transform: translateY(105%); transition: transform .5s cubic-bezier(.32, .72, 0, 1);
-    box-shadow: inset 0 1px 0 rgba(255, 236, 170, .9), inset 0 0 0 .5px rgba(214, 164, 62, .4), 0 -3px 16px rgba(226, 172, 62, .26); }
-  .sh.dragging { transition: none; }
-  .sh::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 90px; pointer-events: none; background: radial-gradient(70% 100% at 50% 0, rgba(236, 190, 84, .14), transparent); }
-  .top { position: relative; flex: none; touch-action: none; padding-bottom: 8px; }
-  .gr { width: 36px; height: 5px; border-radius: 3px; background: #C9A24A; opacity: .8; margin: 8px auto; }
-  h3 { margin: 0; text-align: center; font-size: 16px; font-weight: 700; }
-  .st { margin: 1px 0 0; text-align: center; font-size: 11.5px; color: var(--muted); }
-  .sc { position: relative; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 4px 8px calc(30px + var(--safe-b)); }
-  .sc.lock { overflow: hidden; touch-action: none; }
   .hero { position: relative; border-radius: 22px; padding: 14px 16px; color: #F4EEDD; background: radial-gradient(120% 90% at 85% 0, #2A200C, #120F08 50%, #080807); box-shadow: 0 0 0 .5px rgba(232, 194, 119, .35), 0 14px 30px -18px rgba(232, 194, 119, .45); }
   .hero small { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: #B3A47C; }
   .big { font-size: 34px; font-weight: 800; letter-spacing: -.04em; line-height: 1.1; margin: 3px 0 8px; color: #F6E3A1; font-variant-numeric: tabular-nums; }
@@ -188,9 +122,5 @@
   .hero { overflow: hidden; animation: pop .6s cubic-bezier(.2, .9, .3, 1.1) .1s both; }
   .hero::after { content: ""; position: absolute; top: 0; bottom: 0; width: 60%; left: -70%; pointer-events: none; transform: skewX(-18deg); background: linear-gradient(100deg, transparent, rgba(255, 236, 170, .22), transparent); animation: sweep .9s cubic-bezier(.4, 0, .2, 1) .45s both; }
   .empty { margin: 24px 0; text-align: center; color: var(--muted); font-size: 14px; }
-  @media (prefers-color-scheme: dark) {
-    .sh { box-shadow: inset 0 1px 0 rgba(255, 232, 160, .55), inset 0 0 0 .5px rgba(232, 194, 119, .45), 0 -3px 18px rgba(240, 190, 90, .24); }
-    .sh::before { background: radial-gradient(70% 100% at 50% 0, rgba(240, 200, 110, .1), transparent); }
-  }
-  @media (prefers-reduced-motion: reduce) { .ov, .sh { transition: none; } .rise, .hero, .hero::after { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .rise, .hero, .hero::after { animation: none; } }
 </style>
