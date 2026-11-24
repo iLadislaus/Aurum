@@ -141,9 +141,8 @@
 {/snippet}
 
 <style>
-  .vp { position: relative; overflow: hidden; }
-  .vs { transition: transform .45s cubic-bezier(.32, .72, 0, 1), opacity .3s; padding: 0 6px 12px; }
-  .vs ~ .vs { position: absolute; inset: 0; background: var(--bg); overflow-y: auto; }
+  .vp { position: relative; overflow: hidden; height: calc(100vh - 150px); height: calc(100dvh - 150px); }
+  .vs { position: absolute; inset: 0; overflow-y: auto; background: var(--bg); transition: transform .45s cubic-bezier(.32, .72, 0, 1), opacity .3s; padding: 0 6px 12px; }
   .vs.off { pointer-events: none; opacity: .4; }
   .bar { display: flex; justify-content: flex-end; margin: 0 4px 10px; }
   .plus { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: linear-gradient(160deg, #EBC77A, #B8862C); box-shadow: 0 6px 14px -6px rgba(184, 134, 44, .8); transition: transform .2s; }
