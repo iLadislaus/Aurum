@@ -31,5 +31,5 @@ export function logoFor(name) {
   const s = (name || '').toLowerCase();
   if (!s) return null;
   const r = rules.find((x) => x.re.test(s));
-  return r ? `${import.meta.env.BASE_URL}logos/${r.file}` : null;
+  return r ? `${import.meta.env.BASE_URL}logos/${r.file}?v=${__APP_VERSION__}` : null;
 }
