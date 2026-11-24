@@ -1,9 +1,9 @@
 <script>
   import { np, closeNewPay } from './newpay.svelte.js';
-  import { addPlanned, loadHome, loadCategories } from './data.js';
+  import { savePlanned, loadHome, loadCategories } from './data.js';
   import { refresh, peek } from './cache.svelte.js';
   import { onMount } from 'svelte';
-  import Sheet from './Sheet.svelte';
+  import FloatWin from './FloatWin.svelte';
   import OpAvatar from './OpAvatar.svelte';
 
   const PER = [{ k: 'week', t: 'Неделя' }, { k: 'month', t: 'Месяц' }, { k: 'year', t: 'Год' }];
@@ -16,7 +16,12 @@
   onMount(async () => { try { cats = (await refresh('cats', loadCategories)).list; } catch { /* оставим что есть */ } });
   let list = $derived((() => { const ex = cats.filter((c) => /exp|расх/i.test(c.type || '')); return ex.length ? ex : cats; })());
 
-  $effect(() => { if (np.open) { name = ''; amount = ''; cat = null; period = 'month'; date = nextMonth(); busy = false; err = ''; } });
+  $effect(() => {
+    if (!np.open) return;
+    const e = np.edit;
+    name = e?.name ?? ''; amount = e ? String(e.amount).replace('.', ',') : ''; cat = e?.catId ?? null;
+    period = e?.periodKey ?? 'month'; date = e?.date ?? nextMonth(); busy = false; err = '';
+  });
 
   const num = $derived(Number(String(amount).replace(/\s/g, '').replace(',', '.')) || 0);
 
@@ -26,14 +31,14 @@
     if (!num) { err = 'Введите сумму'; return; }
     busy = true; err = '';
     try {
-      await addPlanned({ name: name.trim(), amount: num, categoryId: cat, period, nextDate: date });
+      await savePlanned({ id: np.edit?.id, name: name.trim(), amount: num, categoryId: cat, period, nextDate: date });
       await refresh('home', loadHome);
       closeNewPay();
     } catch (e) { err = e.message || 'Не удалось сохранить'; busy = false; }
   }
 </script>
 
-<Sheet open={np.open} onclose={closeNewPay} title="Новый платёж" z={57} fit>
+<FloatWin open={np.open} onclose={closeNewPay} title={np.edit ? 'Изменить платёж' : 'Новый платёж'} top={np.top} z={57}>
   <div class="bd">
     <div class="grp">
       <label class="r"><span>Название</span><input placeholder="Например, Netflix" maxlength="40" bind:value={name} oninput={() => (err = '')} /></label>
@@ -50,7 +55,7 @@
     {#if err}<p class="er">{err}</p>{/if}
     <button class="go" disabled={busy} onclick={save}>{busy ? 'Сохраняю…' : 'Сохранить'}</button>
   </div>
-</Sheet>
+</FloatWin>
 
 <style>
   .bd { padding: 0 6px 6px; }

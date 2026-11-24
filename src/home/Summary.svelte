@@ -1,8 +1,8 @@
 <script>
   import Icon from '../lib/Icon.svelte';
   import { openNewPay } from '../lib/newpay.svelte.js';
-  import { daysLabel } from '../lib/format.js';
-  import { fmt, money, signed } from '../lib/format.js';
+  import { hz, inRange, RANGE_NAME } from '../lib/horizon.svelte.js';
+  import { fmt, money, signed, plural } from '../lib/format.js';
   let { d, shown, month, onaccounts, onbudget, onhorizon } = $props();
 
   const stamp = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -19,10 +19,11 @@
   let perDay = $derived(Math.max(0, remaining) / Math.max(1, daysLeft));
 
   // на горизонте: платежи на 14 дней
-  let next = $derived([...d.horizon].filter((p) => p.days >= 0 && p.days <= 14).sort((a, b) => a.days - b.days)[0]);
+  let soon = $derived(inRange(d.horizon, hz.range));
+  let soonSum = $derived(soon.reduce((s, p) => s + p.amount, 0));
 </script>
 
-<div class="cd" class:in={shown}>
+<div class="cd" id="hz-anchor" class:in={shown}>
   <i class="au" aria-hidden="true"></i>
   <div class="s top" role="button" tabindex="0" aria-label="Открыть счета" onclick={onaccounts} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onaccounts?.())}>
     <div class="lf">
@@ -54,8 +55,8 @@
   </button>
 
   <div class="s hz">
-    <button class="ht" onclick={onhorizon} aria-label="На горизонте"><b>На горизонте</b> {#if next}<i>· {next.name} {daysLabel(next.days)} · {money(next.amount)}</i>{/if}</button>
-    <button class="pl" onclick={openNewPay} aria-label="Новый платёж"><Icon name="plus" size={16} /></button>
+    <button class="ht" onclick={onhorizon} aria-label="На горизонте"><b>На горизонте</b> {#if soon.length}<i>· {RANGE_NAME[hz.range]} · {soon.length} {plural(soon.length, 'платёж', 'платежа', 'платежей')} · {money(soonSum)}</i>{/if}</button>
+    <button class="pl" onclick={() => openNewPay()} aria-label="Новый платёж"><Icon name="plus" size={16} /></button>
   </div>
 </div>
 
