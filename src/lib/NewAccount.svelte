@@ -47,7 +47,7 @@
     <button class="bk" class:on={type} aria-label="Назад" onclick={() => (type = null)}><Icon name="chevron" size={20} /></button>
   {/snippet}
   <div class="stg">
-    <div class="s1" class:out={type}>
+    <div class="s1" class:out={type} class:show={na.open && !type}>
       {#each TYPES as t (t.k)}
         <button class="tl" onclick={() => pick(t)}>
           <span class="ci"><Icon name={t.icon} size={20} /></span>
@@ -94,12 +94,19 @@
   .bk.on { opacity: 1; pointer-events: auto; }
   .stg { display: grid; padding: 0 2px; }
   .s1, .s2 { grid-area: 1 / 1; min-width: 0; overflow: hidden; transition: transform .45s cubic-bezier(.32, .72, 0, 1), opacity .35s, max-height .45s cubic-bezier(.32, .72, 0, 1), visibility 0s .45s; }
-  .s1 { max-height: 420px; }
+  .s1 { max-height: 460px; padding-bottom: calc(18px + var(--safe-b)); }
   .s2 { max-height: 0; transform: translateX(40px); opacity: 0; visibility: hidden; }
-  .s1.out { max-height: 0; transform: translateX(-40px); opacity: 0; visibility: hidden; }
+  .s1.out { max-height: 0; padding-bottom: 0; transform: translateX(-40px); opacity: 0; visibility: hidden; }
   .s2.in { max-height: 760px; transform: none; opacity: 1; visibility: visible; transition-delay: 0s; }
   .tl { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: var(--card); border-radius: 16px; padding: 9px 12px; margin-bottom: 7px; box-shadow: var(--shadow); transition: transform .15s; }
   .tl:active { transform: scale(.97); }
+  .s1.show .tl { animation: tin .5s cubic-bezier(.2, .9, .25, 1.1) both; }
+  .s1.show .tl:nth-child(1) { animation-delay: .12s; }
+  .s1.show .tl:nth-child(2) { animation-delay: .19s; }
+  .s1.show .tl:nth-child(3) { animation-delay: .26s; }
+  .s1.show .tl:nth-child(4) { animation-delay: .33s; }
+  @keyframes tin { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .s1.show .tl { animation: none; } }
   .tl b { display: block; font-size: 15px; font-weight: 600; }
   .tl small, .pm small { display: block; font-size: 12px; color: var(--muted); }
   .ci { width: 38px; height: 38px; border-radius: 50%; flex: none; display: grid; place-items: center; color: #fff; background: linear-gradient(160deg, #EBC77A, #B8862C); box-shadow: 0 1px 2px rgba(120, 80, 10, .25); }
