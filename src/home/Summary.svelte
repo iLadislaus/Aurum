@@ -20,6 +20,7 @@
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
   });
+  const stamp = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   let sp = $derived(parts(disp ?? d.total));
   // шрифт суммы подбирается по факту: самый крупный, при котором она целиком помещается рядом с колонкой «Карты/Конверты/Сегодня»
   let lfEl = $state(), sumEl = $state();
@@ -49,6 +50,7 @@
   <i class="au" aria-hidden="true"></i>
   <i class="shn" aria-hidden="true"></i>
   <div class="s top" role="button" tabindex="0" aria-label="Открыть счета" onclick={onaccounts} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onaccounts?.())}>
+    <div class="cap"><span class="dot"></span>Общий баланс <i>· {stamp}</i></div>
     <div class="lf" bind:this={lfEl}>
       <div class="sum" bind:this={sumEl}><span class="num">{sp[0]}</span><small>{sp[1]}&nbsp;₴</small></div>
     </div>
@@ -105,8 +107,13 @@
   .s { position: relative; display: flex; align-items: center; width: 100%; text-align: left; padding: 14px 18px; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .15s; }
   .s + .s { border-top: .5px solid rgba(232,194,119,.18); }
   .s:active { background: rgba(232,194,119,.06); }
-  .top { gap: 12px; align-items: center; justify-content: space-between; padding-top: 14px; padding-bottom: 12px; }
-  .lf { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
+  .top { gap: 12px; align-items: center; justify-content: space-between; padding-top: 36px; padding-bottom: 16px; }
+  .cap { position: absolute; left: 18px; top: 13px; display: flex; align-items: center; gap: 6px; font-size: 12px; color: #a99366; }
+  .cap i { font-style: normal; opacity: .75; }
+  .dot { position: relative; width: 6px; height: 6px; border-radius: 50%; background: #E8C277; flex: none; }
+  .dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #E8C277; animation: smPl 2.2s ease-out infinite; }
+  @keyframes smPl { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(3.4); opacity: 0; } }
+  .lf { flex: 1; min-width: 0; display: flex; justify-content: center; }
   .sum { flex: none; min-width: 0; display: flex; align-items: baseline; justify-content: center; font-size: 42px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; }
   .sum small { font-size: .5em; font-weight: 700; letter-spacing: 0; margin-left: .06em; color: #E8C277; }
   .kp { flex: none; width: 122px; display: flex; flex-direction: column; font-size: 12px; color: #a99366; margin-top: 2px; }
@@ -141,5 +148,5 @@
   .ht b { font-size: 15px; flex: none; }
   .ht i { font-style: normal; color: #a99366; overflow: hidden; text-overflow: ellipsis; }
   .pl { flex: none; width: 44px; height: 44px; display: grid; place-items: center; color: #E8C277; }
-  @media (prefers-reduced-motion: reduce) { .au, .shn { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .au, .dot::after, .shn { animation: none; } }
 </style>
