@@ -91,7 +91,7 @@
   .dot { position: relative; width: 6px; height: 6px; border-radius: 50%; background: #E8C277; flex: none; }
   .dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #E8C277; animation: smPl 2.2s ease-out infinite; }
   @keyframes smPl { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(3.4); opacity: 0; } }
-  .sum { flex: 1; min-width: 0; display: flex; align-items: baseline; justify-content: center; font-size: 42px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; }
+  .sum { flex: none; margin: auto 0; padding-bottom: 6px; min-width: 0; display: flex; align-items: baseline; justify-content: center; font-size: 42px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; }
   .sum small { font-size: .5em; font-weight: 700; letter-spacing: 0; margin-left: .06em; color: #E8C277; }
   .kp { flex: none; width: 122px; display: flex; flex-direction: column; font-size: 12px; color: #a99366; margin-top: 2px; }
   .kp span { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; }
