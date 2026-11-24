@@ -10,6 +10,7 @@
   import SwipeRow from '../lib/SwipeRow.svelte';
   import { openCtx } from '../lib/ctxmenu.svelte.js';
   import { openAcct } from '../lib/acctsheet.svelte.js';
+  import { openDelete } from '../lib/delacct.svelte.js';
   import { openEdit } from '../lib/editacct.svelte.js';
   import { openNew } from '../lib/newacct.svelte.js';
   import { openNewOp } from '../lib/newop.svelte.js';
@@ -24,9 +25,11 @@
   const menuCard = (el, id) => openCtx(el, [op(id), tr(id), ed, { t: 'Скрыть счёт', icon: 'eyeoff', sep: true }]);
   // «Изменить» у ручных счетов открывает окно с названием, значком и источником бюджета
   const edit = (a, kind) => ({ t: 'Изменить', icon: 'pen', run: () => openEdit({ id: a.id, name: a.name, icon: a.icon, src: a.src, kind }) });
-  const menuCash = (el, a, kind = 'cash') => openCtx(el, [op(a.id), tr(a.id), edit(a, kind), del]);
-  const menuEnv = (el, a) => openCtx(el, [op(a.id), tr(a.id), edit(a, 'env'), del]);
-  const menuDebt = (el, a) => openCtx(el, [op(a.id), tr(a.id), edit(a, 'debt'), del]);
+  // «Удалить»: все операции счёта переносятся на другой счёт, потом счёт удаляется
+  const rm = (a, kind) => ({ ...del, run: () => openDelete({ id: a.id, name: a.name, kind, balance: a.balance, currency: a.currency }) });
+  const menuCash = (el, a, kind = 'cash') => openCtx(el, [op(a.id), tr(a.id), edit(a, kind), rm(a, kind)]);
+  const menuEnv = (el, a) => openCtx(el, [op(a.id), tr(a.id), edit(a, 'env'), rm(a, 'env')]);
+  const menuDebt = (el, a) => openCtx(el, [op(a.id), tr(a.id), edit(a, 'debt'), rm(a, 'debt')]);
 
   let d = $derived(peek('accounts'));
   let rates = $state(cachedRates());
@@ -139,7 +142,7 @@
         {#each d.foreign as f, gi (f.currency)}
           <div class="cap" class:t={gi > 0}><span>{f.currency === 'USD' ? 'Доллары' : f.currency === 'EUR' ? 'Евро' : f.currency}</span>{#if rates?.[f.currency]}<small>≈ {cash(Math.round(f.balance * rates[f.currency]), 0)}</small>{/if}</div>
           {#each [...(f.list ?? [])].sort((x, y) => y.balance - x.balance || x.name.localeCompare(y.name)) as a, i (a.id)}
-            <SwipeRow id={'ac' + a.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold full onrepeat={() => openNewOp(null, { acc: a.id })} ondelete={() => openNewOp(null, { acc: a.id, type: 'TRANSFER' })}><AccRow icon={a.icon && a.icon !== 'coin' ? a.icon : f.currency === 'EUR' ? 'euro' : 'dollar'} name={a.name} amount={cash(a.balance, 2, f.currency)} dim={Math.abs(a.balance) < 0.005} top={i > 0} onclick={() => openAcct({ id: a.id, name: a.name, kind: 'Валютный счёт · ' + (f.currency === 'USD' ? 'доллары' : f.currency === 'EUR' ? 'евро' : f.currency), balance: a.balance, currency: f.currency })} onlong={(el) => menuCash(el, a, 'fx')} /></SwipeRow>
+            <SwipeRow id={'ac' + a.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold full onrepeat={() => openNewOp(null, { acc: a.id })} ondelete={() => openNewOp(null, { acc: a.id, type: 'TRANSFER' })}><AccRow icon={a.icon && a.icon !== 'coin' ? a.icon : f.currency === 'EUR' ? 'euro' : 'dollar'} name={a.name} amount={cash(a.balance, 2, f.currency)} dim={Math.abs(a.balance) < 0.005} top={i > 0} onclick={() => openAcct({ id: a.id, name: a.name, kind: 'Валютный счёт · ' + (f.currency === 'USD' ? 'доллары' : f.currency === 'EUR' ? 'евро' : f.currency), balance: a.balance, currency: f.currency })} onlong={(el) => menuCash(el, { ...a, currency: f.currency }, 'fx')} /></SwipeRow>
           {/each}
         {/each}
       </div>
