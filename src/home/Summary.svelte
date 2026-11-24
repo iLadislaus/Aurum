@@ -3,7 +3,7 @@
   import OpAvatar from '../lib/OpAvatar.svelte';
   import { openNewPay } from '../lib/newpay.svelte.js';
   import { hz, inRange, RANGE_NAME } from '../lib/horizon.svelte.js';
-  import { fmt, money, signed, plural } from '../lib/format.js';
+  import { fmt, money, plural } from '../lib/format.js';
   let { d, shown, month, onaccounts, onbudget, onhorizon } = $props();
 
   const stamp = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -30,7 +30,6 @@
     <div class="lf">
       <div class="cap"><span class="dot"></span>Общий баланс <i>· {stamp}</i></div>
       <div class="sum"><span class="num">{sp[0]}</span><small>{sp[1]}&nbsp;₴</small></div>
-      <div class="dl" class:dn={d.delta < 0}>{d.delta >= 0 ? '▲' : '▼'} {signed(d.delta)} ₴ · {d.pct >= 0 ? '+' : '−'}{Math.abs(d.pct).toFixed(1).replace('.', ',')}% за месяц</div>
     </div>
     <div class="kp">
       <span>Карты<b>{money(d.cardsCash ?? 0)}</b></span>
@@ -90,10 +89,8 @@
   .dot { position: relative; width: 6px; height: 6px; border-radius: 50%; background: #E8C277; flex: none; }
   .dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #E8C277; animation: smPl 2.2s ease-out infinite; }
   @keyframes smPl { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(3.4); opacity: 0; } }
-  .sum { font-size: 34px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; }
+  .sum { font-size: 42px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; }
   .sum small { font-size: .62em; font-weight: 700; color: #E8C277; }
-  .dl { margin-top: 3px; font-size: 12px; font-weight: 500; color: #E8C277; white-space: nowrap; }
-  .dl.dn { color: #FF8A7E; }
   .kp { flex: none; width: 122px; display: flex; flex-direction: column; font-size: 12px; color: #a99366; margin-top: 2px; }
   .kp span { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; }
   .kp span + span { border-top: .5px solid rgba(232,194,119,.18); }
