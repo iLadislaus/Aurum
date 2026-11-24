@@ -5,6 +5,7 @@
   import CtxMenu from './lib/CtxMenu.svelte';
   import AccountSheet from './lib/AccountSheet.svelte';
   import NewAccount from './lib/NewAccount.svelte';
+  import EditAccount from './lib/EditAccount.svelte';
   import OpCard from './lib/OpCard.svelte';
   import NewOp from './lib/NewOp.svelte';
   import { no } from './lib/newop.svelte.js';
@@ -62,7 +63,7 @@
   {/if}
 </main>
 <UpdateBanner />
-{#if auth.session}<AccountSheet /><HomeBlocks /><HorizonSheet /><NewPay /><PeriodSheet /><NewAccount /><OpCard /><NewOp /><CtxMenu />{/if}
+{#if auth.session}<AccountSheet /><HomeBlocks /><HorizonSheet /><NewPay /><PeriodSheet /><NewAccount /><EditAccount /><OpCard /><NewOp /><CtxMenu />{/if}
 {#if auth.session}<TabBar />{/if}
 
 <style>
