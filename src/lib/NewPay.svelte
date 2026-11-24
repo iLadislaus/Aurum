@@ -33,7 +33,7 @@
   }
 </script>
 
-<Sheet open={np.open} onclose={closeNewPay} title="Новый платёж" z={57}>
+<Sheet open={np.open} onclose={closeNewPay} title="Новый платёж" z={57} fit>
   <div class="bd">
     <div class="grp">
       <label class="r"><span>Название</span><input placeholder="Например, Netflix" maxlength="40" bind:value={name} oninput={() => (err = '')} /></label>
@@ -48,10 +48,8 @@
     <div class="seg">{#each PER as p (p.k)}<button class:on={period === p.k} onclick={() => (period = p.k)}>{p.t}</button>{/each}</div>
     <div class="grp"><label class="r"><span>Следующий платёж</span><input class="d" type="date" bind:value={date} /></label></div>
     {#if err}<p class="er">{err}</p>{/if}
-  </div>
-  {#snippet footer()}
     <button class="go" disabled={busy} onclick={save}>{busy ? 'Сохраняю…' : 'Сохранить'}</button>
-  {/snippet}
+  </div>
 </Sheet>
 
 <style>
@@ -73,6 +71,6 @@
   .seg button { flex: 1; min-height: 32px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--muted); transition: background .2s, color .2s; }
   .seg .on { background: var(--seg-on); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .15); }
   .er { margin: 10px 4px 0; font-size: 13px; color: var(--neg); }
-  .go { flex: none; margin: 6px 12px calc(14px + var(--safe-b)); height: 46px; border-radius: 23px; font-size: 16px; font-weight: 600; color: #2A1D05; background: linear-gradient(#EBC77A, #C99A3C); box-shadow: 0 6px 16px -6px rgba(226, 172, 62, .6); }
+  .go { display: block; width: 100%; margin: 14px 0 6px; height: 46px; border-radius: 23px; font-size: 16px; font-weight: 600; color: #2A1D05; background: linear-gradient(#EBC77A, #C99A3C); box-shadow: 0 6px 16px -6px rgba(226, 172, 62, .6); }
   .go:disabled { opacity: .6; }
 </style>

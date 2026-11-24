@@ -5,11 +5,10 @@
   import { money, daysLabel } from '../lib/format.js';
   let { items, shown } = $props();
 
-  const HORIZON = 14;
+  const HORIZON = 14, MONTH = 30;
   let range = $state('days');
-  let list = $derived(items.filter((p) => (range === 'days' ? p.days <= HORIZON : true)).sort((a, b) => a.days - b.days));
+  let list = $derived(items.filter((p) => p.days >= 0 && p.days <= (range === 'days' ? HORIZON : MONTH)).sort((a, b) => a.days - b.days));
   let left = $derived(list.reduce((s, p) => s + p.amount, 0));
-  const mon = new Date().toLocaleDateString('ru-RU', { month: 'long' });
 </script>
 
 <div class="grp" class:in={shown}>
@@ -27,10 +26,10 @@
       <div class="r">{money(p.amount)}</div>
     </div>
   {:else}
-    <p class="none">{range === 'month' ? `В ${mon} плановых платежей пока нет` : `На ${HORIZON} дней платежей нет`}</p>
+    <p class="none">{range === 'month' ? 'В ближайший месяц платежей нет' : `На ${HORIZON} дней платежей нет`}</p>
   {/each}
   {#if list.length}
-    <div class="foot"><span>{range === 'month' ? 'Осталось заплатить в этом месяце' : `За ${HORIZON} дней`}</span><b>{money(left)}</b></div>
+    <div class="foot"><span>{range === 'month' ? 'За месяц' : `За ${HORIZON} дней`}</span><b>{money(left)}</b></div>
   {/if}
   <button class="add" onclick={openNewPay}><Icon name="plus" size={16} /> Добавить плановый платёж</button>
 </div>
