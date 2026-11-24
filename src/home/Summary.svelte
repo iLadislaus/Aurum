@@ -1,6 +1,5 @@
 <script>
-  import { untrack } from 'svelte';
-  import Icon from '../lib/Icon.svelte';
+    import Icon from '../lib/Icon.svelte';
   import OpAvatar from '../lib/OpAvatar.svelte';
   import { openNewPay } from '../lib/newpay.svelte.js';
   import { hz, inRange, RANGE_NAME } from '../lib/horizon.svelte.js';
@@ -8,20 +7,8 @@
   let { d, shown, month, onaccounts, onbudget, onhorizon } = $props();
 
   const parts = (v) => { const s = fmt(Math.abs(v), 2), i = s.lastIndexOf(','); return [s.slice(0, i), s.slice(i)]; };
-  // сумма плавно набирается при первом показе, дальше обновляется сразу
-  let disp = $state(null), ran = false;
-  $effect(() => {
-    const to = d.total;
-    if (!shown) return;
-    if (ran || untrack(() => disp) !== null) { disp = to; return; }
-    ran = true;
-    let raf, t0 = 0;
-    const step = (ts) => { if (!t0) t0 = ts; const p = Math.min(1, (ts - t0) / 1100); disp = to * (1 - Math.pow(1 - p, 3)); if (p < 1) raf = requestAnimationFrame(step); else disp = to; };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  });
   const stamp = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  let sp = $derived(parts(disp ?? d.total));
+  let sp = $derived(parts(d.total));
   // шрифт суммы подбирается по факту: самый крупный, при котором она целиком помещается рядом с колонкой «Карты/Конверты/Сегодня»
   let lfEl = $state(), sumEl = $state();
   $effect(() => {
@@ -51,7 +38,7 @@
   <div class="s top" role="button" tabindex="0" aria-label="Открыть счета" onclick={onaccounts} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onaccounts?.())}>
     <div class="cap"><span class="dot"></span>Общий баланс <i>· {stamp}</i></div>
     <div class="lf" bind:this={lfEl}>
-      <div class="sum" bind:this={sumEl}><span class="num">{sp[0]}</span><small>{sp[1]}&nbsp;₴</small></div>
+      <div class="sum" class:in={shown} bind:this={sumEl}><span class="num">{sp[0]}</span><small>{sp[1]}&nbsp;₴</small></div>
     </div>
     <div class="kp">
       <span>Карты<b>{money(d.cardsCash ?? 0)}</b></span>
@@ -119,6 +106,8 @@
   @keyframes smPl { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(3.4); opacity: 0; } }
   .lf { flex: 1; min-width: 0; display: flex; justify-content: center; }
   .sum { flex: none; min-width: 0; display: flex; align-items: baseline; justify-content: center; font-size: 42px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; }
+  .sum { opacity: 0; transform: translateY(8px) scale(.97); filter: blur(6px); transition: opacity .9s cubic-bezier(.2,.8,.2,1) .15s, transform .9s cubic-bezier(.2,.8,.2,1) .15s, filter .9s ease-out .15s; }
+  .sum.in { opacity: 1; transform: none; filter: none; }
   .sum small { font-size: .5em; font-weight: 700; letter-spacing: 0; margin-left: .06em; color: #E8C277; }
   .kp { flex: none; width: 122px; display: flex; flex-direction: column; font-size: 12px; color: #a99366; margin-top: 2px; }
   .kp span { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; }
