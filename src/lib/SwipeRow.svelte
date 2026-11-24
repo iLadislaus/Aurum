@@ -45,5 +45,6 @@
   .a { position: absolute; top: 0; bottom: 0; display: grid; place-items: center; font-size: 14px; font-weight: 600; color: #fff; }
   .a.l { left: 0; background: linear-gradient(160deg, #EBC77A, #B8862C); }
   .a.r { right: 0; background: #E5484D; }
+  .a.r.gold { background: linear-gradient(160deg, #EBC77A, #B8862C); }
   .a.armed { filter: brightness(1.12); }
 </style>
