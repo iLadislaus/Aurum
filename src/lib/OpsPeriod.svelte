@@ -69,7 +69,7 @@
 </div>
 
 <style>
-  .perbar { position: relative; margin-bottom: 12px; }
+  .perbar { position: relative; z-index: 20; margin-bottom: 12px; }
   .row { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
   .row::-webkit-scrollbar { display: none; }
   .row button { display: flex; align-items: center; gap: 4px; white-space: nowrap; padding: 7px 14px; border-radius: 99px; background: var(--fill); font-size: 14px; font-weight: 600; min-height: 36px; text-transform: capitalize; flex: none; transition: background .25s, color .25s, transform .15s; }
