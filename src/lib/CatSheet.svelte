@@ -9,10 +9,13 @@
 
   const ICONS = ['cart', 'eat', 'home', 'car', 'health', 'care', 'cloth', 'digital', 'film', 'family', 'gift', 'sofa', 'sport', 'study', 'bank', 'card', 'cash', 'wallet', 'coin', 'basket', 'chart', 'swap', 'pen', 'tag'];
   let d = $derived(peek('bcats'));
+  let vp = $state();
   let view = $state(1);            // 1 список, 2 форма, 3 выбор конверта, 4 удаление
   let draft = $state(null), isNew = $state(false), busy = $state(false), err = $state('');
   let delTo = $state(null), delCount = $state(0);
 
+  // у каждого вида свой верх: при переходе список листается с начала
+  $effect(() => { view; const sc = vp?.closest('.sc'); if (sc) sc.scrollTop = 0; });
   const load = () => refresh('bcats', loadBudgetCats, true).catch(() => {});
   onMount(() => { if (!d) load(); });
   $effect(() => { if (bg.cats) { view = 1; err = ''; load(); } });
@@ -61,9 +64,9 @@
   const idx = (arr, v) => Math.max(0, arr.indexOf(v));
 </script>
 
-<Sheet open={bg.cats} onclose={closeCats} title="Категории" snap={0.12}>
-  <div class="vp">
-    <div class="vs" style:transform="translateX({view === 1 ? 0 : -100}%)" class:off={view !== 1}>
+<Sheet open={bg.cats} onclose={closeCats} title="Категории" fit minh="100%">
+  <div class="vp" bind:this={vp}>
+    <div class="vs" class:act={view === 1} style:transform="translateX({view === 1 ? 0 : -100}%)" class:off={view !== 1}>
       <div class="bar"><span></span><button class="plus" aria-label="Новая категория" onclick={() => open(null)}><Icon name="plus" size={20} /></button></div>
       {#if swap}
         <button class="warnb" onclick={fix}><Icon name="care" size={20} /><div><b>Связи нужно проверить</b>{swap.a.name} привязана к конверту {swap.env.name}, а у {swap.b.name} конверта нет. <em>Нажми — поменяю местами.</em></div></button>
@@ -80,7 +83,7 @@
     </div>
 
     {#if draft}
-    <div class="vs" style:transform="translateX({view === 1 ? 100 : view === 2 ? 0 : -100}%)" class:off={view !== 2}>
+    <div class="vs" class:act={view === 2} style:transform="translateX({view === 1 ? 100 : view === 2 ? 0 : -100}%)" class:off={view !== 2}>
       <div class="nav"><button class="back" onclick={() => (view = 1)}><Icon name="back" size={16} />Назад</button><b>{isNew ? 'Новая категория' : 'Категория'}</b><button class="done" disabled={busy} onclick={save}>Готово</button></div>
       <div class="card">
         <label class="fr"><span>Название</span><input bind:value={draft.name} placeholder="Название" maxlength="40" oninput={() => (err = '')} /></label>
@@ -105,7 +108,7 @@
       {#if !isNew}<button class="dl" onclick={askDelete}>Удалить категорию…</button><p class="hint">Операции и правила перенесутся в категорию, которую выберешь.</p>{/if}
     </div>
 
-    <div class="vs" style:transform="translateX({view >= 3 ? 0 : 100}%)" class:off={view < 3}>
+    <div class="vs" class:act={view >= 3} style:transform="translateX({view >= 3 ? 0 : 100}%)" class:off={view < 3}>
       {#if view === 3}
         <div class="nav"><button class="back" onclick={() => (view = 2)}><Icon name="back" size={16} />Назад</button><b>Конверт</b><span class="sp"></span></div>
         <div class="card"><button class="opt" class:on={!draft.env} onclick={() => { draft.env = null; view = 2; }}><div class="ic"><Icon name="cash" size={17} /></div><div class="m"><b>Без конверта</b><small>платится из Cash</small></div><span class="ck"></span></button></div>
@@ -141,8 +144,9 @@
 {/snippet}
 
 <style>
-  .vp { position: relative; overflow: hidden; height: calc(100vh - 150px); height: calc(100dvh - 150px); }
-  .vs { position: absolute; inset: 0; overflow-y: auto; background: var(--bg); transition: transform .45s cubic-bezier(.32, .72, 0, 1), opacity .3s; padding: 0 6px 12px; }
+  .vp { position: relative; overflow: hidden; }
+  .vs { position: absolute; top: 0; left: 0; right: 0; background: var(--bg); transition: transform .45s cubic-bezier(.32, .72, 0, 1), opacity .3s; padding: 0 6px 12px; }
+  .vs.act { position: relative; }
   .vs.off { pointer-events: none; opacity: .4; }
   .bar { display: flex; justify-content: flex-end; margin: 0 4px 10px; }
   .plus { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: linear-gradient(160deg, #EBC77A, #B8862C); box-shadow: 0 6px 14px -6px rgba(184, 134, 44, .8); transition: transform .2s; }
@@ -182,8 +186,8 @@
   .tg::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 5px rgba(0, 0, 0, .3); transition: transform .3s cubic-bezier(.3, 1.3, .4, 1); }
   .tg.on { background: linear-gradient(160deg, #EBC77A, #B8862C); } .tg.on::after { transform: translateX(20px); }
   .fl { font-size: 12px; text-transform: uppercase; letter-spacing: .4px; color: var(--muted); margin: 16px 14px 8px; font-weight: 600; }
-  .ig { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 14px; }
-  .ig button { aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background: var(--card); color: var(--text); transition: transform .2s cubic-bezier(.3, 1.5, .5, 1); }
+  .ig { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 14px; justify-items: center; }
+  .ig button { aspect-ratio: 1; width: 100%; max-width: 56px; border-radius: 50%; display: grid; place-items: center; background: var(--card); color: var(--text); transition: transform .2s cubic-bezier(.3, 1.5, .5, 1); }
   .ig .on { background: linear-gradient(160deg, #EBC77A, #B8862C); color: #fff; transform: scale(1.1); }
   .st { display: flex; align-items: center; gap: 12px; } .st button { width: 30px; height: 30px; border-radius: 50%; background: var(--fill); font-size: 18px; } .st b { min-width: 16px; text-align: center; }
   .dl { width: 100%; height: 48px; border-radius: 14px; background: var(--card); color: var(--neg); font-weight: 500; margin: 6px 0 4px; box-shadow: var(--shadow); }
