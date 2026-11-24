@@ -1,11 +1,12 @@
 <script>
   // Единое окно снизу: размер, анимация и жесты одни для всех. Открывается на половину, тянется на весь экран.
   // fit: окно по высоте содержимого (до 88%), без половины и «на весь экран»; закрывается свайпом вниз
-  let { open = false, onclose, title = '', sub = '', z = 55, fit = false, minh = '', full = $bindable(false), lead, footer, children } = $props();
+  let { open = false, onclose, title = '', sub = '', z = 55, fit = false, minh = '', snap = 0.46, full = $bindable(false), lead, footer, children } = $props();
 
   let dy = $state(0), y0 = null, dragging = $state(false);
   let H = $state(700), shEl, scEl, vel = 0, ly = 0, lt = 0;
-  const half = $derived(Math.round(H * 0.46));
+  // snap: какая часть высоты окна уходит вниз при открытии (0.46 — видна чуть больше половины, 0.30 — видно 70%)
+  const half = $derived(Math.round(H * snap));
   const base = $derived(fit || full ? 0 : half);
   const pos = $derived(Math.max(0, base + dy));
 
@@ -18,15 +19,19 @@
   });
 
   function down(e) { if (shEl) H = shEl.offsetHeight; y0 = e.clientY; dy = 0; vel = 0; ly = e.clientY; lt = performance.now(); }
+  // положение пальца запоминаем сразу, а окно двигаем один раз за кадр: так тяжёлое содержимое не перерисовывается лишний раз
+  let raf = 0, want = 0;
   function move(e) {
     if (y0 == null) return;
-    dy = Math.max(-base, e.clientY - y0);
+    want = Math.max(-base, e.clientY - y0);
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; dy = want; });
     const t = performance.now();
     vel = (e.clientY - ly) / Math.max(1, t - lt); ly = e.clientY; lt = t;
     if (Math.abs(dy) > 4 && !dragging) { dragging = true; e.currentTarget?.setPointerCapture?.(e.pointerId); }
   }
   function up() {
     if (y0 == null) return;
+    if (raf) { cancelAnimationFrame(raf); raf = 0; dy = want; }
     const p = pos; y0 = null; dragging = false; dy = 0;
     if (fit) { if (vel > 0.5 || p > H * 0.3) onclose?.(); return; }
     if (vel < -0.5) full = true;
@@ -80,6 +85,8 @@
 <style>
   .as { position: absolute; inset: 0; pointer-events: none; }
   .as.open { pointer-events: auto; }
+  .as.open .ov { will-change: opacity; }
+  .as.open .sh { will-change: transform; }
   .ov { position: absolute; inset: 0; width: 100%; background: rgba(0, 0, 0, .4); opacity: 0; transition: opacity .45s cubic-bezier(.32, .72, 0, 1); }
   .sh { position: absolute; left: 14px; right: 14px; bottom: 0; top: calc(env(safe-area-inset-top, 0px) + 14px); display: flex; flex-direction: column;
     background: var(--bg); border-radius: 26px 26px 0 0; overflow: hidden; transform: translateY(105%); transition: transform .5s cubic-bezier(.32, .72, 0, 1);
