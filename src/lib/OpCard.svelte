@@ -13,7 +13,7 @@
   import SwipeRow from './SwipeRow.svelte';
   import CardFace from './CardFace.svelte';
 
-  let split = $state(false), parts = $state([]), typePick = $state(false), pick = $state(false), remember = $state(true), armed = $state(false), busy = $state(false), err = $state(''), more = $state(0), timer;
+  let split = $state(false), parts = $state([]), typePick = $state(false), pick = $state(false), remember = $state(true), armed = $state(false), busy = $state(false), err = $state(''), more = $state(0), timer, sparts = $state([]), showParts = $state(false);
   let cats = $derived(peek('cats')?.list ?? []);
   // всегда берём свежую версию операции из списка (после смены категории и т. п.)
   let o = $derived(oc.op ? (peek(oc.key)?.ops.find((x) => x.id === oc.op.id) ?? oc.op) : null);
@@ -27,11 +27,11 @@
 
   $effect(() => {
     if (!oc.open) return;
-    pick = false; typePick = false; split = false; parts = []; remember = true; armed = false; err = ''; more = 0;
+    pick = false; typePick = false; split = false; parts = []; remember = true; armed = false; err = ''; more = 0; showParts = false; sparts = [];
     refresh('cats', loadCategories).catch(() => {});
     const act = oc.act;
     untrack(() => {
-      if (act === 'del' && o && !o.mono) { armed = true; timer = setTimeout(() => (armed = false), 3000); }
+      if (o?.splits) loadSplits(o.id).then((r) => { if (oc.open) sparts = r.sort((a, b) => b.amount - a.amount); }).catch(() => {});
       if (act === 'split') setTimeout(() => { if (oc.open && o && o.action !== 'TRANSFER') openSplit(); }, 350);
     });
   });
@@ -89,14 +89,14 @@
       const ps = parts.map((p, i) => ({ category_id: p.id, amount: +eff[i].toFixed(2) }));
       await saveSplits(o.id, total, ps);
       const top = [...ps].sort((a, b) => b.amount - a.amount)[0];
-      patch((x) => ({ ...x, splits: ps.length, cat: `${ps.length} категории`, category_id: top.category_id, uncat: false }));
-      split = false; prefetchAll(true);
+      patch((x) => ({ ...x, splits: ps.length, icon: 'split', cat: ps.map((q) => catOf(q.category_id)?.name ?? '').filter(Boolean).slice(0, 2).join(' + '), category_id: top.category_id, uncat: false }));
+      split = false; sparts = [...ps].sort((a, b) => b.amount - a.amount); showParts = true; prefetchAll(true);
     } catch (e) { err = e.message || 'Не удалось разделить'; }
     busy = false;
   }
   async function undoSplit() {
     busy = true;
-    try { await clearSplits(o.id); const c = catOf(o.category_id); patch((x) => ({ ...x, splits: 0, cat: c?.name ?? 'Без категории' })); split = false; prefetchAll(true); }
+    try { await clearSplits(o.id); const c = catOf(o.category_id); patch((x) => ({ ...x, splits: 0, icon: c?.icon ?? 'tag', cat: c?.name ?? 'Без категории' })); split = false; sparts = []; showParts = false; prefetchAll(true); }
     catch (e) { err = e.message || 'Не удалось убрать разделение'; }
     busy = false;
   }
@@ -129,7 +129,7 @@
       <CardFace {theme} kind={kind[o.action].toUpperCase()}>
         {#snippet amount()}<div class="big"><span class="v">{amt}</span><u>{o.sym}</u></div>{/snippet}
         {#snippet chip()}
-          {#if !tr}<div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} name={o.name} />{/if}<span class="cn">{o.name}{#if o.cat !== o.name}<small>{o.cat}</small>{/if}</span></div>{/if}
+          {#if !tr}<div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} name={o.splits ? '' : o.name} />{/if}<span class="cn">{o.name}{#if o.splits}<small>{sparts.length > 1 ? '+ ' + sparts.slice(1).map((x) => catOf(x.category_id)?.name ?? '').filter(Boolean).join(', ') : o.cat}</small>{:else if o.cat !== o.name}<small>{o.cat}</small>{/if}</span></div>{/if}
         {/snippet}
         {#snippet acct()}
           {#if tr}
@@ -148,7 +148,7 @@
             <button class="lr cat" onclick={() => { typePick = !typePick; if (typePick) pick = false; }}><span>Тип</span><b>{kind[o.action]}</b><Icon name="chevron" size={14} /></button>
           {/if}
           {#if !tr}
-            <button class="lr cat" onclick={() => { pick = !pick; if (pick) typePick = false; }}>
+            <button class="lr cat" onclick={() => { if (o.splits) { showParts = !showParts; pick = false; typePick = false; } else { pick = !pick; if (pick) typePick = false; } }}>
               <span>Категория</span>
               <b class:red={o.uncat}>{o.cat}</b>
               <Icon name="chevron" size={14} />
@@ -162,6 +162,15 @@
         {#if typePick}
           <div class="seg">
             {#each ['EXPENSE', 'INCOME', 'RETURN'] as a}<button class:on={o.action === a} onclick={() => chooseType(a)}>{kind[a]}</button>{/each}
+          </div>
+        {/if}
+
+        {#if showParts && o.splits}
+          <div class="pk sps">
+            {#each sparts as x, i (i)}
+              <div class="spr"><OpAvatar icon={catOf(x.category_id)?.icon ?? 'tag'} size={28} /><span class="n">{catOf(x.category_id)?.name ?? 'Категория'}{#if i === 0}<em>главная</em>{/if}</span><b>{fmt(x.amount, 2)} {o.sym}</b></div>
+            {/each}
+            <div class="spb"><button onclick={openSplit}>Изменить разделение</button><button class="un" disabled={busy} onclick={undoSplit}>Убрать</button></div>
           </div>
         {/if}
 
@@ -203,15 +212,9 @@
         </div>
       {/if}
 
-      {#if o.splits && !split}<button class="ap un" onclick={undoSplit}>Убрать разделение</button>{/if}
       {#if more > 0}<button class="ap" onclick={applyMore}>Применить ещё к {more} операциям без категории</button>{/if}
       {#if err}<p class="er">{err}</p>{/if}
 
-      {#if !split && !o.mono}
-      <div class="act one">
-        <button class="d" class:armed onclick={del}><i class="c"><Icon name="trash" size={24} /></i><span>{armed ? 'Точно?' : 'Удалить'}</span></button>
-      </div>
-      {/if}
     </div>
   {/if}
 </Sheet>
@@ -261,6 +264,14 @@
   .pt button { color: var(--muted); font-size: 15px; padding: 0 2px; }
   .ap { display: block; width: 100%; margin-top: 10px; padding: 12px; border-radius: 14px; background: var(--gold-soft); color: var(--gold); font-size: 13.5px; font-weight: 600; }
   .ap:disabled { opacity: .4; }
+  .sps { padding: 4px 16px 12px; }
+  .spr { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 15px; }
+  .spr .n { flex: 1; min-width: 0; }
+  .spr em { font-style: normal; font-size: 10px; color: var(--gold); border: .5px solid var(--gold); border-radius: 6px; padding: 1px 5px; margin-left: 8px; }
+  .spr b { font-weight: 500; }
+  .spb { display: flex; gap: 8px; margin-top: 6px; }
+  .spb button { flex: 1; padding: 11px; border-radius: 12px; font-size: 13.5px; font-weight: 600; background: var(--gold-soft); color: var(--gold); }
+  .spb button.un { flex: none; padding: 11px 18px; background: var(--fill); color: var(--muted); }
   .ap.un { background: var(--fill); color: var(--muted); margin-top: -10px; }
   .er { margin: 0; text-align: center; font-size: 13px; color: #E5584D; }
   .act { display: flex; justify-content: space-between; padding: 12px 6px calc(env(safe-area-inset-bottom) + 14px); }

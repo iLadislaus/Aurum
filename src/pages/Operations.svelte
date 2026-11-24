@@ -1,6 +1,6 @@
 <script>
   import { onMount, tick, untrack } from 'svelte';
-    import { loadCategories, loadAccList, opsLoader, deleteOp, repeatOp } from '../lib/data.js';
+    import { loadCategories, loadAccList, opsLoader, deleteOp, repeatOp, clearSplits } from '../lib/data.js';
   import { peek, refresh, put } from '../lib/cache.svelte.js';
   import { prefetchAll } from '../lib/prefetch.js';
   import { fmt, cash } from '../lib/format.js';
@@ -157,12 +157,19 @@
   function togglePanel() { focused = false; inputEl?.blur(); fpOpen = !fpOpen; }
 
   // удаление и повтор: сразу правим список на экране, потом синхронизируем счета и главную
-  async function remove(t) {
-    if (t.mono) return;
-    const old = peek(key);
-    put(key, { ops: old.ops.filter((x) => x.id !== t.id) });
+  // удаление: сначала вопрос «точно удалить?», потом операция пропадает из списка и из базы
+  let askDel = $state(null);
+  async function confirmDel() {
+    const t = askDel; askDel = null;
+    if (!t || t.mono) return;
+    const k = key, old = peek(k);
+    put(k, { ...old, ops: old.ops.filter((x) => x.id !== t.id) });
     try { await deleteOp(t.id); prefetchAll(true); }
-    catch (e) { put(key, old); err = e.message || 'Не удалось удалить'; }
+    catch (e) { put(k, old); err = e.message || 'Не удалось удалить'; }
+  }
+  async function unsplit(t) {
+    try { await clearSplits(t.id); await load(key); prefetchAll(true); }
+    catch (e) { err = e.message || 'Не удалось убрать разделение'; }
   }
   async function repeat(t) {
     if (t.mono) return;
@@ -177,7 +184,8 @@
   const menuOp = (el, t) => openCtx(el, [
     { t: 'Изменить', icon: 'pen', run: () => editOp(t) },
     ...(t.action !== 'TRANSFER' ? [{ t: 'Разделить', icon: 'split', run: () => splitOp(t) }] : []),
-    ...(!t.mono ? [{ t: 'Повторить', icon: 'copy', run: () => repeat(t) }, { t: 'Удалить', icon: 'trash', danger: true, sep: true, run: () => openOp(t, key, 'del') }] : [])
+    ...(t.splits ? [{ t: 'Убрать разделение', icon: 'close', run: () => unsplit(t) }] : []),
+    ...(!t.mono ? [...(!t.splits ? [{ t: 'Повторить', icon: 'copy', run: () => repeat(t) }] : []), { t: 'Удалить', icon: 'trash', danger: true, sep: true, run: () => (askDel = t) }] : [])
   ]);
   const sgn = (t) => (t.action === 'TRANSFER' ? '' : t.v > 0 ? '+' : '−');
   const amt = (t) => sgn(t) + fmt(Math.abs(t.action === 'TRANSFER' ? t.amount : t.v), t.foreign ? 2 : Math.abs(t.amount) % 1 ? 2 : 0) + ' ' + t.sym;
@@ -245,7 +253,7 @@
         {#each g.items as t, i (t.id)}
           <SwipeRow id={t.id} norepeat={t.action === 'TRANSFER'} rlabel="Разделить" rconfirm={false} dlabel="Изменить" dconfirm={false} dgold full onrepeat={() => splitOp(t)} ondelete={() => editOp(t)}>
             <div class="op" class:un={t.uncat} class:top={i > 0} role="button" tabindex="0" use:longpress={(el) => menuOp(el, t)} onclick={() => !sw.id && openOp(t, key)} onkeydown={(e) => e.key === 'Enter' && openOp(t, key)}>
-              {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} name={t.name} />{/if}
+              {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} name={t.splits ? '' : t.name} />{/if}
               <div class="nm"><b>{t.name}</b><small>{t.cat}{t.acc ? ' · ' + t.acc : ''}</small></div>
               <span class="am" class:pos={t.v > 0 && t.action !== 'TRANSFER'} class:tr={t.action === 'TRANSFER'}>{amt(t)}</span>
             </div>
@@ -258,6 +266,14 @@
     {#if limit < found.length}<div class="more" bind:this={sentinel}>Подгружаю ещё…</div>{/if}
   {/if}
   {#if busy}<div class="toast">Повторяю…</div>{/if}
+  {#if askDel}
+    <div class="dbg" role="presentation" onclick={() => (askDel = null)}>
+      <div class="dlg" role="alertdialog" aria-label="Удалить операцию" onclick={(e) => e.stopPropagation()}>
+        <p><b>Удалить операцию?</b>Вернуть её будет нельзя.</p>
+        <div><button onclick={() => (askDel = null)}>Отмена</button><button class="x" onclick={confirmDel}>Удалить</button></div>
+      </div>
+    </div>
+  {/if}
 </section>
 
 <style>
@@ -316,4 +332,14 @@
   .msg { text-align: center; color: var(--muted); padding: 40px 0; }
   .more { text-align: center; padding: 18px; font-size: 12.5px; color: var(--muted); }
   .toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); padding: 9px 16px; border-radius: 99px; background: rgba(30, 28, 20, .92); color: #E8C277; font-size: 13px; z-index: 20; }
+  .dbg { position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, .55); animation: dfade .2s both; }
+  .dlg { width: 270px; border-radius: 18px; overflow: hidden; text-align: center; background: var(--card); box-shadow: 0 20px 60px rgba(0, 0, 0, .5); animation: dpop .28s cubic-bezier(.2, .9, .3, 1.2) both; }
+  .dlg p { margin: 0; padding: 20px 18px 16px; font-size: 14px; line-height: 1.4; color: var(--muted); }
+  .dlg p b { display: block; font-size: 17px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .dlg div { display: flex; border-top: .5px solid var(--line); }
+  .dlg button { flex: 1; height: 48px; font-size: 16px; color: #C9A24A; }
+  .dlg button + button { border-left: .5px solid var(--line); }
+  .dlg button.x { color: #E5484D; font-weight: 600; }
+  @keyframes dfade { from { opacity: 0; } }
+  @keyframes dpop { from { opacity: 0; transform: scale(.9); } }
 </style>
