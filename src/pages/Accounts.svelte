@@ -167,7 +167,6 @@
   .ch.o { transform: rotate(180deg); }
   .cap { position: relative; display: flex; justify-content: space-between; align-items: baseline; padding: 12px 14px 2px; font-size: 13px; color: var(--muted); }
   .cap.t::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: .5px; background: var(--line); }
-  .sub { background: var(--fill); }
   .ex { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .45s cubic-bezier(.32, .72, 0, 1); }
   .ex.o { grid-template-rows: 1fr; }
   .ex > div { overflow: hidden; min-height: 0; }
