@@ -74,12 +74,12 @@ export async function loadHome() {
   }));
 
   const ids = ops.data.map((t) => t.id);
-  const spl = ids.length ? await sb.from('transaction_splits').select('transaction_id').in('transaction_id', ids) : { data: [] };
+  const spl = ids.length ? await sb.from('transaction_splits').select('transaction_id,category_id,amount').in('transaction_id', ids) : { data: [] };
   if (spl.error) throw spl.error;
-  const sc = new Map();
-  for (const x of spl.data) sc.set(x.transaction_id, (sc.get(x.transaction_id) ?? 0) + 1);
+  const sc = new Map(), sp = new Map();
+  for (const x of spl.data) { sc.set(x.transaction_id, (sc.get(x.transaction_id) ?? 0) + 1); if (!sp.has(x.transaction_id)) sp.set(x.transaction_id, []); sp.get(x.transaction_id).push({ category_id: x.category_id, amount: Number(x.amount) }); }
   const am = new Map(accs.data.map((x) => [x.id, x]));
-  const recent = ops.data.map((t) => mapOp(t, catMap, am, sc));
+  const recent = ops.data.map((t) => mapOp(t, catMap, am, sc, sp));
 
   // нераспределённые операции за всё время: без категории или в категории Uncategorized
   const unIds = cats.data.filter((c) => UNCAT.test(c.name || '')).map((c) => c.id);
@@ -249,7 +249,13 @@ const OP_COLS = 'id,date,action,amount,to_amount,category_id,note,account_id,fro
 // Одна операция для списков (Операции и «Последние операции» на Главной)
 export const UNCAT = /^uncategorized/i;
 const OP_SYM = { UAH: '₴', USD: '$', EUR: '€' };
-function mapOp(t, cm, am, sc) {
+// подпись разделённой операции: самая крупная категория первой, затем остальные
+function splitLabel(parts, cm, n) {
+  if (!parts?.length) return `${n} категории`;
+  const nm = [...parts].sort((a, b) => b.amount - a.amount).map((p) => clean(cm.get(p.category_id)?.name) || 'Без категории');
+  return nm.length > 2 ? `${nm[0]} + ещё ${nm.length - 1}` : nm.join(' + ');
+}
+function mapOp(t, cm, am, sc, sp) {
   const c = cm.get(t.category_id), acc = am.get(t.account_id), fa = am.get(t.from_account_id), ta = am.get(t.to_account_id);
   const tr = t.action === 'TRANSFER';
   const foreign = tr ? !!(fa?.is_foreign || ta?.is_foreign) : !!acc?.is_foreign;
@@ -264,9 +270,9 @@ function mapOp(t, cm, am, sc) {
     v: dc ? (dc.type === 'EXPENSE' ? -amount : amount) : t.action === 'INCOME' || t.action === 'RETURN' ? amount : t.action === 'EXPENSE' ? -amount : amount,
     foreign, sym: OP_SYM[cur] ?? cur,
     name: clean(t.note) || clean(c?.name) || (tr ? 'Перевод' : 'Операция'),
-    cat: dc ? clean(dc.name) : tr ? 'Перевод' : sc.get(t.id) ? `${sc.get(t.id)} категории` : un ? 'Без категории' : clean(c?.name) || 'Без категории',
+    cat: dc ? clean(dc.name) : tr ? 'Перевод' : sc.get(t.id) ? splitLabel(sp?.get(t.id), cm, sc.get(t.id)) : un ? 'Без категории' : clean(c?.name) || 'Без категории',
     acc: tr ? `${clean(fa?.name) || '?'} → ${clean(ta?.name) || '?'}` : clean(acc?.name),
-    icon: tr && !dc ? 'swap' : c?.icon || 'tag',
+    icon: tr && !dc ? 'swap' : sc.get(t.id) ? 'split' : c?.icon || 'tag',
     uncat: un
   };
 }
@@ -286,14 +292,15 @@ export async function loadOpsRange(a, b) {
   const [cats, accs, spl] = await Promise.all([
     sb.from('categories').select('id,name,icon,type,is_debt'),
     sb.from('accounts').select('id,name,currency,is_foreign'),
-    sb.from('transaction_splits').select('transaction_id')
+    sb.from('transaction_splits').select('transaction_id,category_id,amount')
   ]);
   for (const r of [cats, accs, spl]) if (r.error) throw r.error;
   const sc = new Map();
-  for (const x of spl.data) sc.set(x.transaction_id, (sc.get(x.transaction_id) ?? 0) + 1);
+  const sp = new Map();
+  for (const x of spl.data) { sc.set(x.transaction_id, (sc.get(x.transaction_id) ?? 0) + 1); if (!sp.has(x.transaction_id)) sp.set(x.transaction_id, []); sp.get(x.transaction_id).push({ category_id: x.category_id, amount: Number(x.amount) }); }
   const cm = new Map(cats.data.map((c) => [c.id, c]));
   const am = new Map(accs.data.map((x) => [x.id, x]));
-  const ops = rows.map((t) => mapOp(t, cm, am, sc));
+  const ops = rows.map((t) => mapOp(t, cm, am, sc, sp));
   return { ops };
 }
 
