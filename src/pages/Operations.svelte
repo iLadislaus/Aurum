@@ -30,12 +30,12 @@
   let limit = $state(PAGE);
   let busy = $state(false);
   let sentinel = $state();
-  // шапка периода сворачивается, когда страница прокручена мимо метки перед ней
-  let col = $state(false), sent = $state(), stkH = $state(0);
+  // плашка с итогом показывается, когда карточка итогов прокручена вверх
+  let col = $state(false), card = $state();
   $effect(() => {
-    if (!sent) return;
-    const io = new IntersectionObserver(([e]) => { col = !e.isIntersecting && e.boundingClientRect.top < 0; });
-    io.observe(sent);
+    if (!card) return;
+    const io = new IntersectionObserver(([e]) => { col = !e.isIntersecting && e.boundingClientRect.bottom < 90; });
+    io.observe(card);
     return () => io.disconnect();
   });
   let inputEl = $state();
@@ -203,7 +203,7 @@
 
 <svelte:window onpointerdown={away} />
 
-<section style:--stk="{stkH}px">
+<section>
   <div class="head rise">
     <h1 class="large-title">Операции</h1>
     <div class="hb">
@@ -243,19 +243,16 @@
     <div class="fpwrap"><OpsFilters ops={base} {accs} {cats} /></div>
   {/if}
 
-  <div class="sent" bind:this={sent}></div>
-  <div class="stk" class:col role="presentation" bind:clientHeight={stkH} onclick={() => col && sent?.closest('main')?.scrollTo({ top: 0, behavior: 'smooth' })}>
-    <OpsPeriod {col} />
-    {#if data}
-      <div class="sm" class:col>
-        <div class="fold"><div class="in">
-          <div class="r"><div><span>Расходы</span><b>{tot.exp ? '−' : ''}{cash(tot.exp, 0)}</b></div><div><span>Доходы</span><b class:pos={tot.inc > 0}>{tot.inc > 0 ? '+' : ''}{cash(tot.inc, 0)}</b></div></div>
-          <div class="pb"><i class="e" style:flex={Math.max(tot.exp, 1)}></i><i class="g" style:flex={Math.max(tot.inc, 1)}></i></div>
-        </div></div>
-        <div class="nt"><span>{col ? periodText : nfil || q.trim() ? 'Итого по выбранному · ' + found.length : 'Итого ' + perWord()}</span><b class:pos={tot.net >= 0}>{tot.net >= 0 ? '+' : '−'}{cash(Math.abs(tot.net), 0)}</b></div>
-      </div>
-    {/if}
-  </div>
+  <OpsPeriod />
+  {#if data}
+    <div class="sm" bind:this={card}>
+      <div class="r"><div><span>Расходы</span><b>{tot.exp ? '−' : ''}{cash(tot.exp, 0)}</b></div><div><span>Доходы</span><b class:pos={tot.inc > 0}>{tot.inc > 0 ? '+' : ''}{cash(tot.inc, 0)}</b></div></div>
+      <div class="pb"><i class="e" style:flex={Math.max(tot.exp, 1)}></i><i class="g" style:flex={Math.max(tot.inc, 1)}></i></div>
+      <div class="nt"><span>{nfil || q.trim() ? 'Итого по выбранному · ' + found.length : 'Итого ' + perWord()}</span><b class:pos={tot.net >= 0}>{tot.net >= 0 ? '+' : '−'}{cash(Math.abs(tot.net), 0)}</b></div>
+    </div>
+    <!-- тонкая плашка: появляется, когда карточка итогов уехала вверх; высоты не меняет, поэтому ничего не пересчитывается -->
+    <div class="pw"><button class="pill" class:on={col} tabindex={col ? 0 : -1} onclick={() => card?.closest('main')?.scrollTo({ top: 0, behavior: 'smooth' })}><span>{periodText}</span><b class:pos={tot.net >= 0}>{tot.net >= 0 ? '+' : '−'}{cash(Math.abs(tot.net), 0)}</b></button></div>
+  {/if}
 
   {#if err && !data}
     <p class="msg">{err}</p>
@@ -323,15 +320,12 @@
   .cap { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 6px 0 10px; border-radius: 16px; background: linear-gradient(180deg, #F0D18A, #C9963A); color: #1a1206; font-size: 14px; font-weight: 600; white-space: nowrap; }
   .cap button { display: grid; place-items: center; width: 22px; height: 22px; opacity: .7; }
   .fpwrap { margin-bottom: 0; }
-  .sent { height: 1px; margin-bottom: -1px; }
-  .stk { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 6; margin: 0 -16px 4px; padding: 6px 16px 8px; background: linear-gradient(var(--bg) 88%, transparent); }
-  .fold { display: grid; grid-template-rows: 1fr; transition: grid-template-rows .4s cubic-bezier(.3, .8, .3, 1), opacity .3s; }
-  .in { min-height: 0; overflow: hidden; }
-  .sm.col .fold { grid-template-rows: 0fr; opacity: 0; }
-  .sm.col { border-radius: 99px; padding: 7px 16px; }
-  .sm.col .nt { margin-top: 0; font-size: 13px; }
-  .sm.col .nt b { font-size: 15px; }
-  .sm { transition: border-radius .4s, padding .4s; margin-top: 8px; }
+  .sm { margin-top: 8px; }
+  .pw { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 6; height: 0; }
+  .pill { position: absolute; left: 0; right: 0; top: 6px; display: flex; justify-content: space-between; align-items: center; height: 40px; padding: 0 18px; border-radius: 99px; color: #F4EEDD; font-size: 14px; background: linear-gradient(155deg, #241d10, #0c0c0b 80%); box-shadow: inset 0 0 0 .5px rgba(232, 194, 119, .45), 0 8px 20px rgba(0, 0, 0, .35); transform: translateY(-16px) scale(.96); opacity: 0; pointer-events: none; transition: transform .3s cubic-bezier(.3, .9, .3, 1), opacity .2s; }
+  .pill.on { transform: none; opacity: 1; pointer-events: auto; }
+  .pill b { font-size: 15px; font-variant-numeric: tabular-nums; }
+  .pill b.pos { color: #30D158; }
   .pb { display: flex; gap: 3px; height: 6px; margin: 9px 3px 0; }
   .pb i { display: block; border-radius: 99px; transition: flex .7s cubic-bezier(.3, .9, .3, 1); }
   .pb .e { background: linear-gradient(90deg, #F4DDA6, #D9A93F); }
@@ -348,7 +342,7 @@
   .sm .pos { color: #30D158; }
   .op.un { background: rgba(229, 88, 77, .07); }
   .op.un .nm small { color: #D43D32; font-weight: 600; }
-  .dh { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--stk, 0px)); z-index: 4; display: flex; justify-content: space-between; margin: 0 -16px; padding: 18px 20px 7px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; font-variant-numeric: tabular-nums; background: linear-gradient(var(--bg) 72%, transparent); }
+  .dh { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 52px); z-index: 4; display: flex; justify-content: space-between; margin: 0 -16px; padding: 18px 20px 7px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; font-variant-numeric: tabular-nums; background: linear-gradient(var(--bg) 72%, transparent); }
   .dh b { text-transform: none; letter-spacing: 0; }
   .cd { background: var(--card); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; }
   .op { position: relative; display: flex; align-items: center; gap: 11px; padding: 10px 14px; min-height: 56px; }
