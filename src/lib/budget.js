@@ -119,3 +119,26 @@ export async function undoDist(month, batch) {
   const mr = await sb.from('budget_distribution_month').upsert({ month, advance_total: Math.max(0, cur.done[0] - done[0]), salary_total: Math.max(0, cur.done[1] - done[1]), batches: left }, { onConflict: 'month' });
   if (mr.error) throw mr.error;
 }
+
+// ── Экран «Бюджет» ──
+export async function loadBudgetMonth(month) {
+  const [c, p, ds] = await Promise.all([
+    sb.from('categories').select('id,name,type,icon,is_mandatory,spend_mode,spend_parts,is_debt,sort_order').order('sort_order'),
+    loadPlan(month),
+    loadDist(month)
+  ]);
+  if (c.error) throw c.error;
+  const t = await sb.rpc('month_category_totals', { p_month: month });
+  if (t.error) throw t.error;
+  const spent = {};
+  for (const r of t.data) { if (r.action === 'EXPENSE') spent[r.category_id] = (spent[r.category_id] || 0) + Number(r.total); else if (r.action === 'RETURN') spent[r.category_id] = (spent[r.category_id] || 0) - Number(r.total); }
+  const cats = c.data.map((x) => ({
+    id: x.id, name: clean(x.name), income: x.type === 'INCOME', icon: x.icon || 'tag', mand: !!x.is_mandatory, debt: !!x.is_debt,
+    mode: x.spend_mode || 'spread', parts: x.spend_parts || 4, grp: x.type === 'INCOME' ? incomeGroup(x.name) : null,
+    plan: p.plan[x.id] || 0, fact: x.type === 'INCOME' ? p.got[x.id] || 0 : Math.max(0, spent[x.id] || 0)
+  }));
+  const gk = { 'Аванс': 0, 'Зарплата': 1, 'Другое': 2 };
+  const got = [0, 0, 0]; for (const x of cats) if (x.income) got[gk[x.grp]] += x.fact;
+  const free = got.map((g, i) => Math.max(0, g - ds.done[i]));
+  return { cats, free, at: Date.now() };
+}
