@@ -10,6 +10,9 @@
   const ICONS = ['cart', 'eat', 'home', 'car', 'health', 'care', 'cloth', 'digital', 'film', 'family', 'gift', 'sofa', 'sport', 'study', 'bank', 'card', 'cash', 'wallet', 'coin', 'basket', 'chart', 'swap', 'pen', 'tag'];
   let d = $derived(peek('bcats'));
   let vp = $state();
+  // окно сразу на весь экран, как остальные большие окна: список листается, закрытие свайпом вниз с верха
+  let full = $state(false);
+  $effect(() => { if (bg.cats) { const t = setTimeout(() => (full = true), 0); return () => clearTimeout(t); } });
   let view = $state(1);            // 1 список, 2 форма, 3 выбор конверта, 4 удаление
   let draft = $state(null), isNew = $state(false), busy = $state(false), err = $state('');
   let delTo = $state(null), delCount = $state(0);
@@ -64,7 +67,7 @@
   const idx = (arr, v) => Math.max(0, arr.indexOf(v));
 </script>
 
-<Sheet open={bg.cats} onclose={closeCats} title="Категории" fit minh="100%">
+<Sheet open={bg.cats} onclose={closeCats} title="Категории" bind:full>
   <div class="vp" bind:this={vp}>
     <div class="vs" class:act={view === 1} style:transform="translateX({view === 1 ? 0 : -100}%)" class:off={view !== 1}>
       <div class="bar"><span></span><button class="plus" aria-label="Новая категория" onclick={() => open(null)}><Icon name="plus" size={20} /></button></div>
