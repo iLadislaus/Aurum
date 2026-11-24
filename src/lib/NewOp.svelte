@@ -19,10 +19,14 @@
   let when = $state(''), split = $state(false), parts = $state([]), remember = $state(true);
   let debtId = $state(null), newName = $state(''), newCur = $state(null), payCur = $state(null), fxCur = $state(null), rateIn = $state(null), pendDebt = $state(null);
   const CUR = ['UAH', 'USD', 'EUR'];
+  // свежие данные держим и локально: если кэш создали до загрузки, окно всё равно обновится
+  let accLive = $state(null), catLive = $state(null);
+  const acctData = () => accLive ?? peek('accounts');
+  const catData = () => catLive ?? peek('cats');
   let busy = $state(false), ok = $state(false), err = $state(''), menu = $state(null), fsEdit = $state(null);
 
   const accs = $derived.by(() => {
-    const d = peek('accounts');
+    const d = acctData();
     if (!d) return [];
     const l = [];
     const add = (a, grp, icon, currency) => l.push({ id: a.id, name: a.name, currency: currency || a.currency || 'UAH', grp, icon, mono: !!a.mono });
@@ -38,7 +42,7 @@
     for (const a of pool) { if (!m.has(a.grp)) m.set(a.grp, []); m.get(a.grp).push(a); }
     return [...m].map(([t, l]) => ({ t, l }));
   });
-  const cats = $derived((peek('cats')?.list ?? []).filter((c) => (type === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE' && (type !== 'RETURN' || !c.debt))));
+  const cats = $derived((catData()?.list ?? []).filter((c) => (type === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE' && (type !== 'RETURN' || !c.debt))));
   const plainCats = $derived(cats.filter((c) => !c.debt && c.name !== 'FX income'));
   const acc = (id) => accs.find((a) => a.id === id);
   const num = (v) => Number(String(v).replace(/\s/g, '').replace(',', '.')) || 0;
@@ -49,7 +53,7 @@
   const eff = $derived(parts.map((p, i) => ({ id: p.id, v: i === 0 ? first : num(p.s) })));
   const left = $derived(+(total - eff.reduce((t, p) => t + p.v, 0)).toFixed(2));
   const isTr = $derived(type === 'TRANSFER');
-  const debts = $derived(peek('accounts')?.debts ?? []);
+  const debts = $derived(acctData()?.debts ?? []);
   const debt = $derived(debts.find((d) => d.id === debtId) ?? null);
   const mode = $derived.by(() => {
     // обычную операцию (в т.ч. «Начальный остаток» по долгу) при правке не превращаем в долговой перевод
@@ -105,13 +109,13 @@
   function init(no) {
     busy = false; ok = false; err = ''; split = false; parts = []; remember = true; menu = null; fsEdit = null;
     debtId = null; newName = ''; newCur = null; payCur = null; fxCur = null; rateIn = null; pendDebt = null;
-    refresh('accounts', loadAccounts).catch(() => {});
-    refresh('cats', loadCategories).catch(() => {});
+    refresh('accounts', loadAccounts).then((d) => (accLive = d)).catch(() => {});
+    refresh('cats', loadCategories).then((d) => (catLive = d)).catch(() => {});
     const e = no.edit;
     if (e) {
       type = e.action; note = e.note || ''; amt = String(e.amount).replace('.', ','); amt2 = e.to_amount != null ? String(e.to_amount).replace('.', ',') : '';
       accId = e.account_id; fromId = e.from_account_id; toId = e.to_account_id; catId = e.category_id; when = localInput(e.date);
-      const dc = e.action === 'TRANSFER' ? untrack(() => peek('cats')?.list ?? []).find((c) => c.id === e.category_id && c.debt) : null;
+      const dc = e.action === 'TRANSFER' ? untrack(() => catData()?.list ?? []).find((c) => c.id === e.category_id && c.debt) : null;
       if (dc) { // перевод по долгу: «взял» (из долга на счёт) или «гашу» (со счёта на долг)
         type = dc.type;
         if (dc.type === 'INCOME') { debtId = e.from_account_id; accId = e.to_account_id; } else { debtId = e.to_account_id; accId = e.from_account_id; payCur = e.currency; }
@@ -127,13 +131,13 @@
       fromId = no.acc ?? lp?.from ?? accId;
       toId = lp?.to && lp.to !== fromId ? lp.to : null;
       // открыли из долга («Новая операция» / «Перевод» в меню долга) — сразу погашение этого долга
-      if (no.acc && (peek('accounts')?.debts ?? []).some((d) => d.id === no.acc)) { type = 'EXPENSE'; debtId = no.acc; pendDebt = no.acc; accId = null; fromId = null; }
+      if (no.acc && (acctData()?.debts ?? []).some((d) => d.id === no.acc)) { type = 'EXPENSE'; debtId = no.acc; pendDebt = no.acc; accId = null; fromId = null; }
     }
   }
   // категорию «Debt repayment» подставляем, когда категории загрузились
   $effect(() => {
     if (!no.open || !pendDebt) return;
-    const c = (peek('cats')?.list ?? []).find((x) => x.debt && x.type === 'EXPENSE');
+    const c = (catData()?.list ?? []).find((x) => x.debt && x.type === 'EXPENSE');
     if (c) { catId = c.id; pendDebt = null; }
   });
   // долг по умолчанию: первый из списка (или «Новый», если долгов нет)
