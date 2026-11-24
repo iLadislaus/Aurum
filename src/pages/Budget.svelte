@@ -10,7 +10,8 @@
   const MON = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
   const now = new Date();
   const cur = now.getFullYear() * 12 + now.getMonth();
-  let ym = $state(cur), pick = $state(false), err = $state('');
+  let pick = $state(false), err = $state('');
+  const ym = $derived(bg.ym);
   const month = $derived(monthKey(Math.floor(ym / 12), ym % 12));
   const d = $derived(bd[month]);
   const months = Array.from({ length: 8 }, (_, i) => cur - 5 + i);
@@ -65,7 +66,7 @@
 <Screen title="Бюджет">
   <div class="hd">
     <button class="mp" class:o={pick} onclick={() => (pick = !pick)}>{MON[ym % 12]} {Math.floor(ym / 12)}<Icon name="chevron" size={14} /></button>
-    <div class="pop" class:o={pick}>{#each months as m (m)}<button class:on={m === ym} onclick={() => { ym = m; pick = false; }}>{MON[m % 12]} {Math.floor(m / 12)}{#if m === cur}<small>сейчас</small>{/if}</button>{/each}</div>
+    <div class="pop" class:o={pick}>{#each months as m (m)}<button class:on={m === ym} onclick={() => { bg.ym = m; pick = false; }}>{MON[m % 12]} {Math.floor(m / 12)}{#if m === cur}<small>сейчас</small>{/if}</button>{/each}</div>
   </div>
 
   {#if !d}

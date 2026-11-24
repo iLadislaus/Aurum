@@ -8,18 +8,17 @@
 
   const MON = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
   const now = new Date();
-  let ym = $state(now.getFullYear() * 12 + now.getMonth());
+  // месяц выбирается на экране «Бюджет»
+  const ym = $derived(bg.ym);
   let full = $state(false);
-  let tab = $state(0), pick = $state(false), busy = $state(false), err = $state('');
+  let tab = $state(0), busy = $state(false), err = $state('');
   let txt = $state({}), ids = $state({}), prev = $state({}), got = $state({});
   const d = $derived(peek('bcats'));
   const month = $derived(monthKey(Math.floor(ym / 12), ym % 12));
   const title = $derived(MON[ym % 12] + ' ' + Math.floor(ym / 12));
-  const cur = now.getFullYear() * 12 + now.getMonth();
-  const months = Array.from({ length: 9 }, (_, i) => cur - 2 + i);
 
   $effect(() => { if (bg.plan) { const t = setTimeout(() => (full = true), 0); return () => clearTimeout(t); } });
-  $effect(() => { if (bg.plan) { tab = 0; pick = false; err = ''; refresh('bcats', loadBudgetCats, true).catch(() => {}); } });
+  $effect(() => { if (bg.plan) { tab = 0; err = ''; refresh('bcats', loadBudgetCats, true).catch(() => {}); } });
   let seq = 0;
   $effect(() => {
     if (!bg.plan) return;
@@ -58,12 +57,8 @@
   const blur = (c) => { txt[c.id] = pl(c) ? fmt(pl(c)) : ''; };
 </script>
 
-<Sheet open={bg.plan} onclose={closePlan} title="План на месяц" bind:full>
+<Sheet open={bg.plan} onclose={closePlan} title="План на месяц" sub={title} bind:full>
   <div class="hd">
-    <button class="mo" onclick={() => (pick = !pick)}>{title}<span class:up={pick}><Icon name="chevron" size={14} /></span></button>
-    {#if pick}
-      <div class="ml">{#each months as m (m)}<button class:on={m === ym} onclick={() => { ym = m; pick = false; }}>{MON[m % 12]} {Math.floor(m / 12)}</button>{/each}</div>
-    {/if}
     <div class="cd">
       <i class="au"></i>
       <div class="cap"><span class="dot"></span>Свободно после плана</div>
@@ -122,11 +117,6 @@
 <style>
   button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
   .hd { position: sticky; top: 0; z-index: 3; background: var(--bg); padding: 0 6px 6px; }
-  .mo { display: flex; align-items: center; gap: 4px; margin: 0 auto 10px; font-size: 13px; color: var(--muted); }
-  .mo span { transition: transform .25s; display: flex; } .mo span.up { transform: rotate(180deg); }
-  .ml { position: absolute; left: 50%; transform: translateX(-50%); top: 24px; z-index: 5; min-width: 180px; padding: 6px; border-radius: 16px; background: var(--card); box-shadow: 0 12px 40px rgba(0, 0, 0, .35), inset 0 0 0 .5px var(--line); animation: pop .25s cubic-bezier(.2, .9, .3, 1.1) both; }
-  .ml button { display: block; width: 100%; padding: 10px 14px; text-align: left; border-radius: 10px; font-size: 15px; } .ml button.on { color: var(--gold); font-weight: 600; background: var(--gold-soft); }
-  @keyframes pop { from { opacity: 0; transform: translateX(-50%) scale(.94); } }
   .cd { position: relative; border-radius: 22px; overflow: hidden; color: #F4EEDD; padding: 14px 16px 12px; background: radial-gradient(120% 140% at 85% 0%, #2b2310, #101010 62%); box-shadow: 0 0 0 .5px rgba(232, 194, 119, .45), 0 12px 26px -16px rgba(232, 194, 119, .4), inset 0 1px 0 rgba(255, 232, 160, .35); }
   .au { position: absolute; right: -40px; top: -60px; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle, rgba(244, 190, 90, .26), rgba(244, 190, 90, 0) 66%); animation: br 6s ease-in-out infinite; pointer-events: none; }
   @keyframes br { 50% { transform: scale(1.2); opacity: .6; } }
