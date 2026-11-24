@@ -1,7 +1,6 @@
 <script>
   import { onMount, tick, untrack } from 'svelte';
-  import { slide, fly } from 'svelte/transition';
-  import { loadCategories, loadAccList, opsLoader, deleteOp, repeatOp } from '../lib/data.js';
+    import { loadCategories, loadAccList, opsLoader, deleteOp, repeatOp } from '../lib/data.js';
   import { peek, refresh, put } from '../lib/cache.svelte.js';
   import { prefetchAll } from '../lib/prefetch.js';
   import { fmt, cash } from '../lib/format.js';
@@ -186,10 +185,10 @@
   </div>
 
   {#if searching}
-    <div class="sg" transition:slide={{ duration: 280 }}>
+    <div class="sg">
       <label><Icon name="search" size={16} /><input id="opq" type="search" placeholder="Название, место, счёт или сумма" autocomplete="off" bind:this={inputEl} bind:value={q} onfocus={() => { focused = true; fpOpen = false; }} /></label>
       {#if sugg.length}
-        <div class="dd" role="listbox" transition:fly={{ y: -8, duration: 200 }}>
+        <div class="dd" role="listbox">
           {#each sugg as x, i (x.k + x.v)}
             {#if i === 0 || sugg[i - 1].g !== x.g}<div class="gl">{x.g}</div>{/if}
             <button class="it" role="option" aria-selected="false" onpointerdown={(e) => e.preventDefault()} onclick={() => chosen(x)}>
@@ -202,18 +201,18 @@
   {/if}
 
   {#if searching || caps.length}
-    <div class="frow" transition:slide={{ duration: 260 }}>
+    <div class="frow">
       {#if searching}
         <button class="addf" class:on={fpOpen} onclick={togglePanel}><Icon name="sliders" size={15} />{caps.length ? 'Фильтры' : 'Добавить фильтры'}<span class="cv" class:up={fpOpen}><Icon name="chevron" size={14} /></span></button>
       {/if}
       {#each caps as c (c.id)}
-        <span class="cap" transition:fly={{ y: 4, duration: 180 }}><Icon name={c.icon} size={14} />{c.label}<button aria-label="Убрать" onclick={c.off}><Icon name="close" size={14} /></button></span>
+        <span class="cap"><Icon name={c.icon} size={14} />{c.label}<button aria-label="Убрать" onclick={c.off}><Icon name="close" size={14} /></button></span>
       {/each}
     </div>
   {/if}
 
   {#if searching && fpOpen}
-    <div class="fpwrap" transition:slide={{ duration: 320 }}><OpsFilters ops={base} {accs} {cats} /></div>
+    <div class="fpwrap"><OpsFilters ops={base} {accs} {cats} /></div>
   {/if}
 
   <OpsPeriod />

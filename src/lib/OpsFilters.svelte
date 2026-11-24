@@ -1,7 +1,6 @@
 <script>
   // Панель «Добавить фильтры»: секции свёрнуты, раскрываются по одной. Магазины появляются после выбора вида, счёта или категории.
-  import { slide } from 'svelte/transition';
-  import Icon from './Icon.svelte';
+    import Icon from './Icon.svelte';
   import { fl, toggle, applyFilters, TYPES, SUMR, SRC, FLAGS, clearFilters, filterCount } from './opsfilter.svelte.js';
 
   let { ops = [], accs = [], cats = [] } = $props();
@@ -49,7 +48,7 @@
       <span class="cv" class:up={openSec === id}><Icon name="chevron" size={16} /></span>
     </button>
     {#if openSec === id}
-      <div class="cps" transition:slide={{ duration: 280 }}>
+      <div class="cps">
         {#if id === 'types'}
           {#each TYPES as x}<button class:a={fl.types.includes(x[0])} onclick={() => toggle('types', x[0])}>{x[1]}</button>{/each}
         {:else if id === 'accs'}
@@ -73,9 +72,9 @@
 <div class="fpan">
   {#each secs as s (s[0])}
     {#if s[0] !== 'mers'}{@render sec(s[0], s[1], s[2])}
-    {:else if showMers}<div transition:slide={{ duration: 300 }}>{@render sec(s[0], s[1], s[2])}</div>{/if}
+    {:else if showMers}<div>{@render sec(s[0], s[1], s[2])}</div>{/if}
   {/each}
-  {#if filterCount() > 0}<button class="rs" transition:slide={{ duration: 200 }} onclick={clearFilters}>Сбросить фильтры</button>{/if}
+  {#if filterCount() > 0}<button class="rs" onclick={clearFilters}>Сбросить фильтры</button>{/if}
 </div>
 
 <style>
