@@ -17,11 +17,13 @@ for (const k of ['home', 'accounts', 'cats']) box(k);
 try { Object.keys(localStorage).filter((k) => k.startsWith(PFX)).forEach((k) => box(k.slice(PFX.length))); } catch { /* пусто */ }
 
 export const peek = (key) => box(key).v;
+export const cachedKeys = (prefix) => Object.keys(boxes).filter((k) => k.startsWith(prefix) && boxes[k].v != null);
 
 // один и тот же запрос не летит дважды: экран подхватывает уже идущую загрузку
 const inflight = {};
-export function refresh(key, loader) {
-  if (inflight[key]) return inflight[key];
+// force: идущая загрузка могла начаться до изменения данных, поэтому после неё грузим заново
+export function refresh(key, loader, force = false) {
+  if (inflight[key]) return force ? inflight[key].catch(() => {}).then(() => refresh(key, loader)) : inflight[key];
   inflight[key] = (async () => {
     try {
       const v = await loader();
