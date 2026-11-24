@@ -1,11 +1,11 @@
 <script>
   import Screen from '../lib/Screen.svelte';
   import Skeleton from '../lib/Skeleton.svelte';
-  import { openCats, openPlan } from '../lib/budget.svelte.js';
+  import { openCats, openPlan, openDist } from '../lib/budget.svelte.js';
 </script>
 
 <Screen title="Бюджет">
-  <div class="bt"><button class="cb" onclick={openPlan}>План</button><button class="cb" onclick={openCats}>Категории</button></div>
+  <div class="bt"><button class="cb" onclick={openPlan}>План</button><button class="cb" onclick={openCats}>Категории</button><button class="cb" onclick={openDist}>Разложить</button></div>
   <Skeleton count={10} />
 </Screen>
 

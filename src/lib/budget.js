@@ -71,3 +71,51 @@ export async function savePlan(month, vals, ids, prev) {
     if (r.error) throw r.error;
   }
 }
+
+// ── Разложить деньги ──
+const INC_KEYS = ['advance', 'salary', 'other'];
+export async function loadDist(month) {
+  const [d, m, a] = await Promise.all([
+    sb.from('budget_distribution').select('category_id,advance,salary,other').eq('month', month),
+    sb.from('budget_distribution_month').select('*').eq('month', month).maybeSingle(),
+    sb.from('accounts').select('id').eq('is_budget_source', true).limit(1)
+  ]);
+  for (const r of [d, m, a]) if (r.error) throw r.error;
+  const rows = {}; for (const r of d.data) rows[r.category_id] = INC_KEYS.map((k) => Number(r[k] || 0));
+  const done = [0, 0, 0]; for (const v of Object.values(rows)) v.forEach((x, i) => (done[i] += x));
+  return { rows, done, cash: a.data[0]?.id ?? null, batches: m.data?.batches ?? [] };
+}
+// items: [{ cat, env, name, a: [аванс, зарплата, другое] }] → по одному переводу Cash → конверт на каждый конверт
+export async function formDist(month, label, cash, items) {
+  if (!cash) throw new Error('Не найден счёт Cash (источник бюджета)');
+  const now = new Date().toISOString();
+  const tx = items.map((i) => ({ date: now, action: 'TRANSFER', amount: i.a.reduce((s, v) => s + v, 0), from_account_id: cash, to_account_id: i.env, note: `Бюджет ${label}: ${i.name}` }));
+  const ins = await sb.from('transactions').insert(tx).select('id');
+  if (ins.error) throw ins.error;
+  const ids = ins.data.map((r) => r.id);
+  const cur = await loadDist(month);
+  for (const i of items) {
+    const old = cur.rows[i.cat] || [0, 0, 0], v = old.map((x, k) => x + i.a[k]);
+    const r = await sb.from('budget_distribution').upsert({ category_id: i.cat, month, advance: v[0], salary: v[1], other: v[2] }, { onConflict: 'category_id,month' });
+    if (r.error) throw r.error;
+  }
+  const batch = { id: ids[0], ts: now, ids, items: items.map((i) => ({ cat: i.cat, a: i.a })) };
+  const tot = items.reduce((s, i) => i.a.map((v, k) => (s[k] || 0) + v), []);
+  const mr = await sb.from('budget_distribution_month').upsert({ month, advance_total: cur.done[0] + tot[0], salary_total: cur.done[1] + tot[1], formed_at: now, transfer_ids: ids, batches: [...cur.batches, batch] }, { onConflict: 'month' });
+  if (mr.error) throw mr.error;
+  return batch;
+}
+export async function undoDist(month, batch) {
+  const del = await sb.from('transactions').delete().in('id', batch.ids);
+  if (del.error) throw del.error;
+  const cur = await loadDist(month);
+  for (const i of batch.items) {
+    const old = cur.rows[i.cat] || [0, 0, 0], v = old.map((x, k) => Math.max(0, x - i.a[k]));
+    const r = await sb.from('budget_distribution').upsert({ category_id: i.cat, month, advance: v[0], salary: v[1], other: v[2] }, { onConflict: 'category_id,month' });
+    if (r.error) throw r.error;
+  }
+  const left = cur.batches.filter((b) => b.id !== batch.id);
+  const done = [0, 0, 0]; for (const i of batch.items) i.a.forEach((v, k) => (done[k] += v));
+  const mr = await sb.from('budget_distribution_month').upsert({ month, advance_total: Math.max(0, cur.done[0] - done[0]), salary_total: Math.max(0, cur.done[1] - done[1]), batches: left }, { onConflict: 'month' });
+  if (mr.error) throw mr.error;
+}
