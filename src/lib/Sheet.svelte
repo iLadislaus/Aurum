@@ -39,12 +39,20 @@
 
   // содержимое: на половине тянется само окно; на весь экран — только когда список в самом верху и тянут вниз (как в iOS)
   function grab(node) {
-    let on = false, y = 0, live = false;
-    const ts = (e) => { y = e.touches[0].clientY; live = true; on = false; if (!full && !fit) { down({ clientY: y }); on = true; } };
+    let on = false, y = 0, x = 0, live = false, skip = false, axis = '';
+    // жест внутри выпадающего списка (счета, категории) листает сам список и не тянет окно
+    const ts = (e) => { skip = !!e.target.closest?.('[role="listbox"]'); if (skip) { live = false; on = false; return; } y = e.touches[0].clientY; x = e.touches[0].clientX; axis = ''; live = true; on = false; };
     const tm = (e) => {
       if (!live) return;
       const c = e.touches[0].clientY;
-      if (!on) { if (node.scrollTop <= 0 && c - y > 4) { down({ clientY: c }); on = true; } else return; }
+      // жест, начавшийся вбок (лента категорий, значки), листает ленту и не тянет окно
+      if (!axis) { const ax = Math.abs(e.touches[0].clientX - x), ay = Math.abs(c - y); if (Math.max(ax, ay) > 6) axis = ax > ay ? 'h' : 'v'; }
+      if (axis !== 'v' && !on) return;
+      if (!on) {
+        if (!full && !fit) { down({ clientY: y }); on = true; }
+        else if (node.scrollTop <= 0 && c - y > 4) { down({ clientY: c }); on = true; }
+        else return;
+      }
       e.preventDefault(); move({ clientY: c });
     };
     const te = () => { live = false; if (on) { on = false; up(); } };
