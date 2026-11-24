@@ -70,7 +70,7 @@
 
 <div class="as" class:open style:z-index={z} aria-hidden={!open}>
   <button class="ov" aria-label="Закрыть" style:opacity={open ? (fit ? Math.max(0, 1 - pos / H) : Math.max(0, Math.min(1, 1 - (pos - half) / (H - half)))) : 0} onclick={() => onclose?.()}></button>
-  <div class="sh" class:dragging class:fit bind:this={shEl} role="dialog" aria-modal="true" aria-label={title} style:min-height={fit && minh ? minh : undefined} style:transform={open ? `translateY(${pos}px)` : undefined}>
+  <div class="sh" class:dragging class:fit class:tall={fit && minh} bind:this={shEl} role="dialog" aria-modal="true" aria-label={title} style:min-height={fit && minh ? minh : undefined} style:transform={open ? `translateY(${pos}px)` : undefined}>
     <div class="top" onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up}>
       <div class="gr"></div>
       {@render lead?.()}
@@ -94,6 +94,7 @@
   .sh.dragging { transition: none; }
   .sh.fit { top: auto; max-height: calc(100% - env(safe-area-inset-top, 0px) - 14px); }
   .sh.fit .sc { flex: 0 1 auto; min-height: 0; }
+  .sh.fit.tall .sc { flex: 1 1 auto; }
   .sh.fit .top { padding-bottom: 20px; }
   .sh.fit .gr { margin-top: 12px; }
   .sh.fit .sc { padding-bottom: 8px; }
