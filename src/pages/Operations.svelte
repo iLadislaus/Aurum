@@ -9,6 +9,8 @@
   import SwipeRow from '../lib/SwipeRow.svelte';
   import { sw } from '../lib/swipe.svelte.js';
   import { openOp } from '../lib/opcard.svelte.js';
+  import { openCtx } from '../lib/ctxmenu.svelte.js';
+  import { longpress } from '../lib/longpress.js';
   import { openNewOp } from '../lib/newop.svelte.js';
   import { flyOpen } from '../lib/fly.js';
   import Skeleton from '../lib/Skeleton.svelte';
@@ -169,6 +171,14 @@
     catch (e) { err = e.message || 'Не удалось повторить'; }
     busy = false;
   }
+  // жесты: вправо — разделить, влево — изменить; у банковских операций «Изменить» открывает карточку (категория), удалять и повторять их нельзя
+  const editOp = (t) => (t.mono ? openOp(t, key) : openNewOp(t));
+  const splitOp = (t) => openOp(t, key, 'split');
+  const menuOp = (el, t) => openCtx(el, [
+    { t: 'Изменить', icon: 'pen', run: () => editOp(t) },
+    ...(t.action !== 'TRANSFER' ? [{ t: 'Разделить', icon: 'split', run: () => splitOp(t) }] : []),
+    ...(!t.mono ? [{ t: 'Повторить', icon: 'copy', run: () => repeat(t) }, { t: 'Удалить', icon: 'trash', danger: true, sep: true, run: () => openOp(t, key, 'del') }] : [])
+  ]);
   const sgn = (t) => (t.action === 'TRANSFER' ? '' : t.v > 0 ? '+' : '−');
   const amt = (t) => sgn(t) + fmt(Math.abs(t.action === 'TRANSFER' ? t.amount : t.v), t.foreign ? 2 : Math.abs(t.amount) % 1 ? 2 : 0) + ' ' + t.sym;
 </script>
@@ -233,8 +243,8 @@
       <div class="dh"><span>{g.title}</span><b>{g.sum ? (g.sum > 0 ? '+' : '−') + cash(Math.abs(g.sum), 0) : ''}</b></div>
       <div class="cd">
         {#each g.items as t, i (t.id)}
-          <SwipeRow id={t.id} nodelete={t.mono} norepeat={t.mono} ondelete={() => remove(t)} onrepeat={() => repeat(t)}>
-            <div class="op" class:un={t.uncat} class:top={i > 0} role="button" tabindex="0" onclick={() => !sw.id && openOp(t, key)} onkeydown={(e) => e.key === 'Enter' && openOp(t, key)}>
+          <SwipeRow id={t.id} norepeat={t.action === 'TRANSFER'} rlabel="Разделить" rconfirm={false} dlabel="Изменить" dconfirm={false} dgold full onrepeat={() => splitOp(t)} ondelete={() => editOp(t)}>
+            <div class="op" class:un={t.uncat} class:top={i > 0} role="button" tabindex="0" use:longpress={(el) => menuOp(el, t)} onclick={() => !sw.id && openOp(t, key)} onkeydown={(e) => e.key === 'Enter' && openOp(t, key)}>
               {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} name={t.name} />{/if}
               <div class="nm"><b>{t.name}</b><small>{t.cat}{t.acc ? ' · ' + t.acc : ''}</small></div>
               <span class="am" class:pos={t.v > 0 && t.action !== 'TRANSFER'} class:tr={t.action === 'TRANSFER'}>{amt(t)}</span>
