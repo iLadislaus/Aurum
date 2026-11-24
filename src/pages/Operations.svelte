@@ -129,7 +129,7 @@
     <h1 class="large-title">Операции</h1>
     <div class="hb">
       <button class="rf" class:on={searching} aria-label="Поиск" onclick={toggleSearch}><Icon name={searching ? 'plus' : 'search'} size={20} /></button>
-      <button class="rf" aria-label="Новая операция" onclick={(e) => flyOpen(e, () => openNewOp())}><Icon name="plus" size={20} /></button>
+      <button class="rf plus" aria-label="Новая операция" onclick={(e) => flyOpen(e, () => openNewOp())}><Icon name="plus" size={20} /></button>
     </div>
   </div>
 
@@ -187,6 +187,7 @@
   .hb { display: flex; gap: 4px; }
   .rf { width: 44px; height: 44px; display: grid; place-items: center; }
   .rf :global(svg) { width: 36px !important; height: 36px !important; padding: 9px; border-radius: 50%; background: var(--fill); color: var(--gold); box-sizing: border-box; transition: transform .4s cubic-bezier(.32, .72, 0, 1), background .3s; }
+  .rf.plus :global(svg) { background: linear-gradient(160deg, #EBC77A, #B8862C); color: #fff; padding: 8px; }
   .rf.on :global(svg) { transform: rotate(45deg); background: var(--gold-soft); }
   .srch { margin-bottom: 10px; }
   .srch label { display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 12px; border-radius: 12px; background: var(--fill); color: var(--muted); }
