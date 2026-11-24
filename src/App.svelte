@@ -19,6 +19,7 @@
   import NewPay from './lib/NewPay.svelte';
   import PeriodSheet from './lib/PeriodSheet.svelte';
   import CatSheet from './lib/CatSheet.svelte';
+  import PlanSheet from './lib/PlanSheet.svelte';
   import { cal } from './lib/opsfilter.svelte.js';
   import { prefetchAll } from './lib/prefetch.js';
   import { startUpdateWatch } from './lib/update.svelte.js';
@@ -65,7 +66,7 @@
   {/if}
 </main>
 <UpdateBanner />
-{#if auth.session}<AccountSheet /><HomeBlocks /><HorizonSheet /><NewPay /><PeriodSheet /><CatSheet /><NewAccount /><EditAccount /><DeleteAccount /><OpCard /><NewOp /><CtxMenu />{/if}
+{#if auth.session}<AccountSheet /><HomeBlocks /><HorizonSheet /><NewPay /><PeriodSheet /><CatSheet /><PlanSheet /><NewAccount /><EditAccount /><DeleteAccount /><OpCard /><NewOp /><CtxMenu />{/if}
 {#if auth.session}<TabBar />{/if}
 
 <style>
