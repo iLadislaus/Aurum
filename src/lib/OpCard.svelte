@@ -9,6 +9,7 @@
   import Icon from './Icon.svelte';
   import OpAvatar from './OpAvatar.svelte';
   import Sheet from './Sheet.svelte';
+  import SwipeRow from './SwipeRow.svelte';
   import CardFace from './CardFace.svelte';
 
   let split = $state(false), parts = $state([]), typePick = $state(false), pick = $state(false), remember = $state(true), armed = $state(false), busy = $state(false), err = $state(''), more = $state(0), timer;
@@ -179,6 +180,7 @@
           <div class="sbar">{#each eff as v}<i style:width="{Math.min(100, v / total * 100)}%"></i>{/each}</div>
           <div class="sleft"><span>Сумма {fmt(total, 2)} {o.sym}</span><b class:ok={left === 0}>{left === 0 ? 'Сходится' : left < 0 ? `Больше на ${fmt(-left, 2)}` : `Осталось ${fmt(left, 2)}`}</b></div>
           {#each parts as p, i (i)}
+            <div class="ptw"><SwipeRow id={'sp' + i} norepeat dconfirm={false} nodelete={i === 0 || parts.length <= 2} ondelete={() => (parts = parts.filter((_, k) => k !== i))}>
             <div class="pt">
               <label class="pc"><OpAvatar icon={catOf(p.id)?.icon ?? 'tag'} size={30} /><span class:ph={!p.id}>{catOf(p.id)?.name ?? 'Категория'}</span><Icon name="chevron" size={13} />
                 <select value={p.id ?? 0} onchange={(e) => { parts[i].id = Number(e.currentTarget.value) || null; }}><option value={0}>Категория</option>{#each list as c (c.id)}<option value={c.id}>{c.name}</option>{/each}</select></label>
@@ -187,8 +189,8 @@
                 oninput={(e) => { firstEdit = e.currentTarget.value; parts[0].v = parse(firstEdit); autoFirst = firstEdit.trim() === ''; }}
                 onblur={() => (firstEdit = null)} />
               {:else}<input inputmode="decimal" placeholder="0" value={p.s ?? ''} oninput={(e) => setPart(i, e.currentTarget.value)} onblur={() => (parts[i].s = plain(parts[i].v))} />{/if}
-              {#if parts.length > 2 && i > 0}<button aria-label="Убрать" onclick={() => (parts = parts.filter((_, k) => k !== i))}>✕</button>{/if}
             </div>
+            </SwipeRow></div>
           {/each}
           <button class="ad" onclick={addPart}>+ Добавить категорию</button>
           <button class="ap" disabled={busy || left !== 0 || parts.length < 2 || parts.some((p, i) => !p.id || !(eff[i] > 0))} onclick={doSplit}>Сохранить разделение</button>
@@ -244,7 +246,8 @@
   .sbar i { background: linear-gradient(90deg, #C99A3C, #F0D18A); border-right: 1px solid var(--bg); transition: width .4s cubic-bezier(.32, .72, 0, 1); }
   .sleft { display: flex; justify-content: space-between; margin: 7px 2px 8px; font-size: 12.5px; color: var(--muted); }
   .sleft b { font-weight: 600; color: #E5584D; transition: color .3s; } .sleft b.ok { color: var(--pos); }
-  .pt { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; padding: 6px 10px; border-radius: 14px; background: var(--card); }
+  .ptw { margin-bottom: 6px; border-radius: 14px; overflow: hidden; }
+  .pt { display: flex; align-items: center; gap: 9px; padding: 6px 10px; background: var(--card); }
   .pc { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; color: var(--muted); }
   .pc span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; color: var(--text); }
   .pc span.ph { color: var(--muted); font-weight: 500; }
