@@ -9,6 +9,8 @@
   const stamp = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   const parts = (v) => { const s = fmt(Math.abs(v), 2), i = s.lastIndexOf(','); return [s.slice(0, i), s.slice(i)]; };
   let sp = $derived(parts(d.total));
+  // чем длиннее сумма, тем мельче шрифт, чтобы любая сумма помещалась рядом с колонкой «Карты/Конверты/Сегодня»
+  let fs = $derived(sp[0].length <= 6 ? 42 : sp[0].length <= 8 ? 36 : sp[0].length <= 10 ? 30 : 26);
 
   // бюджет
   const now = new Date();
@@ -29,7 +31,7 @@
   <div class="s top" role="button" tabindex="0" aria-label="Открыть счета" onclick={onaccounts} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onaccounts?.())}>
     <div class="lf">
       <div class="cap"><span class="dot"></span>Общий баланс <i>· {stamp}</i></div>
-      <div class="sum"><span class="num">{sp[0]}</span><small>{sp[1]}&nbsp;₴</small></div>
+      <div class="sum" style:font-size="{fs}px"><span class="num">{sp[0]}</span><small>{sp[1]}&nbsp;₴</small></div>
     </div>
     <div class="kp">
       <span>Карты<b>{money(d.cardsCash ?? 0)}</b></span>
@@ -89,8 +91,8 @@
   .dot { position: relative; width: 6px; height: 6px; border-radius: 50%; background: #E8C277; flex: none; }
   .dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #E8C277; animation: smPl 2.2s ease-out infinite; }
   @keyframes smPl { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(3.4); opacity: 0; } }
-  .sum { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 42px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; }
-  .sum small { font-size: .62em; font-weight: 700; color: #E8C277; }
+  .sum { flex: 1; min-width: 0; display: flex; align-items: baseline; justify-content: center; font-size: 42px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; }
+  .sum small { font-size: .5em; font-weight: 700; letter-spacing: 0; margin-left: .06em; color: #E8C277; }
   .kp { flex: none; width: 122px; display: flex; flex-direction: column; font-size: 12px; color: #a99366; margin-top: 2px; }
   .kp span { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; }
   .kp span + span { border-top: .5px solid rgba(232,194,119,.18); }
