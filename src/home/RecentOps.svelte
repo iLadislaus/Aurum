@@ -7,7 +7,9 @@
   import { sw } from '../lib/swipe.svelte.js';
   import { longpress } from '../lib/longpress.js';
   import { openCtx } from '../lib/ctxmenu.svelte.js';
-  import { deleteOp, repeatOp } from '../lib/data.js';
+  import { deleteOp, repeatOp, clearSplits } from '../lib/data.js';
+  import { openNewOp } from '../lib/newop.svelte.js';
+  import ConfirmDel from '../lib/ConfirmDel.svelte';
   import { prefetchAll } from '../lib/prefetch.js';
   import { openOp } from '../lib/opcard.svelte.js';
   let { rows, shown } = $props();
@@ -15,9 +17,11 @@
   // карточка операции берёт свежую версию из кэша — кладём туда пятёрку с Главной
   $effect(() => { const r = rows; untrack(() => put(KEY, { ops: r })); });
   let err = $state('');
-  // удаление и повтор: список правим сразу, потом синхронизируем счета и остальные экраны
-  async function remove(t) {
-    if (t.mono) return;
+  // те же жесты, что в списке операций: вправо — разделить, влево — изменить, долгое нажатие — меню
+  let askDel = $state(null);
+  async function confirmDel() {
+    const t = askDel; askDel = null;
+    if (!t || t.mono) return;
     const old = peek('home');
     if (old) put('home', { ...old, recent: old.recent.filter((x) => x.id !== t.id) });
     try { await deleteOp(t.id); prefetchAll(true); }
@@ -28,9 +32,17 @@
     try { await repeatOp(t); prefetchAll(true); }
     catch (e) { err = e.message || 'Не удалось повторить'; }
   }
+  async function unsplit(t) {
+    try { await clearSplits(t.id); prefetchAll(true); }
+    catch (e) { err = e.message || 'Не удалось убрать разделение'; }
+  }
+  const editOp = (t) => (t.mono ? openOp(t, KEY) : openNewOp(t));
+  const splitOp = (t) => openOp(t, KEY, 'split');
   const menu = (el, t) => openCtx(el, [
-    ...(t.mono ? [] : [{ t: 'Повторить', icon: 'swap', run: () => repeat(t) }]),
-    ...(t.mono ? [] : [{ t: 'Удалить', icon: 'trash', danger: true, run: () => remove(t) }])
+    { t: 'Изменить', icon: 'pen', run: () => editOp(t) },
+    ...(t.action !== 'TRANSFER' ? [{ t: 'Разделить', icon: 'split', run: () => splitOp(t) }] : []),
+    ...(t.splits ? [{ t: 'Убрать разделение', icon: 'close', run: () => unsplit(t) }] : []),
+    ...(!t.mono ? [...(!t.splits ? [{ t: 'Повторить', icon: 'copy', run: () => repeat(t) }] : []), { t: 'Удалить', icon: 'trash', danger: true, sep: true, run: () => (askDel = t) }] : [])
   ]);
   const sgn = (t) => (t.action === 'TRANSFER' ? '' : t.v > 0 ? '+' : '−');
   const amt = (t) => sgn(t) + fmt(Math.abs(t.action === 'TRANSFER' ? t.amount : t.v), t.foreign ? 2 : Math.abs(t.amount) % 1 ? 2 : 0) + ' ' + t.sym;
@@ -43,9 +55,9 @@
 
 <div class="grp" class:in={shown}>
   {#each rows as t, i (t.id)}
-    <SwipeRow id={t.id} nodelete={t.mono} norepeat={t.mono} ondelete={() => remove(t)} onrepeat={() => repeat(t)}>
+    <SwipeRow id={t.id} norepeat={t.action === 'TRANSFER'} rlabel="Разделить" rconfirm={false} dlabel="Изменить" dconfirm={false} dgold full onrepeat={() => splitOp(t)} ondelete={() => editOp(t)}>
     <div class="op" class:un={t.uncat} class:top={i > 0} role="button" tabindex="0" use:longpress={(el) => menu(el, t)} onclick={() => !sw.id && openOp(t, KEY)} onkeydown={(e) => e.key === 'Enter' && openOp(t, KEY)}>
-      {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} name={t.name} />{/if}
+      {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} name={t.splits ? '' : t.name} />{/if}
       <div class="nm"><b>{t.name}</b><small>{t.cat}{t.acc ? ' · ' + t.acc : ''} · {when(t.date)}</small></div>
       <span class="am" class:pos={t.v > 0 && t.action !== 'TRANSFER'}>{amt(t)}</span>
     </div>
@@ -55,6 +67,7 @@
   {/each}
 </div>
 {#if err}<p class="er">{err}</p>{/if}
+<ConfirmDel open={!!askDel} onyes={confirmDel} onno={() => (askDel = null)} />
 
 <style>
   .op.un { background: rgba(229, 88, 77, .07); }
