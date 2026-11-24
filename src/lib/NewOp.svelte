@@ -249,7 +249,7 @@
   </div>
 {/snippet}
 
-<Sheet open={no.open} onclose={closeNewOp} fit {title} z={57}>
+<Sheet open={no.open} onclose={closeNewOp} fit minh="86%" {title} z={57}>
   <div class="bd" class:in={no.open}>
     {#if menu}<button class="mb" aria-label="Закрыть список" onclick={() => (menu = null)}></button>{/if}
     <div class="seg" style:--n={TYPES.findIndex((t) => t[0] === type)}>
