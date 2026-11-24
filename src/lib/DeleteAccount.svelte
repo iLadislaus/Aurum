@@ -46,29 +46,31 @@
   <div class="bd">
     {#if done}
       <div class="ok"><span class="ck"><Icon name="check" size={26} /></span><b>{done}</b></div>
-    {:else if n == null}
-      <div class="sk" aria-busy="true"><p class="sb">Считаю операции…</p></div>
-    {:else if n === 0}
-      <p class="sb">Операций на этом счёте нет. Счёт будет удалён.</p>
-    {:else if !cands.length}
-      <p class="sb">На счёте {n} {word(n)}, а подходящего счёта для переноса нет. Сначала создайте другой счёт того же вида{a?.currency && a.currency !== 'UAH' ? ' и валюты' : ''}.</p>
     {:else}
-      <p class="sb">На счёте {n} {word(n)}. Выберите, куда их перенести{a?.balance ? `: остаток ${cash(a.balance)} перейдёт вместе с ними` : ''}.</p>
-      <div class="lb">Перенести на</div>
-      <div class="ls" role="listbox" class:long={cands.length > 3}>
-      {#each cands as x (x.id)}
-        <button class="op" class:s={to === x.id} onclick={() => { to = x.id; err = ''; }}>
-          <span class="ci"><Icon name={x.icon || 'wallet'} size={17} /></span>
-          <span class="nm">{x.name}</span>
-          <span class="rd"><Icon name="check" size={13} /></span>
-        </button>
-      {/each}
+      <!-- список счетов уже в кеше, поэтому окно сразу рисуется в полный размер; пока считаются операции, на месте текста стоит заглушка той же высоты -->
+      <div class="sb">
+        {#if n == null}<i class="sk"></i><i class="sk s"></i>
+        {:else if n === 0}Операций на этом счёте нет. Счёт будет удалён.
+        {:else if !cands.length}На счёте {n} {word(n)}, а подходящего счёта для переноса нет. Сначала создайте другой счёт того же вида{a?.currency && a.currency !== 'UAH' ? ' и валюты' : ''}.
+        {:else}На счёте {n} {word(n)}. Выберите, куда их перенести{a?.balance ? `: остаток ${cash(a.balance)} перейдёт вместе с ними` : ''}.{/if}
       </div>
+      {#if cands.length && n !== 0}
+        <div class="lb">Перенести на</div>
+        <div class="ls" role="listbox" class:long={cands.length > 3}>
+          {#each cands as x (x.id)}
+            <button class="op" class:s={to === x.id} onclick={() => { to = x.id; err = ''; }}>
+              <span class="ci"><Icon name={x.icon || 'wallet'} size={17} /></span>
+              <span class="nm">{x.name}</span>
+              <span class="rd"><Icon name="check" size={13} /></span>
+            </button>
+          {/each}
+        </div>
+      {/if}
     {/if}
     {#if err}<p class="er">{err}</p>{/if}
   </div>
   {#snippet footer()}
-    {#if !done && n != null && (n === 0 || cands.length)}
+    {#if !done && (n == null ? cands.length > 0 : n === 0 || cands.length > 0)}
       <button class="go" class:r={n === 0 || to} disabled={busy} onclick={go}>{busy ? 'Удаляю…' : n === 0 ? 'Удалить' : 'Перенести и удалить'}</button>
     {/if}
   {/snippet}
@@ -76,8 +78,11 @@
 
 <style>
   .bd { padding: 0 2px; }
-  .sb { margin: 2px 8px 10px; text-align: center; font-size: 13px; line-height: 1.45; color: var(--muted); }
-  .sk { min-height: 230px; display: grid; align-content: start; padding-top: 6px; }
+  .sb { margin: 2px 8px 10px; min-height: 38px; text-align: center; font-size: 13px; line-height: 1.45; color: var(--muted); }
+  .sk { display: block; height: 11px; margin: 4px auto 8px; width: 88%; border-radius: 6px; background: var(--fill); animation: pulse 1.1s ease-in-out infinite; }
+  .sk.s { width: 60%; margin-top: 0; }
+  @keyframes pulse { 50% { opacity: .45; } }
+  @media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
   .ls { display: grid; }
   .ls.long { max-height: 188px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 2px 2px 4px; scrollbar-width: none; }
   .ls.long::-webkit-scrollbar { display: none; }
