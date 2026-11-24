@@ -1,4 +1,5 @@
 <script>
+  import { untrack } from 'svelte';
   import Icon from '../lib/Icon.svelte';
   import OpAvatar from '../lib/OpAvatar.svelte';
   import { openNewPay } from '../lib/newpay.svelte.js';
@@ -8,7 +9,19 @@
 
   const stamp = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
   const parts = (v) => { const s = fmt(Math.abs(v), 2), i = s.lastIndexOf(','); return [s.slice(0, i), s.slice(i)]; };
-  let sp = $derived(parts(d.total));
+  // сумма плавно набирается при первом показе, дальше обновляется сразу
+  let disp = $state(null), ran = false;
+  $effect(() => {
+    const to = d.total;
+    if (!shown) return;
+    if (ran || untrack(() => disp) !== null) { disp = to; return; }
+    ran = true;
+    let raf, t0 = 0;
+    const step = (ts) => { if (!t0) t0 = ts; const p = Math.min(1, (ts - t0) / 1100); disp = to * (1 - Math.pow(1 - p, 3)); if (p < 1) raf = requestAnimationFrame(step); else disp = to; };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  });
+  let sp = $derived(parts(disp ?? d.total));
   // чем длиннее сумма, тем мельче шрифт, чтобы любая сумма помещалась рядом с колонкой «Карты/Конверты/Сегодня»
   let fs = $derived(sp[0].length <= 6 ? 42 : sp[0].length <= 8 ? 36 : sp[0].length <= 10 ? 30 : 26);
 
@@ -28,6 +41,7 @@
 
 <div class="cd" id="hz-anchor" class:in={shown}>
   <i class="au" aria-hidden="true"></i>
+  <i class="shn" aria-hidden="true"></i>
   <div class="s top" role="button" tabindex="0" aria-label="Открыть счета" onclick={onaccounts} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onaccounts?.())}>
     <div class="lf">
       <div class="cap"><span class="dot"></span>Общий баланс <i>· {stamp}</i></div>
@@ -80,18 +94,20 @@
     opacity: 0; transform: translateY(10px); transition: opacity .6s, transform .6s; }
   .cd.in { opacity: 1; transform: none; }
   .au { position: absolute; right: -40px; top: -50px; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(244,190,90,.28), rgba(244,190,90,0) 66%); animation: smBr 6s ease-in-out infinite; pointer-events: none; }
+  .shn { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 40%, rgba(255,232,160,.12) 50%, transparent 60%); transform: translateX(-120%); animation: smSh 5s ease-in-out 1s infinite; }
+  @keyframes smSh { 40%, 100% { transform: translateX(120%); } }
   @keyframes smBr { 50% { transform: scale(1.2); opacity: .6; } }
   .s { position: relative; display: flex; align-items: center; width: 100%; text-align: left; padding: 14px 18px; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .15s; }
   .s + .s { border-top: .5px solid rgba(232,194,119,.18); }
   .s:active { background: rgba(232,194,119,.06); }
-  .top { gap: 12px; align-items: stretch; justify-content: space-between; }
-  .lf { flex: 1; min-width: 0; min-height: 112px; display: flex; flex-direction: column; }
-  .cap { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #a99366; margin-bottom: 2px; }
+  .top { gap: 12px; align-items: center; justify-content: space-between; padding-top: 14px; padding-bottom: 12px; }
+  .lf { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
+  .cap { display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 12px; color: #a99366; margin-bottom: 2px; }
   .cap i { font-style: normal; opacity: .75; }
   .dot { position: relative; width: 6px; height: 6px; border-radius: 50%; background: #E8C277; flex: none; }
   .dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #E8C277; animation: smPl 2.2s ease-out infinite; }
   @keyframes smPl { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(3.4); opacity: 0; } }
-  .sum { flex: none; margin: auto 0; padding-bottom: 6px; min-width: 0; display: flex; align-items: baseline; justify-content: center; font-size: 42px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; }
+  .sum { flex: none; margin-top: 6px; min-width: 0; display: flex; align-items: baseline; justify-content: center; font-size: 42px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; }
   .sum small { font-size: .5em; font-weight: 700; letter-spacing: 0; margin-left: .06em; color: #E8C277; }
   .kp { flex: none; width: 122px; display: flex; flex-direction: column; font-size: 12px; color: #a99366; margin-top: 2px; }
   .kp span { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; }
@@ -125,5 +141,5 @@
   .ht b { font-size: 15px; flex: none; }
   .ht i { font-style: normal; color: #a99366; overflow: hidden; text-overflow: ellipsis; }
   .pl { flex: none; width: 44px; height: 44px; display: grid; place-items: center; color: #E8C277; }
-  @media (prefers-reduced-motion: reduce) { .au, .dot::after { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .au, .dot::after, .shn { animation: none; } }
 </style>
