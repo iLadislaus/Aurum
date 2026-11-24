@@ -1,5 +1,6 @@
-// Окна «Бюджета»: открыты или нет
+// Окна «Бюджета»: открыты или нет; последние загруженные данные экрана по месяцам (чтобы показывать сразу)
 export const bg = $state({ cats: false, plan: false, dist: false });
+export const bd = $state({});
 export const openCats = () => { bg.cats = true; };
 export const closeCats = () => { bg.cats = false; };
 export const openPlan = () => { bg.plan = true; };
