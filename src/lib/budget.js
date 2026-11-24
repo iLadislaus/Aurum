@@ -47,3 +47,27 @@ export async function deleteBudgetCat(id, to) {
   const b = await sb.from('budgets').delete().eq('category_id', id); if (b.error) throw b.error;
   const r = await sb.from('categories').delete().eq('id', id); if (r.error) throw r.error;
 }
+
+// ── План на месяц ──
+export const monthKey = (y, m) => new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
+export async function loadPlan(month) {
+  const [b, t] = await Promise.all([
+    sb.from('budgets').select('id,category_id,amount').eq('month', month),
+    sb.rpc('month_category_totals', { p_month: month })
+  ]);
+  if (b.error) throw b.error;
+  if (t.error) throw t.error;
+  const plan = {}, ids = {}, got = {};
+  for (const r of b.data) { plan[r.category_id] = Number(r.amount); ids[r.category_id] = r.id; }
+  for (const r of t.data) if (r.action === 'INCOME') got[r.category_id] = (got[r.category_id] || 0) + Number(r.total);
+  return { plan, ids, got };
+}
+// сохраняем только изменённое: есть строка — обновляем, нет и сумма больше нуля — добавляем
+export async function savePlan(month, vals, ids, prev) {
+  for (const [cid, v] of Object.entries(vals)) {
+    const was = prev[cid] || 0;
+    if (was === v) continue;
+    const r = ids[cid] ? await sb.from('budgets').update({ amount: v }).eq('id', ids[cid]) : v > 0 ? await sb.from('budgets').insert({ category_id: Number(cid), month, amount: v }) : { error: null };
+    if (r.error) throw r.error;
+  }
+}

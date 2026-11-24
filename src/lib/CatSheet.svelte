@@ -46,13 +46,27 @@
   function open(c) {
     isNew = !c;
     draft = c ? { ...c } : { id: 0, name: '', income: false, icon: 'tag', mand: false, mode: 'Плавно', parts: 4, env: null, grp: 'Другое' };
-    err = ''; view = 2;
+    err = ''; view = 2; snap = isNew ? '' : key();
   }
-  async function save() {
-    if (!draft.name.trim()) { err = 'Введите название'; return; }
-    busy = true; err = '';
-    try { await saveBudgetCat(draft); await load(); view = 1; } catch (e) { err = e.message || 'Не удалось сохранить'; }
-    busy = false;
+  // всё, что меняется в форме, сохраняется само: новая категория создаётся при выходе из формы
+  let snap = '', timer = 0;
+  const key = () => JSON.stringify(draft);
+  async function flush() {
+    clearTimeout(timer);
+    if (!draft || !draft.name.trim() || key() === snap) return;
+    const k = key();
+    try { await saveBudgetCat(draft); snap = k; await load(); } catch (e) { err = e.message || 'Не удалось сохранить'; }
+  }
+  $effect(() => {
+    if (!draft || isNew || (view !== 2 && view !== 3)) return;
+    const k = key();
+    if (k === snap) return;
+    clearTimeout(timer); timer = setTimeout(flush, 350);
+    return () => clearTimeout(timer);
+  });
+  async function back() {
+    if (view === 2) { await flush(); view = 1; return; }
+    view = 2;
   }
   async function askDelete() { delCount = await countCatOps(draft.id).catch(() => 0); delTo = null; view = 4; }
   async function doDelete() {
@@ -87,7 +101,7 @@
 
     {#if draft}
     <div class="vs" class:act={view === 2} style:transform="translateX({view === 1 ? 100 : view === 2 ? 0 : -100}%)" class:off={view !== 2}>
-      <div class="nav"><button class="back" onclick={() => (view = 1)}><Icon name="back" size={16} />Назад</button><b>{isNew ? 'Новая категория' : 'Категория'}</b><button class="done" disabled={busy} onclick={save}>Готово</button></div>
+      <div class="nav"><button class="back" aria-label="Назад" onclick={back}><Icon name="chevron" size={22} /></button><b>{isNew ? 'Новая категория' : 'Категория'}</b><span class="sp"></span></div>
       <div class="card">
         <label class="fr"><span>Название</span><input bind:value={draft.name} placeholder="Название" maxlength="40" oninput={() => (err = '')} /></label>
         {#if isNew}<div class="fr"><span>Тип</span>{@render seg(['Расход', 'Доход'], draft.income ? 1 : 0, (i) => (draft.income = i === 1))}</div>{/if}
@@ -113,13 +127,13 @@
 
     <div class="vs" class:act={view >= 3} style:transform="translateX({view >= 3 ? 0 : 100}%)" class:off={view < 3}>
       {#if view === 3}
-        <div class="nav"><button class="back" onclick={() => (view = 2)}><Icon name="back" size={16} />Назад</button><b>Конверт</b><span class="sp"></span></div>
+        <div class="nav"><button class="back" aria-label="Назад" onclick={back}><Icon name="chevron" size={22} /></button><b>Конверт</b><span class="sp"></span></div>
         <div class="card"><button class="opt" class:on={!draft.env} onclick={() => { draft.env = null; view = 2; }}><div class="ic"><Icon name="cash" size={17} /></div><div class="m"><b>Без конверта</b><small>платится из Cash</small></div><span class="ck"></span></button></div>
         <div class="fl">Существующие конверты</div>
         <div class="card">{#each d.envs as e (e.id)}<button class="opt" class:on={draft.env === e.id} onclick={() => { draft.env = e.id; view = 2; }}><div class="ic"><Icon name={e.icon} size={17} /></div><div class="m"><b>{e.name}</b>{#if used.has(e.id)}<small>уже у другой категории</small>{/if}</div><span class="ck"></span></button>{/each}</div>
         <p class="hint">Здесь только выбор. Новые конверты создаются в «Счетах».</p>
       {:else if view === 4}
-        <div class="nav"><button class="back" onclick={() => (view = 2)}><Icon name="back" size={16} />Назад</button><b>Удалить</b><button class="done x" disabled={!delTo || busy} onclick={doDelete}>Удалить</button></div>
+        <div class="nav"><button class="back" aria-label="Назад" onclick={back}><Icon name="chevron" size={22} /></button><b>Удалить</b><button class="done x" disabled={!delTo || busy} onclick={doDelete}>Удалить</button></div>
         <p class="hint" style="margin:0 0 12px">«{draft.name}»: {fmt(delCount)} операций и правила переедут в выбранную категорию.</p>
         <div class="card">{#each (d?.cats ?? []).filter((x) => x.id !== draft.id && x.income === draft.income) as c (c.id)}<button class="opt" class:on={delTo === c.id} onclick={() => (delTo = c.id)}><div class="ic"><Icon name={c.icon} size={17} /></div><div class="m"><b>{c.name}</b></div><span class="ck"></span></button>{/each}</div>
         {#if err}<p class="er">{err}</p>{/if}
@@ -174,7 +188,7 @@
   .er { text-align: center; color: var(--neg); font-size: 13px; margin: 8px 0; }
   .nav { display: flex; align-items: center; justify-content: space-between; padding: 4px 0 12px; }
   .nav b { font-size: 16px; font-weight: 600; }
-  .back { color: var(--gold); font-size: 16px; display: flex; align-items: center; gap: 2px; min-width: 76px; }
+  .back { color: var(--gold); display: flex; align-items: center; min-width: 76px; height: 32px; } .back :global(svg) { transform: rotate(90deg); }
   .done { color: var(--gold); font-size: 16px; font-weight: 600; min-width: 76px; text-align: right; }
   .done.x { color: var(--neg); } .done:disabled { opacity: .4; } .sp { min-width: 76px; }
   .fr { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 14px; min-height: 50px; font-size: 15px; position: relative; width: 100%; text-align: left; }
