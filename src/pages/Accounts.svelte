@@ -49,15 +49,13 @@
   let envEmpty = $derived(envList.filter(isEmpty));
   let emptyOpen = $state(false);
 
-  // долг в гривнах по курсу Monobank; если курса нет, остаётся в исходной валюте
+  // долг показываем в той валюте, в которой он взят (красным, со знаком минус); для валютного долга мелко под ним примерно в гривнах по курсу
   let debts = $derived.by(() => {
     if (!d) return [];
     return d.debts.map((x) => {
       const rate = x.currency === 'UAH' ? 1 : rates?.[x.currency];
-      const own = fmt(x.amount, 0) + ' ' + (CUR[x.currency] ?? '₴');
-      return rate
-        ? { ...x, uah: x.amount * rate, amount: x.currency === 'UAH' ? '−' + own : '≈ −' + fmt(x.amount * rate, 0) + ' ₴', small: x.currency === 'UAH' ? '' : own }
-        : { ...x, uah: null, amount: '−' + own, small: '' };
+      const own = '−' + fmt(x.amount, x.amount % 1 ? 2 : 0) + ' ' + (CUR[x.currency] ?? '₴');
+      return { ...x, uah: rate ? x.amount * rate : null, amount: own, small: x.currency !== 'UAH' && rate ? '≈ ' + fmt(x.amount * rate, 0) + ' ₴' : '' };
     });
   });
   // долги в гривнах по курсу; без курса учитываем только гривневые

@@ -3,7 +3,7 @@
   import OpAvatar from '../lib/OpAvatar.svelte';
   import { openNewPay } from '../lib/newpay.svelte.js';
   import { hz, inRange, RANGE_NAME } from '../lib/horizon.svelte.js';
-  import { fmt, money, signed, plural } from '../lib/format.js';
+  import { fmt, money, plural } from '../lib/format.js';
   let { d, shown, month, onaccounts, onbudget, onhorizon } = $props();
 
   const stamp = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -30,7 +30,6 @@
     <div class="lf">
       <div class="cap"><span class="dot"></span>Общий баланс <i>· {stamp}</i></div>
       <div class="sum"><span class="num">{sp[0]}</span><small>{sp[1]}&nbsp;₴</small></div>
-      <div class="dl" class:dn={d.delta < 0}>{d.delta >= 0 ? '▲' : '▼'} {signed(d.delta)} ₴ · {d.pct >= 0 ? '+' : '−'}{Math.abs(d.pct).toFixed(1).replace('.', ',')}% за месяц</div>
     </div>
     <div class="kp">
       <span>Карты<b>{money(d.cardsCash ?? 0)}</b></span>
@@ -51,8 +50,8 @@
       </g>
       <text x="60" y="68" text-anchor="middle" class="pc" class:over>{Math.round(ratio * 100)}%</text>
     </svg>
-    <div class="bm"><b>Бюджет на {month}</b><small>{over ? `перерасход ${money(-remaining)}` : `осталось ${money(remaining)} из ${money(d.budget.plan)}`} · {daysLeft} дн.</small></div>
-    <div class="bd"><small>{over ? 'Лимит' : 'Можно в день'}</small><b>{money(over ? d.budget.plan : perDay)}</b></div>
+    <div class="bm"><b>Бюджет на {month}</b><small>{over ? `перерасход ${money(-remaining)}` : `осталось ${money(remaining)} из ${money(d.budget.plan)}`}</small></div>
+    <div class="bd"><small>{over ? 'Лимит' : 'Можно в день'}</small><b>{money(over ? d.budget.plan : perDay)}</b><em>{daysLeft % 10 === 1 && daysLeft % 100 !== 11 ? 'остался' : 'осталось'} {daysLeft} {plural(daysLeft, 'день', 'дня', 'дней')}</em></div>
   </button>
 
   <div class="s hz">
@@ -83,17 +82,15 @@
   .s { position: relative; display: flex; align-items: center; width: 100%; text-align: left; padding: 14px 18px; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .15s; }
   .s + .s { border-top: .5px solid rgba(232,194,119,.18); }
   .s:active { background: rgba(232,194,119,.06); }
-  .top { gap: 12px; align-items: flex-start; justify-content: space-between; }
-  .lf { min-width: 0; }
+  .top { gap: 12px; align-items: stretch; justify-content: space-between; }
+  .lf { flex: 1; min-width: 0; min-height: 112px; display: flex; flex-direction: column; }
   .cap { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #a99366; margin-bottom: 2px; }
   .cap i { font-style: normal; opacity: .75; }
   .dot { position: relative; width: 6px; height: 6px; border-radius: 50%; background: #E8C277; flex: none; }
   .dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #E8C277; animation: smPl 2.2s ease-out infinite; }
   @keyframes smPl { 0% { transform: scale(1); opacity: .7; } 100% { transform: scale(3.4); opacity: 0; } }
-  .sum { font-size: 34px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; }
+  .sum { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 42px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; }
   .sum small { font-size: .62em; font-weight: 700; color: #E8C277; }
-  .dl { margin-top: 3px; font-size: 12px; font-weight: 500; color: #E8C277; white-space: nowrap; }
-  .dl.dn { color: #FF8A7E; }
   .kp { flex: none; width: 122px; display: flex; flex-direction: column; font-size: 12px; color: #a99366; margin-top: 2px; }
   .kp span { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; }
   .kp span + span { border-top: .5px solid rgba(232,194,119,.18); }
@@ -109,7 +106,8 @@
   .bm b { font-size: 17px; }
   .bm small { font-size: 12.5px; color: #a99366; margin-top: 2px; }
   .bd { flex: none; text-align: right; display: flex; flex-direction: column; }
-  .bd small { font-size: 12.5px; color: #a99366; }
+  .bd small, .bd em { font-size: 12.5px; color: #a99366; font-style: normal; }
+  .bd em { margin-top: 2px; }
   .bd b { font-size: 16px; white-space: nowrap; }
 
   .hz { flex-direction: column; align-items: stretch; gap: 0; font-size: 14px; padding: 0; cursor: default; }
