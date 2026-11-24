@@ -1,4 +1,5 @@
 <script>
+  import { untrack } from 'svelte';
   import { da, closeDelete } from './delacct.svelte.js';
   import { countAccountOps, deleteAccount, loadAccounts } from './data.js';
   import { peek, refresh } from './cache.svelte.js';
@@ -8,25 +9,29 @@
 
   let n = $state(null), cands = $state([]), to = $state(null), busy = $state(false), err = $state(''), done = $state('');
   const a = $derived(da.acc);
+  // окно перезапускается только при открытии другого счёта; фоновые обновления кэша его не трогают
+  const key = $derived(da.open && da.acc ? da.acc.id : null);
   const word = (k) => (k % 10 === 1 && k % 100 !== 11 ? 'операция' : [2, 3, 4].includes(k % 10) && ![12, 13, 14].includes(k % 100) ? 'операции' : 'операций');
 
-  // куда можно перенести: тот же вид и та же валюта; карты Monobank в список не попадают
+  // куда можно перенести: любой свой счёт той же валюты (Cash, Wallet, конверты); Monobank и долги не попадают
   function pool(acc) {
     const d = peek('accounts');
-    if (!d || !acc) return [];
-    let l = [];
-    if (acc.kind === 'cash') l = d.cashes;
-    else if (acc.kind === 'env') l = d.envs;
-    else if (acc.kind === 'fx') l = (d.foreign.find((f) => f.currency === acc.currency)?.list ?? []);
-    else if (acc.kind === 'debt') l = d.debts.filter((x) => x.currency === acc.currency);
+    if (!d) return [];
+    let l;
+    if (acc.kind === 'debt') l = d.debts.filter((x) => x.currency === acc.currency);
+    else if (acc.kind === 'fx') l = d.foreign.find((f) => f.currency === acc.currency)?.list ?? [];
+    else l = [...d.cashes, ...d.envs];
     return l.filter((x) => x.id !== acc.id);
   }
 
   $effect(() => {
-    if (!da.open || !da.acc) return;
-    to = null; busy = false; err = ''; done = ''; n = null;
-    cands = pool(da.acc);
-    countAccountOps(da.acc.id).then((k) => (n = k)).catch((e) => (err = e.message || 'Не удалось получить операции'));
+    const id = key;
+    if (id == null) return;
+    untrack(() => {
+      to = null; busy = false; err = ''; done = ''; n = null;
+      cands = pool(da.acc);
+      countAccountOps(id).then((k) => { if (key === id) n = k; }).catch((e) => { err = e.message || 'Не удалось получить операции'; });
+    });
   });
 
   async function go() {
@@ -34,29 +39,29 @@
     if (n > 0 && !to) { err = 'Выберите счёт для переноса'; return; }
     busy = true; err = '';
     try {
+      const name = cands.find((x) => x.id === to)?.name ?? '';
       await deleteAccount(a.id, n > 0 ? to : null);
-      done = n > 0 ? `${n} ${word(n)} перенесено в ${cands.find((x) => x.id === to)?.name ?? ''}` : 'Счёт удалён';
-      await refresh('accounts', loadAccounts);
+      done = n > 0 ? `${n} ${word(n)} перенесено в ${name}` : 'Счёт удалён';
+      refresh('accounts', loadAccounts, true).catch(() => {});
       setTimeout(closeDelete, 1100);
     } catch (e) { err = e.message || 'Не удалось удалить счёт'; busy = false; }
   }
 </script>
 
-<Sheet open={da.open} onclose={closeDelete} fit title={a ? `Удалить «${a.name}»` : 'Удалить счёт'} z={57}>
+<Sheet open={da.open} onclose={closeDelete} fit minh="70%" title={a ? `Удалить «${a.name}»` : 'Удалить счёт'} z={57}>
   <div class="bd">
     {#if done}
       <div class="ok"><span class="ck"><Icon name="check" size={26} /></span><b>{done}</b></div>
     {:else}
-      <!-- список счетов уже в кеше, поэтому окно сразу рисуется в полный размер; пока считаются операции, на месте текста стоит заглушка той же высоты -->
       <div class="sb">
-        {#if n == null}<i class="sk"></i><i class="sk s"></i>
+        {#if n == null}Считаю операции…
         {:else if n === 0}Операций на этом счёте нет. Счёт будет удалён.
-        {:else if !cands.length}На счёте {n} {word(n)}, а подходящего счёта для переноса нет. Сначала создайте другой счёт того же вида{a?.currency && a.currency !== 'UAH' ? ' и валюты' : ''}.
+        {:else if !cands.length}На счёте {n} {word(n)}, а подходящего счёта для переноса нет. Сначала создайте другой счёт той же валюты.
         {:else}На счёте {n} {word(n)}. Выберите, куда их перенести{a?.balance ? `: остаток ${cash(a.balance)} перейдёт вместе с ними` : ''}.{/if}
       </div>
-      {#if cands.length && n !== 0}
+      {#if n !== 0 && cands.length}
         <div class="lb">Перенести на</div>
-        <div class="ls" role="listbox" class:long={cands.length > 3}>
+        <div class="ls" role="listbox">
           {#each cands as x (x.id)}
             <button class="op" class:s={to === x.id} onclick={() => { to = x.id; err = ''; }}>
               <span class="ci"><Icon name={x.icon || 'wallet'} size={17} /></span>
@@ -70,22 +75,17 @@
     {#if err}<p class="er">{err}</p>{/if}
   </div>
   {#snippet footer()}
-    {#if !done && (n == null ? cands.length > 0 : n === 0 || cands.length > 0)}
-      <button class="go" class:r={n === 0 || to} disabled={busy} onclick={go}>{busy ? 'Удаляю…' : n === 0 ? 'Удалить' : 'Перенести и удалить'}</button>
+    {#if !done}
+      <button class="go" class:r={n === 0 || to} disabled={busy || n == null || (n > 0 && !cands.length)} onclick={go}>{busy ? 'Удаляю…' : n === 0 ? 'Удалить' : 'Перенести и удалить'}</button>
     {/if}
   {/snippet}
 </Sheet>
 
 <style>
   .bd { padding: 0 2px; }
-  .sb { margin: 2px 8px 10px; min-height: 38px; text-align: center; font-size: 13px; line-height: 1.45; color: var(--muted); }
-  .sk { display: block; height: 11px; margin: 4px auto 8px; width: 88%; border-radius: 6px; background: var(--fill); animation: pulse 1.1s ease-in-out infinite; }
-  .sk.s { width: 60%; margin-top: 0; }
-  @keyframes pulse { 50% { opacity: .45; } }
-  @media (prefers-reduced-motion: reduce) { .sk { animation: none; } }
-  .ls { display: grid; }
-  .ls.long { max-height: 188px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 2px 2px 4px; scrollbar-width: none; }
-  .ls.long::-webkit-scrollbar { display: none; }
+  .sb { margin: 2px 8px 10px; text-align: center; font-size: 13px; line-height: 1.45; color: var(--muted); }
+  .ls { display: grid; max-height: calc(70dvh - 250px); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 2px 2px 4px; scrollbar-width: none; }
+  .ls::-webkit-scrollbar { display: none; }
   .lb { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 8px 4px 6px; }
   .op { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: var(--card); border-radius: 14px; padding: 8px 12px; margin-bottom: 6px; box-shadow: var(--shadow); transition: box-shadow .25s; }
   .op.s { box-shadow: 0 0 0 1.5px #C9A24A; }
