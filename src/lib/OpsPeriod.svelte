@@ -47,7 +47,7 @@
     <button class:on={per.mode === 'custom'} onclick={tapCustom}><Icon name="calendar" size={15} />{per.mode === 'custom' ? customLabel() : 'Свой период'}</button>
   </div>
   {#if open}
-    <div class="pop" role="listbox" style:left="{left}px" transition:scale={{ start: 0.75, duration: 220, opacity: 0 }}>
+    <div class="pp" role="listbox" style:left="{left}px" transition:scale={{ start: 0.75, duration: 220, opacity: 0 }}>
       {#if open === 'month'}
         {#each months as x, i (x.y + '-' + x.m)}
           {#if i === 0 || months[i - 1].y !== x.y}<div class="yl">{x.y}</div>{/if}
@@ -77,7 +77,7 @@
   .row .on { background: linear-gradient(180deg, #F0D18A, #C9963A); color: #1a1206; }
   .row :global(svg) { flex: none; transition: transform .3s; }
   .row .op :global(svg) { transform: rotate(180deg); }
-  .pop { position: absolute; top: 44px; z-index: 12; width: 232px; max-height: 300px; overflow-y: auto; padding: 6px; border-radius: 20px; background: var(--card); box-shadow: 0 14px 38px rgba(0, 0, 0, .22), inset 0 0 0 .5px var(--line); transform-origin: top left; overscroll-behavior: contain; }
+  .pp { position: absolute; top: 44px; z-index: 12; width: 232px; max-height: 300px; overflow-y: auto; padding: 6px; border-radius: 20px; background: var(--card); box-shadow: 0 14px 38px rgba(0, 0, 0, .22), inset 0 0 0 .5px var(--line); transform-origin: top left; overscroll-behavior: contain; }
   .yl { padding: 8px 12px 2px; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--muted); }
   .pr { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px; border-radius: 14px; text-align: left; font-size: 16px; }
   .pr:active { background: var(--gold-soft); }
