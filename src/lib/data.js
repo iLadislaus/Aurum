@@ -148,9 +148,22 @@ export async function loadAccounts() {
 
 // Изменение счёта: название, значок и (для наличных и конвертов) «Источник бюджета». Остаток и валюта не трогаются
 export async function updateAccount(id, { name, icon, budgetSource, withSource }) {
-  const patch = { name, icon };
-  if (withSource) patch.is_budget_source = !!budgetSource;
-  const { error } = await sb.from('accounts').update(patch).eq('id', id);
+  const { error } = await sb.from('accounts').update({ name, icon }).eq('id', id);
+  if (error) throw error;
+  if (!withSource) return;
+  // источник бюджета в базе только один: включаем через функцию, она снимает метку с остальных
+  const r = budgetSource ? await sb.rpc('set_budget_source', { p_id: id }) : await sb.from('accounts').update({ is_budget_source: false }).eq('id', id);
+  if (r.error) throw r.error;
+}
+
+// Удаление счёта: все его операции переезжают на счёт to (переводы между ними получают пометку «Счёт удалён»)
+export async function countAccountOps(id) {
+  const { count, error } = await sb.from('transactions').select('id', { count: 'exact', head: true }).or(`account_id.eq.${id},from_account_id.eq.${id},to_account_id.eq.${id}`);
+  if (error) throw error;
+  return count || 0;
+}
+export async function deleteAccount(id, to) {
+  const { error } = await sb.rpc('delete_account', { p_id: id, p_to: to ?? null });
   if (error) throw error;
 }
 
