@@ -1,4 +1,5 @@
 <script>
+  import { untrack } from 'svelte';
   import { oc, closeOp } from './opcard.svelte.js';
   import { peek, refresh, put } from './cache.svelte.js';
   import { loadCategories, setOpCategory, setOpType, loadSplits, saveSplits, clearSplits, rememberRule, countUncat, applyUncat, deleteOp, repeatOp } from './data.js';
@@ -28,6 +29,11 @@
     if (!oc.open) return;
     pick = false; typePick = false; split = false; parts = []; remember = true; armed = false; err = ''; more = 0;
     refresh('cats', loadCategories).catch(() => {});
+    const act = oc.act;
+    untrack(() => {
+      if (act === 'del' && o && !o.mono) { armed = true; timer = setTimeout(() => (armed = false), 3000); }
+      if (act === 'split') setTimeout(() => { if (oc.open && o && o.action !== 'TRANSFER') openSplit(); }, 350);
+    });
   });
 
   function patch(fn) {
@@ -201,12 +207,9 @@
       {#if more > 0}<button class="ap" onclick={applyMore}>Применить ещё к {more} операциям без категории</button>{/if}
       {#if err}<p class="er">{err}</p>{/if}
 
-      {#if !split}
-      <div class="act" class:one={o.mono}>
-        {#if !o.mono}<button class="g" onclick={() => { const e = o; closeOp(); setTimeout(() => openNewOp(e), 250); }}><i class="c"><Icon name="pen" size={24} /></i><span>Изменить</span></button>{/if}
-        {#if !o.mono}<button disabled={busy} onclick={rep}><i class="c"><Icon name="copy" size={24} /></i><span>Повторить</span></button>{/if}
-        {#if !tr}<button disabled={split} onclick={openSplit}><i class="c"><Icon name="split" size={24} /></i><span>Разделить</span></button>{/if}
-        {#if !o.mono}<button class="d" class:armed onclick={del}><i class="c"><Icon name="trash" size={24} /></i><span>{armed ? 'Точно?' : 'Удалить'}</span></button>{/if}
+      {#if !split && !o.mono}
+      <div class="act one">
+        <button class="d" class:armed onclick={del}><i class="c"><Icon name="trash" size={24} /></i><span>{armed ? 'Точно?' : 'Удалить'}</span></button>
       </div>
       {/if}
     </div>
