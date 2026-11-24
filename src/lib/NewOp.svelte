@@ -1,4 +1,5 @@
 <script>
+  import { untrack } from 'svelte';
   import { no, closeNewOp } from './newop.svelte.js';
   import { peek, refresh, put } from './cache.svelte.js';
   import { loadAccounts, loadCategories, createAccount, saveOp, saveSplits, clearSplits, loadSplits, rememberRule } from './data.js';
@@ -103,7 +104,7 @@
     if (e) {
       type = e.action; note = e.note || ''; amt = String(e.amount).replace('.', ','); amt2 = e.to_amount != null ? String(e.to_amount).replace('.', ',') : '';
       accId = e.account_id; fromId = e.from_account_id; toId = e.to_account_id; catId = e.category_id; when = localInput(e.date);
-      const dc = e.action === 'TRANSFER' ? (peek('cats')?.list ?? []).find((c) => c.id === e.category_id && c.debt) : null;
+      const dc = e.action === 'TRANSFER' ? untrack(() => peek('cats')?.list ?? []).find((c) => c.id === e.category_id && c.debt) : null;
       if (dc) { // перевод по долгу: «взял» (из долга на счёт) или «гашу» (со счёта на долг)
         type = dc.type;
         if (dc.type === 'INCOME') { debtId = e.from_account_id; accId = e.to_account_id; } else { debtId = e.to_account_id; accId = e.from_account_id; payCur = e.currency; }
@@ -119,7 +120,7 @@
       fromId = no.acc ?? lp?.from ?? accId;
       toId = lp?.to && lp.to !== fromId ? lp.to : null;
       // открыли из долга («Новая операция» / «Перевод» в меню долга) — сразу погашение этого долга
-      if (no.acc && (peek('accounts')?.debts ?? []).some((d) => d.id === no.acc)) { type = 'EXPENSE'; debtId = no.acc; pendDebt = no.acc; accId = null; fromId = null; }
+      if (no.acc && untrack(() => peek('accounts')?.debts ?? []).some((d) => d.id === no.acc)) { type = 'EXPENSE'; debtId = no.acc; pendDebt = no.acc; accId = null; fromId = null; }
     }
   });
   // категорию «Debt repayment» подставляем, когда категории загрузились
