@@ -59,20 +59,23 @@
     busy = false;
   }
   const total = $derived(o ? Math.abs(o.amount) : 0);
-  const left = $derived(+(total - parts.reduce((t, p) => t + (Number(p.v) || 0), 0)).toFixed(2));
+  // первая часть — основная: из неё вычитаются остальные, меньше нуля она не бывает
+  const rest = $derived(parts.slice(1).reduce((t, p) => t + (Number(p.v) || 0), 0));
+  const eff = $derived(parts.map((p, i) => (i === 0 ? Math.max(0, +(total - rest).toFixed(2)) : Number(p.v) || 0)));
+  const left = $derived(+(total - eff.reduce((t, v) => t + v, 0)).toFixed(2));
   const catOf = (id) => cats.find((c) => c.id === id);
   async function openSplit() {
     split = true; pick = false; typePick = false;
     let ex = [];
     if (o.splits) { try { ex = await loadSplits(o.id); } catch {} }
-    parts = ex.length ? ex.map((x) => ({ id: x.category_id, v: x.amount })) : [{ id: o.category_id ?? list[0]?.id, v: total }];
+    parts = ex.length ? ex.map((x) => ({ id: x.category_id, v: x.amount })) : [{ id: o.category_id ?? list[0]?.id, v: total }, { id: null, v: 0 }];
   }
-  function addPart(c) { parts = [...parts, { id: c.id, v: Math.max(0, left) }]; }
+  function addPart() { parts = [...parts, { id: null, v: 0 }]; }
   function setPart(i, val) { parts[i].v = parseFloat(String(val).replace(/\s/g, '').replace(',', '.')) || 0; }
   async function doSplit() {
     busy = true; err = '';
     try {
-      const ps = parts.map((p) => ({ category_id: p.id, amount: +Number(p.v).toFixed(2) }));
+      const ps = parts.map((p, i) => ({ category_id: p.id, amount: +eff[i].toFixed(2) }));
       await saveSplits(o.id, total, ps);
       const top = [...ps].sort((a, b) => b.amount - a.amount)[0];
       patch((x) => ({ ...x, splits: ps.length, cat: `${ps.length} категории`, category_id: top.category_id, uncat: false }));
@@ -165,18 +168,23 @@
         {/if}
       </div>
 
+      {#if o.mono}<div class="pill"><Icon name="lock" size={14} />Из банка: меняется только категория</div>{/if}
+
       {#if split}
         <div class="sp">
-          <div class="sbar">{#each parts as p}<i style:width="{Math.min(100, (Number(p.v) || 0) / total * 100)}%"></i>{/each}</div>
-          <div class="sleft"><span>Сумма {fmt(total, 2)} {o.sym}</span><b class:ok={left === 0}>Осталось {fmt(left, 2)}</b></div>
+          <div class="sbar">{#each eff as v}<i style:width="{Math.min(100, v / total * 100)}%"></i>{/each}</div>
+          <div class="sleft"><span>Сумма {fmt(total, 2)} {o.sym}</span><b class:ok={left === 0}>{left === 0 ? 'Сходится' : left < 0 ? `Больше на ${fmt(-left, 2)}` : `Осталось ${fmt(left, 2)}`}</b></div>
           {#each parts as p, i (i)}
-            <div class="pt"><OpAvatar icon={catOf(p.id)?.icon ?? 'tag'} size={30} /><span>{catOf(p.id)?.name ?? '—'}</span>
-              <input inputmode="decimal" value={fmt(p.v, 2)} oninput={(e) => setPart(i, e.currentTarget.value)} onblur={(e) => (e.currentTarget.value = fmt(p.v, 2))} />
-              {#if parts.length > 1}<button aria-label="Убрать" onclick={() => (parts = parts.filter((_, k) => k !== i))}>✕</button>{/if}
+            <div class="pt">
+              <label class="pc"><OpAvatar icon={catOf(p.id)?.icon ?? 'tag'} size={30} /><span class:ph={!p.id}>{catOf(p.id)?.name ?? 'Категория'}</span><Icon name="chevron" size={13} />
+                <select value={p.id ?? 0} onchange={(e) => { parts[i].id = Number(e.currentTarget.value) || null; }}><option value={0}>Категория</option>{#each list as c (c.id)}<option value={c.id}>{c.name}</option>{/each}</select></label>
+              {#if i === 0}<input class="au" readonly value={fmt(eff[0], 2)} />
+              {:else}<input inputmode="decimal" placeholder="0" value={p.v ? fmt(p.v, 2) : ''} oninput={(e) => setPart(i, e.currentTarget.value)} onblur={(e) => (e.currentTarget.value = p.v ? fmt(p.v, 2) : '')} />{/if}
+              {#if parts.length > 2 && i > 0}<button aria-label="Убрать" onclick={() => (parts = parts.filter((_, k) => k !== i))}>✕</button>{/if}
             </div>
           {/each}
-          <div class="chips add">{#each list.filter((c) => !parts.some((p) => p.id === c.id)) as c (c.id)}<button onclick={() => addPart(c)}><OpAvatar icon={c.icon} size={22} /><span>{c.name}</span></button>{/each}</div>
-          <button class="ap" disabled={busy || left !== 0 || parts.length < 2} onclick={doSplit}>Сохранить разделение</button>
+          <button class="ad" onclick={addPart}>+ Добавить категорию</button>
+          <button class="ap" disabled={busy || left !== 0 || parts.length < 2 || parts.some((p, i) => !p.id || !(eff[i] > 0))} onclick={doSplit}>Сохранить разделение</button>
         </div>
       {/if}
 
@@ -184,13 +192,14 @@
       {#if more > 0}<button class="ap" onclick={applyMore}>Применить ещё к {more} операциям без категории</button>{/if}
       {#if err}<p class="er">{err}</p>{/if}
 
-      {#if o.mono}<div class="pill"><Icon name="lock" size={14} />Из банка: меняется только категория</div>{/if}
+      {#if !split}
       <div class="act" class:one={o.mono}>
         {#if !o.mono}<button class="g" onclick={() => { const e = o; closeOp(); setTimeout(() => openNewOp(e), 250); }}><i class="c"><Icon name="pen" size={24} /></i><span>Изменить</span></button>{/if}
         {#if !o.mono}<button disabled={busy} onclick={rep}><i class="c"><Icon name="copy" size={24} /></i><span>Повторить</span></button>{/if}
         {#if !tr}<button disabled={split} onclick={openSplit}><i class="c"><Icon name="split" size={24} /></i><span>Разделить</span></button>{/if}
         {#if !o.mono}<button class="d" class:armed onclick={del}><i class="c"><Icon name="trash" size={24} /></i><span>{armed ? 'Точно?' : 'Удалить'}</span></button>{/if}
       </div>
+      {/if}
     </div>
   {/if}
 </Sheet>
@@ -229,15 +238,19 @@
   .sleft { display: flex; justify-content: space-between; margin: 7px 2px 8px; font-size: 12.5px; color: var(--muted); }
   .sleft b { font-weight: 600; color: #E5584D; transition: color .3s; } .sleft b.ok { color: var(--pos); }
   .pt { display: flex; align-items: center; gap: 9px; margin-bottom: 6px; padding: 6px 10px; border-radius: 14px; background: var(--card); }
-  .pt span { flex: 1; font-size: 14px; font-weight: 600; }
+  .pc { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; color: var(--muted); }
+  .pc span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 600; color: var(--text); }
+  .pc span.ph { color: var(--muted); font-weight: 500; }
+  .pc select { position: absolute; inset: 0; width: 100%; opacity: 0; font-size: 16px; }
+  .pt input.au { background: var(--gold-soft); color: var(--gold); }
+  .ad { display: block; width: 100%; margin: 2px 0 0; padding: 11px 14px; border-radius: 14px; background: var(--card); color: var(--gold); font-size: 14px; font-weight: 500; text-align: left; }
   .pt input { width: 92px; padding: 7px 9px; border: 0; outline: 0; border-radius: 9px; background: var(--fill); color: var(--text); font: inherit; font-weight: 600; text-align: right; -webkit-user-select: text; user-select: text; }
   .pt button { color: var(--muted); font-size: 15px; padding: 0 2px; }
-  .chips.add { margin: 8px 0 2px; }
   .ap { display: block; width: 100%; margin-top: 10px; padding: 12px; border-radius: 14px; background: var(--gold-soft); color: var(--gold); font-size: 13.5px; font-weight: 600; }
   .ap:disabled { opacity: .4; }
   .ap.un { background: var(--fill); color: var(--muted); margin-top: -10px; }
   .er { margin: 0; text-align: center; font-size: 13px; color: #E5584D; }
-  .act { display: flex; justify-content: space-between; padding: 4px 6px calc(env(safe-area-inset-bottom) + 10px); }
+  .act { display: flex; justify-content: space-between; padding: 12px 6px calc(env(safe-area-inset-bottom) + 14px); }
   .act.one { justify-content: center; }
   .act button { display: flex; flex-direction: column; align-items: center; gap: 7px; width: 76px; font-size: 12px; font-weight: 500; color: var(--text); }
   .act .c { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; background: var(--card); color: var(--gold); box-shadow: inset 0 0 0 .5px rgba(214, 177, 95, .45); transition: transform .25s cubic-bezier(.3, 1.6, .5, 1), background .25s, color .25s; }
@@ -247,6 +260,6 @@
   .act .d .c { background: rgba(229, 72, 77, .14); color: #E5484D; box-shadow: none; }
   .act .d.armed .c { background: #E5484D; color: #fff; transform: scale(1.08); }
   .act .d.armed span { color: #E5484D; }
-  .pill { display: flex; align-items: center; justify-content: center; gap: 7px; width: max-content; max-width: 100%; margin: 4px auto 18px; padding: 7px 13px; border-radius: 99px; background: rgba(214, 177, 95, .16); color: var(--gold); font-size: 12.5px; font-weight: 500; }
+  .pill { display: flex; align-items: center; justify-content: center; gap: 7px; width: max-content; max-width: 100%; margin: 14px auto 12px; padding: 7px 13px; border-radius: 99px; background: rgba(214, 177, 95, .16); color: var(--gold); font-size: 12.5px; font-weight: 500; }
   @media (prefers-reduced-motion: reduce) { .bd.in > :global(.cf), .bd.in .grp, .bd.in .act, .seg, .pk, .sp { animation: none; } }
 </style>
