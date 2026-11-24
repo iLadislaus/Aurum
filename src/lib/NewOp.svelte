@@ -1,7 +1,7 @@
 <script>
   import { no, closeNewOp } from './newop.svelte.js';
   import { peek, refresh, put } from './cache.svelte.js';
-  import { loadAccounts, loadCategories, saveOp, saveSplits, clearSplits, loadSplits, rememberRule } from './data.js';
+  import { loadAccounts, loadCategories, createAccount, saveOp, saveSplits, clearSplits, loadSplits, rememberRule } from './data.js';
   import { prefetchAll } from './prefetch.js';
   import { fmt } from './format.js';
   import Sheet from './Sheet.svelte';
@@ -16,6 +16,8 @@
   let type = $state('EXPENSE'), note = $state(''), amt = $state(''), amt2 = $state('');
   let accId = $state(null), fromId = $state(null), toId = $state(null), catId = $state(null);
   let when = $state(''), split = $state(false), parts = $state([]), remember = $state(true);
+  let debtId = $state(null), newName = $state(''), newCur = $state(null), payCur = $state(null), fxCur = $state(null), rateIn = $state(null), pendDebt = $state(null);
+  const CUR = ['UAH', 'USD', 'EUR'];
   let busy = $state(false), ok = $state(false), err = $state(''), menu = $state(null), fsEdit = $state(null);
 
   const accs = $derived.by(() => {
@@ -32,10 +34,11 @@
   });
   const groups = $derived.by(() => {
     const m = new Map();
-    for (const a of accs) { if (!m.has(a.grp)) m.set(a.grp, []); m.get(a.grp).push(a); }
+    for (const a of pool) { if (!m.has(a.grp)) m.set(a.grp, []); m.get(a.grp).push(a); }
     return [...m].map(([t, l]) => ({ t, l }));
   });
-  const cats = $derived((peek('cats')?.list ?? []).filter((c) => (type === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE')));
+  const cats = $derived((peek('cats')?.list ?? []).filter((c) => (type === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE' && (type !== 'RETURN' || !c.debt))));
+  const plainCats = $derived(cats.filter((c) => !c.debt && c.name !== 'FX income'));
   const acc = (id) => accs.find((a) => a.id === id);
   const num = (v) => Number(String(v).replace(/\s/g, '').replace(',', '.')) || 0;
   const total = $derived(num(amt));
@@ -44,21 +47,66 @@
   const first = $derived(Math.max(0, +(total - rest).toFixed(2)));
   const eff = $derived(parts.map((p, i) => ({ id: p.id, v: i === 0 ? first : num(p.s) })));
   const left = $derived(+(total - eff.reduce((t, p) => t + p.v, 0)).toFixed(2));
-  const cur = $derived(type === 'TRANSFER' ? acc(fromId)?.currency ?? 'UAH' : acc(accId)?.currency ?? 'UAH');
+  const isTr = $derived(type === 'TRANSFER');
+  const debts = $derived(peek('accounts')?.debts ?? []);
+  const debt = $derived(debts.find((d) => d.id === debtId) ?? null);
+  const mode = $derived.by(() => {
+    if (isTr || split) return 'op';
+    const c = cats.find((x) => x.id === catId);
+    if (c?.debt) return type === 'INCOME' ? 'taken' : type === 'EXPENSE' ? 'repay' : 'op';
+    return c?.name === 'FX income' && type === 'INCOME' ? 'fxin' : 'op';
+  });
+  const debtC = $derived(debtId === 'new' ? newCur : debt?.currency ?? null);
+  const payC = $derived(payCur ?? debt?.currency ?? 'UAH');
+  const fxC = $derived(fxCur ?? 'USD');
+  // какие счета можно выбрать: долговые — только через строку «Долг»; для погашения и валютного дохода — по валюте
+  const pool = $derived.by(() => {
+    const keep = (a) => a.grp !== 'Долги' || (no.edit && [no.edit.account_id, no.edit.from_account_id, no.edit.to_account_id].includes(a.id));
+    const base = accs.filter(keep);
+    if (mode === 'repay') return base.filter((a) => a.currency === payC);
+    if (mode === 'fxin') return base.filter((a) => a.grp === 'Валютные' && a.currency === fxC);
+    return base;
+  });
+  const cur = $derived(isTr ? acc(fromId)?.currency ?? 'UAH' : mode === 'taken' ? debtC ?? acc(accId)?.currency ?? 'UAH' : mode === 'repay' ? payC : mode === 'fxin' ? fxC : acc(accId)?.currency ?? 'UAH');
   const cur2 = $derived(acc(toId)?.currency ?? 'UAH');
-  const fx = $derived(type === 'TRANSFER' && cur !== cur2);
+  const fxFrom = $derived(cur);
+  const fxTo = $derived(isTr ? cur2 : mode === 'taken' ? acc(accId)?.currency ?? null : mode === 'repay' ? debtC : null);
+  const fx = $derived(!!fxTo && fxFrom !== fxTo && (isTr || mode === 'taken' || mode === 'repay'));
+  const rateVal = $derived(total > 0 && num(amt2) > 0 ? (fxFrom === 'UAH' ? total / num(amt2) : num(amt2) / total) : 0);
+  const covered = $derived(fx ? num(amt2) : total);
+  const l2 = $derived(mode === 'taken' ? 'Получено на счёт' : mode === 'repay' ? 'Покроет' : 'Зачислится');
+  const l1 = $derived(mode === 'taken' ? 'Долг' : mode === 'repay' ? 'Платите' : 'Отдаёшь');
+  const dn = (v, c) => `${fmt(v, v % 1 ? 2 : 0)} ${SYM[c] ?? c}`;
+  const debtInfo = $derived.by(() => {
+    if (!debt || !(total > 0)) return '';
+    if (mode === 'taken') return `−${dn(debt.amount, debt.currency)} → −${dn(debt.amount + total, debt.currency)}`;
+    if (mode === 'repay') { const r = Math.max(0, +(debt.amount - covered).toFixed(2)); return r ? `−${dn(debt.amount, debt.currency)} → −${dn(r, debt.currency)}` : `−${dn(debt.amount, debt.currency)} → долг закрыт`; }
+    return '';
+  });
+  const fmtRate = (v) => String(+v.toFixed(v < 1 ? 4 : 2)).replace('.', ',');
+  function recalc() {
+    const r = num(rateIn ?? '');
+    if (rateIn == null || !(r > 0) || !(total > 0)) return;
+    amt2 = fmtIn(fxFrom === 'UAH' ? total / r : total * r);
+  }
   const title = $derived(no.edit ? 'Изменить операцию' : 'Новая операция');
   const localInput = (d) => { const x = new Date(d); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 16); };
 
   $effect(() => {
     if (!no.open) return;
     busy = false; ok = false; err = ''; split = false; parts = []; remember = true; menu = null; fsEdit = null;
+    debtId = null; newName = ''; newCur = null; payCur = null; fxCur = null; rateIn = null; pendDebt = null;
     refresh('accounts', loadAccounts).catch(() => {});
     refresh('cats', loadCategories).catch(() => {});
     const e = no.edit;
     if (e) {
       type = e.action; note = e.note || ''; amt = String(e.amount).replace('.', ','); amt2 = e.to_amount != null ? String(e.to_amount).replace('.', ',') : '';
       accId = e.account_id; fromId = e.from_account_id; toId = e.to_account_id; catId = e.category_id; when = localInput(e.date);
+      const dc = e.action === 'TRANSFER' ? (peek('cats')?.list ?? []).find((c) => c.id === e.category_id && c.debt) : null;
+      if (dc) { // перевод по долгу: «взял» (из долга на счёт) или «гашу» (со счёта на долг)
+        type = dc.type;
+        if (dc.type === 'INCOME') { debtId = e.from_account_id; accId = e.to_account_id; } else { debtId = e.to_account_id; accId = e.from_account_id; payCur = e.currency; }
+      }
       if (e.splits) loadSplits(e.id).then((x) => { parts = x.map((p, i) => ({ id: p.category_id, s: i === 0 ? '' : String(p.amount).replace('.', ',') })); split = true; }).catch(() => {});
     } else {
       type = no.type ?? 'EXPENSE'; note = ''; amt = ''; amt2 = ''; catId = null; when = localInput(new Date());
@@ -69,20 +117,40 @@
       accId = no.acc ?? last;
       fromId = no.acc ?? lp?.from ?? accId;
       toId = lp?.to && lp.to !== fromId ? lp.to : null;
+      // открыли из долга («Новая операция» / «Перевод» в меню долга) — сразу погашение этого долга
+      if (no.acc && (peek('accounts')?.debts ?? []).some((d) => d.id === no.acc)) { type = 'EXPENSE'; debtId = no.acc; pendDebt = no.acc; accId = null; fromId = null; }
     }
+  });
+  // категорию «Debt repayment» подставляем, когда категории загрузились
+  $effect(() => {
+    if (!no.open || !pendDebt) return;
+    const c = (peek('cats')?.list ?? []).find((x) => x.debt && x.type === 'EXPENSE');
+    if (c) { catId = c.id; pendDebt = null; }
+  });
+  // долг по умолчанию: первый из списка (или «Новый», если долгов нет)
+  $effect(() => {
+    if (!no.open) return;
+    if (mode === 'taken' && debtId == null) debtId = debts[0]?.id ?? 'new';
+    if (mode === 'repay' && (debtId == null || debtId === 'new') && debts.length) debtId = debts[0].id;
+  });
+  // счёт должен подходить: валюта платежа / валютный доход
+  $effect(() => {
+    if (!no.open || isTr || !pool.length) return;
+    if (!pool.some((a) => a.id === accId)) accId = pool[0].id;
   });
   // когда счета загрузились — подставим счёт по умолчанию
   $effect(() => {
     if (!no.open || !accs.length) return;
-    if (!acc(accId)) accId = (accs.find((a) => a.name.toLowerCase().includes('cash')) ?? accs[0]).id;
-    if (!acc(fromId)) fromId = accId;
-    if (!acc(toId) || toId === fromId) toId = (accs.find((a) => a.id !== fromId) ?? accs[0]).id;
+    if (!acc(accId) && !pendDebt) accId = (pool.find((a) => a.name.toLowerCase().includes('cash')) ?? pool[0] ?? accs[0]).id;
+    if (!acc(fromId)) fromId = accId ?? pool[0]?.id;
+    if (!acc(toId) || toId === fromId) toId = (pool.find((a) => a.id !== fromId) ?? accs.find((a) => a.id !== fromId) ?? accs[0]).id;
   });
 
-  function setType(t) { type = t; catId = null; menu = null; if (t === 'TRANSFER') split = false; }
+  function setType(t) { type = t; catId = null; menu = null; debtId = null; rateIn = null; if (t === 'TRANSFER') split = false; }
   const pickAcc = (id) => { accId = id; menu = null; };
   const pickFrom = (id) => { if (id === toId) toId = fromId; fromId = id; menu = null; };
   const pickTo = (id) => { if (id === fromId) fromId = toId; toId = id; menu = null; };
+  const pickDebt = (id) => { debtId = id; payCur = null; err = ''; };
   const swap = () => { [fromId, toId] = [toId, fromId]; };
   const fmtIn = (v) => (v ? String(+v.toFixed(2)).replace('.', ',') : '');
   function openSplit() { split = !split; err = ''; if (split) parts = [{ id: catId, s: '' }, { id: null, s: '' }]; else if (parts[0]?.id) catId = parts[0].id; }
@@ -101,6 +169,22 @@
       if (fx && !(num(amt2) > 0)) return 'Укажи, сколько зачислится.';
       return '';
     }
+    if (mode === 'taken') {
+      if (!debtId) return 'Выбери, у кого взяли.';
+      if (debtId === 'new' && !newName.trim()) return 'Укажи, у кого взяли.';
+      if (!debtC) return 'Выберите валюту долга';
+      if (!accId) return 'Выбери счёт.';
+      if (fx && !(num(amt2) > 0)) return 'Укажи, сколько зачислится на счёт.';
+      return '';
+    }
+    if (mode === 'repay') {
+      if (!debt) return 'Выбери долг.';
+      if (!accId) return 'Нет счёта в этой валюте.';
+      if (fx && !(num(amt2) > 0)) return 'Укажи, сколько покроет.';
+      if (covered > debt.amount + 0.005) return 'Платёж больше долга.';
+      return '';
+    }
+    if (mode === 'fxin' && !accId) return 'Нет валютного счёта в этой валюте.';
     if (!accId) return 'Выбери счёт.';
     if (split) {
       if (parts.length < 2 || eff.some((p) => !p.id || !(p.v > 0))) return 'Добавь минимум две категории с суммами.';
@@ -115,13 +199,20 @@
     if (problem) { err = problem; return; }
     busy = true; err = '';
     try {
-      const f = { action: type, amount: total, note: note.trim(), date: new Date(when).toISOString(), category_id: split ? [...eff].sort((a, b) => b.v - a.v)[0].id : catId, currency: cur,
+      let f;
+      if (mode === 'taken' || mode === 'repay') {
+        let did = debtId;
+        if (did === 'new') did = await createAccount({ type: 'debt', name: newName.trim(), icon: 'user', currency: newCur, budgetSource: false, balance: 0 });
+        const tk = mode === 'taken';
+        f = { action: 'TRANSFER', amount: total, note: note.trim(), date: new Date(when).toISOString(), category_id: catId, currency: cur,
+          account_id: null, from_account_id: tk ? did : accId, to_account_id: tk ? accId : did, to_amount: fx ? num(amt2) : null, rate: fx ? +(num(amt2) / total).toFixed(6) : null };
+      } else f = { action: type, amount: total, note: note.trim(), date: new Date(when).toISOString(), category_id: split ? [...eff].sort((a, b) => b.v - a.v)[0].id : catId, currency: cur,
         account_id: accId, from_account_id: fromId, to_account_id: toId, to_amount: fx ? num(amt2) : null, rate: fx ? +(num(amt2) / total).toFixed(6) : null };
       const id = await saveOp(no.edit?.id, f);
       if (split) await saveSplits(id, total, eff.map((p) => ({ category_id: p.id, amount: +p.v.toFixed(2) })));
       else if (no.edit?.splits) await clearSplits(id);
-      if (!split && remember && catId && note.trim() && type !== 'TRANSFER') await rememberRule(type, note.trim(), catId);
-      if (type !== 'TRANSFER' && accId) localStorage.setItem('aurum.lastAcc', String(accId));
+      if (!split && remember && catId && note.trim() && type !== 'TRANSFER' && mode === 'op') await rememberRule(type, note.trim(), catId);
+      if (type !== 'TRANSFER' && mode !== 'taken' && accId) localStorage.setItem('aurum.lastAcc', String(accId));
       // пару перевода запоминаем, если операцию открыли не из счёта
       if (type === 'TRANSFER' && !no.acc && !no.edit) localStorage.setItem('aurum.lastTransfer', JSON.stringify({ from: fromId, to: toId }));
       ok = true; prefetchAll(true);
@@ -153,10 +244,10 @@
 
     <CardFace {theme} {kind}>
       {#snippet amount()}
-        <div class="big"><input inputmode="decimal" placeholder="0" style:width="{Math.max(1, (amt || '0').length)}ch" bind:value={amt} oninput={() => (err = '')} /><u>{SYM[cur] ?? cur}</u></div>
+        <div class="big"><input inputmode="decimal" placeholder="0" style:width="{Math.max(1, (amt || '0').length)}ch" bind:value={amt} oninput={() => { err = ''; recalc(); }} /><u>{SYM[cur] ?? cur}</u></div>
       {/snippet}
       {#snippet chip()}
-        {#if type !== 'TRANSFER'}<div class="ct"><OpAvatar icon={heroIcon} size={34} /><span>{catName}</span></div>{/if}
+        {#if !isTr}<div class="ct"><OpAvatar icon={heroIcon} size={34} /><span>{catName}</span></div>{/if}
       {/snippet}
       {#snippet acct()}
         {#if type === 'TRANSFER'}
@@ -178,20 +269,49 @@
       {/snippet}
     </CardFace>
 
-    {#if type !== 'TRANSFER' && !split}
+    {#if !isTr && !split}
       <div class="lb">Категория</div>
       <div class="rb">
         {#each cats as c (c.id)}<button class="cc" class:on={catId === c.id} onclick={() => { catId = c.id; err = ''; }}><span><Icon name={c.icon} size={19} /></span>{c.name}</button>{/each}
       </div>
     {/if}
 
+    {#if mode === 'taken' || mode === 'repay'}
+      <div class="lb">{mode === 'taken' ? 'У кого взяли' : 'Какой долг гасите'}</div>
+      <div class="ch">
+        {#each debts as d (d.id)}<button class="pp" class:on={debtId === d.id} onclick={() => pickDebt(d.id)}>{d.name} · {SYM[d.currency] ?? d.currency}</button>{/each}
+        {#if mode === 'taken'}<button class="pp" class:on={debtId === 'new'} onclick={() => { debtId = 'new'; err = ''; }}>＋ Новый</button>{/if}
+      </div>
+      {#if debtId === 'new'}
+        <div class="rows"><label class="rr"><span>Имя</span><input class="tx" placeholder="Например, Nana" bind:value={newName} oninput={() => (err = '')} /></label></div>
+        <div class="lb">Валюта долга</div>
+        <div class="ch">{#each CUR as c (c)}<button class="pp" class:on={newCur === c} onclick={() => { newCur = c; err = ''; }}>{SYM[c]} {c}</button>{/each}</div>
+      {/if}
+      {#if mode === 'repay'}
+        <div class="lb">В какой валюте платите</div>
+        <div class="ch">{#each CUR as c (c)}<button class="pp" class:on={payC === c} onclick={() => { payCur = c; rateIn = null; err = ''; }}>{SYM[c]} {c}</button>{/each}</div>
+      {/if}
+    {:else if mode === 'fxin'}
+      <div class="lb">Валюта</div>
+      <div class="ch">{#each ['USD', 'EUR'] as c (c)}<button class="pp" class:on={fxC === c} onclick={() => { fxCur = c; err = ''; }}>{SYM[c]} {c}</button>{/each}</div>
+    {/if}
+
     <div class="rows">
-      {#if fx}<label class="rr"><span>Зачислится, {SYM[cur2] ?? cur2}</span><input inputmode="decimal" placeholder="0" bind:value={amt2} /></label>{/if}
+      {#if fx}
+        <div class="fp">
+          <div><small>{l1}, {SYM[fxFrom] ?? fxFrom}</small><b>{total > 0 ? fmt(total, 2) : '0'}</b></div>
+          <i>→</i>
+          <label><small>{l2}, {SYM[fxTo] ?? fxTo}</small><input inputmode="decimal" placeholder="0" bind:value={amt2} oninput={() => { rateIn = null; err = ''; }} /></label>
+        </div>
+        <label class="rr"><span>Курс{fxFrom === 'UAH' || fxTo === 'UAH' ? `, ₴ за ${SYM[fxFrom === 'UAH' ? fxTo : fxFrom]}` : ''}</span>
+          <input inputmode="decimal" placeholder="0" value={rateIn ?? (rateVal ? fmtRate(rateVal) : '')} oninput={(e) => { rateIn = e.currentTarget.value; recalc(); }} /></label>
+      {/if}
+      {#if debtInfo}<div class="rr"><span>Долг {debt?.name}</span><b class="di">{debtInfo}</b></div>{/if}
       <label class="rr"><span>Дата</span><input type="datetime-local" bind:value={when} /></label>
       <label class="rr"><span>Заметка</span><input class="tx" placeholder={type === 'TRANSFER' ? 'Заметка к переводу' : 'Магазин или заметка'} bind:value={note} /></label>
       {#if type !== 'TRANSFER'}
-        {#if !split}<button class="rr" onclick={() => (remember = !remember)}><span>Запомнить для этой категории</span><i class="tg" class:on={remember}></i></button>{/if}
-        <button class="rr" onclick={openSplit}><span>Разделить</span><i class="tg" class:on={split}></i></button>
+        {#if !split && mode === 'op'}<button class="rr" onclick={() => (remember = !remember)}><span>Запомнить для этой категории</span><i class="tg" class:on={remember}></i></button>{/if}
+        {#if mode === 'op'}<button class="rr" onclick={openSplit}><span>Разделить</span><i class="tg" class:on={split}></i></button>{/if}
       {/if}
     </div>
 
@@ -201,7 +321,7 @@
         {#each parts as p, i (i)}
           <div class="pt">
             <label class="pc"><span class="pi"><Icon name={catOf(p.id)?.icon ?? 'tag'} size={17} /></span><span class="pn" class:ph={!p.id}>{catOf(p.id)?.name ?? 'Категория'}</span>
-              <select value={p.id ?? 0} onchange={(e) => { parts[i].id = Number(e.currentTarget.value) || null; err = ''; }}><option value={0}>Категория</option>{#each cats as c (c.id)}<option value={c.id}>{c.name}</option>{/each}</select></label>
+              <select value={p.id ?? 0} onchange={(e) => { parts[i].id = Number(e.currentTarget.value) || null; err = ''; }}><option value={0}>Категория</option>{#each plainCats as c (c.id)}<option value={c.id}>{c.name}</option>{/each}</select></label>
             {#if i === 0}
               <input class="pa main" inputmode="decimal" placeholder="0" value={fsEdit ?? (first ? fmt(first, 2) : '')}
                 onfocus={() => (fsEdit = fmtIn(first))}
@@ -247,6 +367,15 @@
   .mi.on { background: rgba(232, 194, 119, .13); color: #F4DDA6; font-weight: 600; }
   .ck { color: #EBC77A; display: grid; }
   .lb { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 14px 4px 6px; }
+  .ch { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 2px 0; }
+  .pp { padding: 8px 14px; border-radius: 99px; background: var(--fill); color: var(--text); font-size: 14px; font-weight: 500; transition: background .2s, color .2s, transform .25s cubic-bezier(.3, 1.5, .5, 1); }
+  .pp.on { background: linear-gradient(160deg, #F2D58F, #CD9A3A); color: #1a1206; font-weight: 600; transform: scale(1.04); }
+  .fp { display: flex; align-items: center; gap: 10px; padding: 11px 14px; }
+  .fp > div, .fp label { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .fp small { font-size: 11px; color: var(--muted); }
+  .fp b, .fp input { font: inherit; font-size: 18px; font-weight: 600; color: var(--text); border: 0; outline: 0; background: none; padding: 0; width: 100%; }
+  .fp i { color: var(--gold); font-style: normal; flex: none; }
+  .di { font-weight: 600; font-size: 13.5px; color: var(--text); text-align: right; }
   .rb { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding: 8px 10px 4px; margin: 0 -10px; }
   .rb::-webkit-scrollbar { display: none; }
   .cc { flex: none; width: 66px; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 11px; line-height: 13px; color: var(--muted); text-align: center; }
