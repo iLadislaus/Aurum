@@ -185,7 +185,7 @@ export async function loadOpsForAll(ids) {
     pages.push(...r.data);
     if (r.data.length < 1000) break;
   }
-  const cats = await sb.from('categories').select('id,name,icon');
+  const cats = await sb.from('categories').select('id,name,icon,type,is_debt');
   if (cats.error) throw cats.error;
   const cm = new Map(cats.data.map((c) => [c.id, c]));
   const out = new Map();
@@ -226,16 +226,17 @@ function mapOp(t, cm, am, sc) {
   const foreign = tr ? !!(fa?.is_foreign || ta?.is_foreign) : !!acc?.is_foreign;
   const cur = tr ? (fa?.is_foreign ? fa.currency : ta?.is_foreign ? ta.currency : 'UAH') : acc?.is_foreign ? acc.currency : 'UAH';
   const amount = Number(t.amount);
+  const dc = tr && c?.is_debt ? c : null; // перевод по долгу: берём долг («Debt taken») или гасим («Debt repayment»)
   return {
     id: t.id, date: t.date, action: t.action, amount, to_amount: t.to_amount == null ? null : Number(t.to_amount),
     note: t.note || '', category_id: t.category_id, account_id: t.account_id, from_account_id: t.from_account_id, to_account_id: t.to_account_id,
     currency: t.currency, rate: t.rate, mono: !!t.mono_op_id, splits: sc.get(t.id) ?? 0,
-    v: t.action === 'INCOME' || t.action === 'RETURN' ? amount : t.action === 'EXPENSE' ? -amount : amount,
+    v: dc ? (dc.type === 'EXPENSE' ? -amount : amount) : t.action === 'INCOME' || t.action === 'RETURN' ? amount : t.action === 'EXPENSE' ? -amount : amount,
     foreign, sym: OP_SYM[cur] ?? cur,
     name: clean(t.note) || clean(c?.name) || (tr ? 'Перевод' : 'Операция'),
-    cat: tr ? 'Перевод' : sc.get(t.id) ? `${sc.get(t.id)} категории` : clean(c?.name) || 'Без категории',
+    cat: dc ? clean(dc.name) : tr ? 'Перевод' : sc.get(t.id) ? `${sc.get(t.id)} категории` : clean(c?.name) || 'Без категории',
     acc: tr ? `${clean(fa?.name) || '?'} → ${clean(ta?.name) || '?'}` : clean(acc?.name),
-    icon: tr ? 'swap' : c?.icon || 'tag',
+    icon: tr && !dc ? 'swap' : c?.icon || 'tag',
     uncat: !tr && t.category_id == null
   };
 }
@@ -251,7 +252,7 @@ export async function loadMonthOps(y, m) {
     if (r.data.length < 1000) break;
   }
   const [cats, accs, spl] = await Promise.all([
-    sb.from('categories').select('id,name,icon'),
+    sb.from('categories').select('id,name,icon,type,is_debt'),
     sb.from('accounts').select('id,name,currency,is_foreign'),
     sb.from('transaction_splits').select('transaction_id')
   ]);
@@ -286,9 +287,9 @@ export async function repeatOp(o) {
 
 // Категории для выбора в карточке и создании
 export async function loadCategories() {
-  const r = await sb.from('categories').select('id,name,type,icon,sort_order').order('sort_order');
+  const r = await sb.from('categories').select('id,name,type,icon,sort_order,is_debt').order('sort_order');
   if (r.error) throw r.error;
-  return { list: r.data.map((c) => ({ id: c.id, name: clean(c.name), type: c.type, icon: c.icon || 'tag' })) };
+  return { list: r.data.map((c) => ({ id: c.id, name: clean(c.name), type: c.type, icon: c.icon || 'tag', debt: !!c.is_debt })) };
 }
 
 // Смена категории у операции
