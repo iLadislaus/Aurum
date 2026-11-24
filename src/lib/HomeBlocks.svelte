@@ -75,19 +75,19 @@
     </div>
     <div class="fill" onpointerdown={sdown} onpointermove={smove} onpointerup={sup} onpointercancel={sup}><p class="note">Потяните за ≡, чтобы поменять порядок.<br />Выключенные блоки скрываются с главной.</p></div>
 
-    {#if hb.lesson}
-      <div class="les" role="presentation" onclick={endLesson}>
-        <div class="lt">Тяни за ≡, чтобы поменять блоки местами</div>
-        <div class="dl">
-          <div class="dr d0"><span class="hd">≡</span><span class="ic"><Icon name="wallet" size={18} /></span><span class="t">Общий баланс</span></div>
-          <div class="dr d1"><span class="hd">≡</span><span class="ic"><Icon name="chart" size={18} /></span><span class="t">Бюджет</span></div>
-          <div class="dr"><span class="hd">≡</span><span class="ic"><Icon name="swap" size={18} /></span><span class="t">Денежный поток</span></div>
-          <div class="fg"><i></i></div>
-        </div>
-        <div class="lb">Главная перестраивается сразу. Нажми, чтобы закрыть</div>
-      </div>
-    {/if}
   </div>
+  {#if hb.lesson}
+    <div class="les" role="presentation" onclick={endLesson}>
+      <div class="lt">Тяни за ≡, чтобы поменять блоки местами</div>
+      <div class="dl">
+        <div class="dr d0"><span class="hd">≡</span><span class="ic"><Icon name="wallet" size={18} /></span><span class="t">Общий баланс</span></div>
+        <div class="dr d1"><span class="hd">≡</span><span class="ic"><Icon name="chart" size={18} /></span><span class="t">Бюджет</span></div>
+        <div class="dr"><span class="hd">≡</span><span class="ic"><Icon name="swap" size={18} /></span><span class="t">Денежный поток</span></div>
+        <div class="fg"><i></i></div>
+      </div>
+      <div class="lb">Главная перестраивается сразу. Нажми, чтобы закрыть</div>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -121,7 +121,7 @@
   .fill { flex: 1; touch-action: none; }
   .note { margin: 16px 30px 0; font-size: 12.5px; line-height: 1.45; color: var(--muted); text-align: center; }
 
-  .les { position: absolute; inset: 0; z-index: 20; background: rgba(0, 0, 0, .88); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 18px; text-align: center; animation: fi .4s both; }
+  .les { position: absolute; inset: 0; z-index: 5; background: rgba(0, 0, 0, .88); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 18px; text-align: center; animation: fi .4s both; }
   @keyframes fi { from { opacity: 0; } }
   .lt { color: #F4DDA6; font-size: 16px; font-weight: 700; max-width: 240px; }
   .lb { color: rgba(255, 255, 255, .6); font-size: 12.5px; }
