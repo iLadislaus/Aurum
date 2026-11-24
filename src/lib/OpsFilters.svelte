@@ -79,7 +79,7 @@
 </div>
 
 <style>
-  .fpan { background: var(--card); border-radius: 20px; box-shadow: var(--shadow); padding: 2px 14px; margin-bottom: 12px; overflow: hidden; }
+  .fpan { background: var(--card); border-radius: 20px; box-shadow: var(--shadow); padding: 2px 14px; margin-bottom: 12px; overflow: hidden; contain: layout paint; }
   .sec + .sec, .sec + div, div + .sec { border-top: .5px solid var(--line); }
   .sh { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 50px; text-align: left; }
   .ic { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--gold-soft); color: var(--gold); flex: none; }
@@ -89,7 +89,7 @@
   .cv { color: var(--ter); display: grid; transition: transform .3s; }
   .cv.up { transform: rotate(180deg); }
   .cps { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 0 14px; }
-  .cps button { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 17px; background: var(--fill); font-size: 14px; font-weight: 600; transition: background .2s, transform .15s; }
+  .cps button { display: flex; align-items: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: 17px; background: var(--fill); font-size: 14px; font-weight: 600; touch-action: manipulation; transition: background .15s; }
   .cps button:active { transform: scale(.95); }
   .cps small { font-size: 12px; font-weight: 500; color: var(--muted); }
   .cps .a { background: linear-gradient(180deg, #F0D18A, #C9963A); color: #1a1206; }
