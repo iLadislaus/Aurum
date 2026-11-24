@@ -25,7 +25,7 @@
     const d = peek('accounts');
     if (!d) return [];
     const l = [];
-    const add = (a, grp, icon, currency) => l.push({ id: a.id, name: a.name, currency: currency || a.currency || 'UAH', grp, icon });
+    const add = (a, grp, icon, currency) => l.push({ id: a.id, name: a.name, currency: currency || a.currency || 'UAH', grp, icon, mono: !!a.mono });
     for (const a of d.cards) add(a, 'Карты и наличные', 'card');
     for (const a of d.cashes) add(a, 'Карты и наличные', /cash/i.test(a.name) ? 'cash' : 'wallet');
     for (const a of d.envs) add(a, 'Конверты', envIcon(a.name));
@@ -63,7 +63,9 @@
   const fxC = $derived(fxCur ?? 'USD');
   // какие счета можно выбрать: долговые — только через строку «Долг»; для погашения и валютного дохода — по валюте
   const pool = $derived.by(() => {
-    const keep = (a) => a.grp !== 'Долги' || (no.edit && [no.edit.account_id, no.edit.from_account_id, no.edit.to_account_id].includes(a.id));
+    const inEdit = (a) => !!no.edit && [no.edit.account_id, no.edit.from_account_id, no.edit.to_account_id].includes(a.id);
+    // карты Monobank — только для возврата и перевода; в расходе и доходе их нет
+    const keep = (a) => (a.grp !== 'Долги' || inEdit(a)) && (!a.mono || type === 'RETURN' || type === 'TRANSFER' || inEdit(a));
     const base = accs.filter(keep);
     if (mode === 'repay') return base.filter((a) => a.currency === payC);
     if (mode === 'fxin') return base.filter((a) => a.grp === 'Валютные' && a.currency === fxC);
@@ -96,6 +98,11 @@
 
   $effect(() => {
     if (!no.open) return;
+    // зависим только от параметров открытия; всё остальное — вне отслеживания, иначе смена счёта сбрасывает форму
+    const src = { edit: no.edit, type: no.type, acc: no.acc };
+    untrack(() => init(src));
+  });
+  function init(no) {
     busy = false; ok = false; err = ''; split = false; parts = []; remember = true; menu = null; fsEdit = null;
     debtId = null; newName = ''; newCur = null; payCur = null; fxCur = null; rateIn = null; pendDebt = null;
     refresh('accounts', loadAccounts).catch(() => {});
@@ -120,9 +127,9 @@
       fromId = no.acc ?? lp?.from ?? accId;
       toId = lp?.to && lp.to !== fromId ? lp.to : null;
       // открыли из долга («Новая операция» / «Перевод» в меню долга) — сразу погашение этого долга
-      if (no.acc && untrack(() => peek('accounts')?.debts ?? []).some((d) => d.id === no.acc)) { type = 'EXPENSE'; debtId = no.acc; pendDebt = no.acc; accId = null; fromId = null; }
+      if (no.acc && (peek('accounts')?.debts ?? []).some((d) => d.id === no.acc)) { type = 'EXPENSE'; debtId = no.acc; pendDebt = no.acc; accId = null; fromId = null; }
     }
-  });
+  }
   // категорию «Debt repayment» подставляем, когда категории загрузились
   $effect(() => {
     if (!no.open || !pendDebt) return;
