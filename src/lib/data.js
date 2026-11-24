@@ -182,12 +182,13 @@ function buildAccountOps(id, rows, cm) {
     const d = new Date(t.date);
     if (d.getFullYear() * 12 + d.getMonth() === mk) { if (v > 0) inc += v; else out += v; }
     return {
-      id: t.id, date: t.date, amount: v,
+      id: t.id, date: t.date, amount: v, raw: Number(t.amount), action: t.action, note: t.note || '', account_id: t.account_id,
       name: clean(t.note) || clean(c?.name) || (t.action === 'TRANSFER' ? 'Перевод' : 'Операция'),
       cat: t.action === 'TRANSFER' ? 'Перевод' : clean(c?.name) || 'Без категории',
       icon: t.action === 'TRANSFER' ? 'swap' : c?.icon || 'tag'
     };
   });
+  pairRefunds(ops);
   return { ops, inc, out };
 }
 
@@ -301,7 +302,30 @@ export async function loadOpsRange(a, b) {
   const cm = new Map(cats.data.map((c) => [c.id, c]));
   const am = new Map(accs.data.map((x) => [x.id, x]));
   const ops = rows.map((t) => mapOp(t, cm, am, sc, sp));
+  pairRefunds(ops);
   return { ops };
+}
+
+// Возврат «Скасування. X» привязываем к списанию X на том же счёте (не позже 3 суток до возврата),
+// чтобы у списания показать итог: списано минус возвращено (заправка WOG: полный бак, потом возврат остатка)
+function pairRefunds(ops) {
+  const mag = (o) => o.raw ?? o.amount;
+  const key = (s) => (s || '').trim().toLowerCase();
+  const rets = ops.filter((o) => o.action === 'RETURN' && /^скасування\.\s*\S/i.test(o.note)).sort((a, b) => new Date(a.date) - new Date(b.date));
+  for (const r of rets) {
+    const name = key(r.note.replace(/^скасування\.\s*/i, '')), t = new Date(r.date).getTime();
+    let best = null;
+    for (const e of ops) {
+      if (e.action !== 'EXPENSE' || e.account_id !== r.account_id || key(e.note) !== name) continue;
+      const te = new Date(e.date).getTime();
+      if (te > t || t - te > 3 * 86400000) continue;
+      const left = mag(e) - (e.back ?? []).reduce((s, x) => s + x.amount, 0);
+      if (left + 0.005 < mag(r)) continue;
+      if (!best || te > new Date(best.date).getTime()) best = e;
+    }
+    if (best) (best.back ??= []).push({ id: r.id, amount: mag(r) });
+  }
+  for (const e of ops) if (e.back) e.net = Math.round((mag(e) - e.back.reduce((s, x) => s + x.amount, 0)) * 100) / 100;
 }
 
 export const loadMonthOps = (y, m) => loadOpsRange(new Date(y, m, 1).toISOString(), new Date(y, m + 1, 1).toISOString());

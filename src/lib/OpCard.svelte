@@ -155,6 +155,11 @@
             </button>
           {/if}
           <div class="lr"><span>Дата</span><b>{when}</b></div>
+          {#if o.net != null}
+            <div class="lr"><span>Списано</span><b>{fmt(o.amount, o.amount % 1 ? 2 : 0)} {o.sym}</b></div>
+            <div class="lr"><span>Возврат</span><b>+{fmt(o.amount - o.net, 2)} {o.sym}</b></div>
+            <div class="lr"><span>Итого</span><b class="gold">{fmt(o.net, o.net % 1 ? 2 : 0)} {o.sym}</b></div>
+          {/if}
           {#if o.rate}<div class="lr"><span>Курс</span><b>{fmt(Number(o.rate), 2)}</b></div>{/if}
           {#if o.note.trim() && o.note.trim() !== o.name}<div class="lr"><span>Заметка</span><b>{o.note}</b></div>{/if}
         </div>
@@ -232,6 +237,7 @@
   .lr span { color: var(--muted); flex: none; }
   .lr b { font-weight: 500; text-align: right; margin-left: auto; overflow-wrap: anywhere; }
   .lr b.red { color: #E5584D; }
+  .lr b.gold { color: var(--gold); font-weight: 600; }
   .cat :global(svg) { color: var(--muted); flex: none; }
   .seg { display: flex; gap: 4px; padding: 3px; border-radius: 12px; background: var(--fill); animation: rise2 .3s cubic-bezier(.2, .8, .2, 1) both; }
   @keyframes rise2 { from { opacity: 0; transform: translateY(8px); } }
