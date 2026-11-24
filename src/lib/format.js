@@ -4,7 +4,7 @@ export const fmt = (n, d = 0) => nf(d).format(n).replace(/[  ]/g, ' ');
 export const money = (v, d = 0) => fmt(v, d) + ' ₴';
 export const signed = (v, d = 2) => (v >= 0 ? '+' : '−') + fmt(Math.abs(v), d);
 
-const plural = (n, a, b, c) => {
+export const plural = (n, a, b, c) => {
   const m = n % 100, d = n % 10;
   if (m > 10 && m < 20) return c;
   return d === 1 ? a : d >= 2 && d <= 4 ? b : c;

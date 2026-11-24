@@ -15,8 +15,6 @@
   import { hb } from './lib/homeblocks.svelte.js';
   import HorizonSheet from './lib/HorizonSheet.svelte';
   import NewPay from './lib/NewPay.svelte';
-  import { np } from './lib/newpay.svelte.js';
-  import { hz } from './lib/horizon.svelte.js';
   import { prefetchAll } from './lib/prefetch.js';
   import { startUpdateWatch } from './lib/update.svelte.js';
   import { onMount } from 'svelte';
@@ -46,7 +44,7 @@
   });
 </script>
 
-<main bind:this={scroller} class:back={acct.open || na.open || hb.open || oc.open || no.open || hz.open || np.open}>
+<main bind:this={scroller} class:back={acct.open || na.open || hb.open || oc.open || no.open}>
   {#if !auth.ready}
     <!-- проверяем вход -->
   {:else if !auth.session}

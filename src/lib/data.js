@@ -67,7 +67,10 @@ export async function loadHome() {
     period: PERIOD[p.period] ?? '',
     amount: Number(p.amount),
     days: Math.round((new Date(p.next_date) - new Date(day0)) / 86400000),
-    icon: catMap.get(p.category_id)?.icon || 'tag'
+    icon: catMap.get(p.category_id)?.icon || 'tag',
+    catId: p.category_id ?? null,
+    periodKey: p.period,
+    date: p.next_date
   }));
 
   const ids = ops.data.map((t) => t.id);
@@ -372,10 +375,16 @@ export async function saveOp(id, f) {
   return r.data[0].id;
 }
 
-// Новый плановый платёж («На горизонте»)
-export async function addPlanned({ name, amount, categoryId, period, nextDate }) {
-  const r = await sb.from('recurring_payments').insert({
-    name, pattern: name.toLowerCase(), amount, period, next_date: nextDate, category_id: categoryId ?? null, active: true, dismissed: false
-  });
+// Плановый платёж («На горизонте»): новый или (с id) изменённый
+export async function savePlanned({ id, name, amount, categoryId, period, nextDate }) {
+  const row = { name, pattern: name.toLowerCase(), amount, period, next_date: nextDate, category_id: categoryId ?? null };
+  const r = id
+    ? await sb.from('recurring_payments').update(row).eq('id', id)
+    : await sb.from('recurring_payments').insert({ ...row, active: true, dismissed: false });
+  if (r.error) throw r.error;
+}
+
+export async function deletePlanned(id) {
+  const r = await sb.from('recurring_payments').delete().eq('id', id);
   if (r.error) throw r.error;
 }

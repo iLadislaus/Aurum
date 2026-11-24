@@ -1,7 +1,7 @@
 <script>
   // Строка со свайпом как в iOS: влево — «Удалить», вправо — «Повторить». Первое нажатие на кнопку просит подтверждения
   import { sw } from './swipe.svelte.js';
-  let { id, ondelete, onrepeat, nodelete = false, norepeat = false, children } = $props();
+  let { id, ondelete, onrepeat, nodelete = false, norepeat = false, rlabel = 'Повторить', rconfirm = true, children } = $props();
   const W = 92;
   let x = $state(0), drag = $state(false), armed = $state(''), timer;
   let open = $derived(sw.id === id);
@@ -29,11 +29,11 @@
   }
   function close() { x = 0; sw.id = ''; arm(''); }
   function del() { if (nodelete) return; if (armed === 'd') { close(); ondelete?.(); } else arm('d'); }
-  function rep() { if (norepeat) return; if (armed === 'r') { close(); onrepeat?.(); } else arm('r'); }
+  function rep() { if (norepeat) return; if (!rconfirm) { close(); onrepeat?.(); return; } if (armed === 'r') { close(); onrepeat?.(); } else arm('r'); }
 </script>
 
 <div class="sr" use:swipe>
-  {#if !norepeat}<button class="a l" class:armed={armed === 'r'} style:width="{W}px" onclick={rep} tabindex={x > 0 ? 0 : -1}>{armed === 'r' ? 'Точно?' : 'Повторить'}</button>{/if}
+  {#if !norepeat}<button class="a l" class:armed={armed === 'r'} style:width="{W}px" onclick={rep} tabindex={x > 0 ? 0 : -1}>{armed === 'r' ? 'Точно?' : rlabel}</button>{/if}
   {#if !nodelete}<button class="a r" class:armed={armed === 'd'} style:width="{W}px" onclick={del} tabindex={x < 0 ? 0 : -1}>{armed === 'd' ? 'Точно?' : 'Удалить'}</button>{/if}
   <div class="c" class:drag style:transform="translateX({x}px)" onclick={() => x !== 0 && close()} role="presentation">{@render children()}</div>
 </div>
