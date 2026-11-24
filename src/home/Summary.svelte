@@ -19,7 +19,7 @@
   let perDay = $derived(Math.max(0, remaining) / Math.max(1, daysLeft));
 
   // на горизонте: платежи на 14 дней
-  let next = $derived([...d.horizon].filter((p) => p.days >= 0).sort((a, b) => a.days - b.days)[0]);
+  let next = $derived([...d.horizon].filter((p) => p.days >= 0 && p.days <= 14).sort((a, b) => a.days - b.days)[0]);
 </script>
 
 <div class="cd" class:in={shown}>
@@ -54,7 +54,7 @@
   </button>
 
   <div class="s hz">
-    <button class="ht" onclick={onhorizon} aria-label="На горизонте"><b>На горизонте</b> <i>{next ? `· ${next.name} ${daysLabel(next.days)} · ${money(next.amount)}` : '· платежей нет'}</i></button>
+    <button class="ht" onclick={onhorizon} aria-label="На горизонте"><b>На горизонте</b> {#if next}<i>· {next.name} {daysLabel(next.days)} · {money(next.amount)}</i>{/if}</button>
     <button class="pl" onclick={openNewPay} aria-label="Новый платёж"><Icon name="plus" size={16} /></button>
   </div>
 </div>
