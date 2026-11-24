@@ -39,8 +39,9 @@
 
   // содержимое: на половине тянется само окно; на весь экран — только когда список в самом верху и тянут вниз (как в iOS)
   function grab(node) {
-    let on = false, y = 0, live = false;
-    const ts = (e) => { y = e.touches[0].clientY; live = true; on = false; if (!full && !fit) { down({ clientY: y }); on = true; } };
+    let on = false, y = 0, live = false, skip = false;
+    // жест внутри выпадающего списка (счета, категории) листает сам список и не тянет окно
+    const ts = (e) => { skip = !!e.target.closest?.('[role="listbox"]'); if (skip) { live = false; on = false; return; } y = e.touches[0].clientY; live = true; on = false; if (!full && !fit) { down({ clientY: y }); on = true; } };
     const tm = (e) => {
       if (!live) return;
       const c = e.touches[0].clientY;
