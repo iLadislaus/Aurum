@@ -1,5 +1,6 @@
 <script>
   import Icon from '../lib/Icon.svelte';
+  import OpAvatar from '../lib/OpAvatar.svelte';
   import { openNewPay } from '../lib/newpay.svelte.js';
   import { hz, inRange, RANGE_NAME } from '../lib/horizon.svelte.js';
   import { fmt, money, signed, plural } from '../lib/format.js';
@@ -55,8 +56,20 @@
   </button>
 
   <div class="s hz">
-    <button class="ht" onclick={onhorizon} aria-label="На горизонте"><b>На горизонте</b> {#if soon.length}<i>· {RANGE_NAME[hz.range]} · {soon.length} {plural(soon.length, 'платёж', 'платежа', 'платежей')} · {money(soonSum)}</i>{/if}</button>
-    <button class="pl" onclick={() => openNewPay()} aria-label="Новый платёж"><Icon name="plus" size={16} /></button>
+    <div class="hh">
+      <button class="ht" onclick={onhorizon} aria-label="На горизонте"><b>На горизонте</b> {#if soon.length}<i>· {RANGE_NAME[hz.range]} · {money(soonSum)}</i>{/if}</button>
+      <button class="pl" onclick={() => openNewPay()} aria-label="Новый платёж"><Icon name="plus" size={16} /></button>
+    </div>
+    {#if soon.length}
+      <div class="chs">
+        {#each soon as p (p.id)}
+          <button class="chip" onclick={onhorizon} aria-label={p.name}>
+            <OpAvatar icon={p.icon} name={p.name} size={26} />
+            <span><b>{p.name}</b><small>{p.days <= 0 ? 'сегодня' : p.days + ' дн'} · {money(p.amount)}</small></span>
+          </button>
+        {/each}
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -99,7 +112,14 @@
   .bd small { font-size: 12.5px; color: #a99366; }
   .bd b { font-size: 16px; white-space: nowrap; }
 
-  .hz { justify-content: space-between; gap: 10px; font-size: 14px; padding: 0 8px 0 18px; min-height: 48px; cursor: default; }
+  .hz { flex-direction: column; align-items: stretch; gap: 0; font-size: 14px; padding: 0; cursor: default; }
+  .hh { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 8px 0 18px; min-height: 48px; }
+  .chs { display: flex; gap: 8px; overflow-x: auto; padding: 0 14px 12px 18px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .chs::-webkit-scrollbar { display: none; }
+  .chip { flex: none; display: flex; align-items: center; gap: 8px; padding: 5px 14px 5px 5px; border-radius: 99px; background: rgba(255, 255, 255, .07); box-shadow: inset 0 0 0 .5px rgba(232, 194, 119, .2); color: inherit; text-align: left; }
+  .chip span { display: flex; flex-direction: column; line-height: 15px; }
+  .chip b { font-size: 13px; font-weight: 600; }
+  .chip small { font-size: 11.5px; color: #a99366; }
   .hz:active { background: none; }
   .ht { flex: 1; min-width: 0; text-align: left; color: inherit; min-height: 48px; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; }
   .ht b { font-size: 15px; flex: none; }
