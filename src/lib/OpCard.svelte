@@ -31,7 +31,6 @@
     refresh('cats', loadCategories).catch(() => {});
     const act = oc.act;
     untrack(() => {
-      if (act === 'del' && o && !o.mono) { armed = true; timer = setTimeout(() => (armed = false), 3000); }
       if (act === 'split') setTimeout(() => { if (oc.open && o && o.action !== 'TRANSFER') openSplit(); }, 350);
     });
   });
@@ -203,15 +202,9 @@
         </div>
       {/if}
 
-      {#if o.splits && !split}<button class="ap un" onclick={undoSplit}>Убрать разделение</button>{/if}
       {#if more > 0}<button class="ap" onclick={applyMore}>Применить ещё к {more} операциям без категории</button>{/if}
       {#if err}<p class="er">{err}</p>{/if}
 
-      {#if !split && !o.mono}
-      <div class="act one">
-        <button class="d" class:armed onclick={del}><i class="c"><Icon name="trash" size={24} /></i><span>{armed ? 'Точно?' : 'Удалить'}</span></button>
-      </div>
-      {/if}
     </div>
   {/if}
 </Sheet>

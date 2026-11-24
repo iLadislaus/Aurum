@@ -1,6 +1,6 @@
 <script>
   import { onMount, tick, untrack } from 'svelte';
-    import { loadCategories, loadAccList, opsLoader, deleteOp, repeatOp } from '../lib/data.js';
+    import { loadCategories, loadAccList, opsLoader, deleteOp, repeatOp, clearSplits } from '../lib/data.js';
   import { peek, refresh, put } from '../lib/cache.svelte.js';
   import { prefetchAll } from '../lib/prefetch.js';
   import { fmt, cash } from '../lib/format.js';
@@ -157,12 +157,25 @@
   function togglePanel() { focused = false; inputEl?.blur(); fpOpen = !fpOpen; }
 
   // удаление и повтор: сразу правим список на экране, потом синхронизируем счета и главную
-  async function remove(t) {
+  // удаление с отменой: операция пропадает из списка сразу, а из базы — через 5 секунд, если не нажать «Отменить»
+  let undo = $state(null);
+  function remove(t) {
     if (t.mono) return;
-    const old = peek(key);
-    put(key, { ops: old.ops.filter((x) => x.id !== t.id) });
-    try { await deleteOp(t.id); prefetchAll(true); }
-    catch (e) { put(key, old); err = e.message || 'Не удалось удалить'; }
+    if (undo) commitUndo();
+    const k = key, old = peek(k);
+    put(k, { ...old, ops: old.ops.filter((x) => x.id !== t.id) });
+    undo = { k, old, id: t.id, timer: setTimeout(commitUndo, 5000) };
+  }
+  async function commitUndo() {
+    const u = undo; if (!u) return;
+    clearTimeout(u.timer); undo = null;
+    try { await deleteOp(u.id); prefetchAll(true); }
+    catch (e) { put(u.k, u.old); err = e.message || 'Не удалось удалить'; }
+  }
+  function cancelUndo() { const u = undo; if (!u) return; clearTimeout(u.timer); undo = null; put(u.k, u.old); }
+  async function unsplit(t) {
+    try { await clearSplits(t.id); await load(key); prefetchAll(true); }
+    catch (e) { err = e.message || 'Не удалось убрать разделение'; }
   }
   async function repeat(t) {
     if (t.mono) return;
@@ -177,7 +190,8 @@
   const menuOp = (el, t) => openCtx(el, [
     { t: 'Изменить', icon: 'pen', run: () => editOp(t) },
     ...(t.action !== 'TRANSFER' ? [{ t: 'Разделить', icon: 'split', run: () => splitOp(t) }] : []),
-    ...(!t.mono ? [{ t: 'Повторить', icon: 'copy', run: () => repeat(t) }, { t: 'Удалить', icon: 'trash', danger: true, sep: true, run: () => openOp(t, key, 'del') }] : [])
+    ...(t.splits ? [{ t: 'Убрать разделение', icon: 'close', run: () => unsplit(t) }] : []),
+    ...(!t.mono ? [{ t: 'Повторить', icon: 'copy', run: () => repeat(t) }, { t: 'Удалить', icon: 'trash', danger: true, sep: true, run: () => remove(t) }] : [])
   ]);
   const sgn = (t) => (t.action === 'TRANSFER' ? '' : t.v > 0 ? '+' : '−');
   const amt = (t) => sgn(t) + fmt(Math.abs(t.action === 'TRANSFER' ? t.amount : t.v), t.foreign ? 2 : Math.abs(t.amount) % 1 ? 2 : 0) + ' ' + t.sym;
@@ -258,6 +272,7 @@
     {#if limit < found.length}<div class="more" bind:this={sentinel}>Подгружаю ещё…</div>{/if}
   {/if}
   {#if busy}<div class="toast">Повторяю…</div>{/if}
+  {#if undo}<div class="toast">Операция удалена <button class="un" onclick={cancelUndo}>Отменить</button></div>{/if}
 </section>
 
 <style>
@@ -316,4 +331,5 @@
   .msg { text-align: center; color: var(--muted); padding: 40px 0; }
   .more { text-align: center; padding: 18px; font-size: 12.5px; color: var(--muted); }
   .toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); padding: 9px 16px; border-radius: 99px; background: rgba(30, 28, 20, .92); color: #E8C277; font-size: 13px; z-index: 20; }
+  .toast .un { margin-left: 10px; color: #EBC77A; font-weight: 600; }
 </style>
