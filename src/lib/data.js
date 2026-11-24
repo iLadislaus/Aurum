@@ -214,6 +214,12 @@ export async function createAccount({ type, name, icon, currency, budgetSource, 
   return data.id;
 }
 
+// Новый долг (раздел «Долги» на экране «Счета»)
+export async function createDebt({ name, currency, amount }) {
+  const r = await sb.from('debts').insert({ name, currency, amount });
+  if (r.error) throw r.error;
+}
+
 // ---- Операции за месяц (экран «Операции»)
 const OP_COLS = 'id,date,action,amount,to_amount,category_id,note,account_id,from_account_id,to_account_id,currency,rate,mono_op_id';
 
