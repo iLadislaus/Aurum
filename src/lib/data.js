@@ -81,10 +81,17 @@ export async function loadHome() {
   const am = new Map(accs.data.map((x) => [x.id, x]));
   const recent = ops.data.map((t) => mapOp(t, catMap, am, sc));
 
+  // нераспределённые операции за всё время: без категории или в категории Uncategorized
+  const unIds = cats.data.filter((c) => UNCAT.test(c.name || '')).map((c) => c.id);
+  const un = await sb.from('transactions').select(OP_COLS, { count: 'exact' }).neq('action', 'TRANSFER')
+    .or(unIds.length ? `category_id.is.null,category_id.in.(${unIds.join(',')})` : 'category_id.is.null').order('date', { ascending: false }).limit(1);
+  if (un.error) throw un.error;
+  const uncat = { n: un.count ?? un.data.length, first: un.data[0] ? mapOp(un.data[0], catMap, am, new Map()) : null };
+
   return {
     total, delta, pct, cardsCash, envs, today,
     budget: { plan: Number(cur.budget), spent: Number(cur.expense) - Number(cur.returns) },
-    months, horizon, recent
+    months, horizon, recent, uncat
   };
 }
 
@@ -219,6 +226,7 @@ export async function createAccount({ type, name, icon, currency, budgetSource, 
 const OP_COLS = 'id,date,action,amount,to_amount,category_id,note,account_id,from_account_id,to_account_id,currency,rate,mono_op_id';
 
 // Одна операция для списков (Операции и «Последние операции» на Главной)
+export const UNCAT = /^uncategorized/i;
 const OP_SYM = { UAH: '₴', USD: '$', EUR: '€' };
 function mapOp(t, cm, am, sc) {
   const c = cm.get(t.category_id), acc = am.get(t.account_id), fa = am.get(t.from_account_id), ta = am.get(t.to_account_id);
@@ -226,6 +234,7 @@ function mapOp(t, cm, am, sc) {
   const foreign = tr ? !!(fa?.is_foreign || ta?.is_foreign) : !!acc?.is_foreign;
   const cur = tr ? (fa?.is_foreign ? fa.currency : ta?.is_foreign ? ta.currency : 'UAH') : acc?.is_foreign ? acc.currency : 'UAH';
   const amount = Number(t.amount);
+  const un = !tr && !sc.get(t.id) && (t.category_id == null || UNCAT.test(c?.name || ''));
   const dc = tr && c?.is_debt ? c : null; // перевод по долгу: берём долг («Debt taken») или гасим («Debt repayment»)
   return {
     id: t.id, date: t.date, action: t.action, amount, to_amount: t.to_amount == null ? null : Number(t.to_amount),
@@ -234,10 +243,10 @@ function mapOp(t, cm, am, sc) {
     v: dc ? (dc.type === 'EXPENSE' ? -amount : amount) : t.action === 'INCOME' || t.action === 'RETURN' ? amount : t.action === 'EXPENSE' ? -amount : amount,
     foreign, sym: OP_SYM[cur] ?? cur,
     name: clean(t.note) || clean(c?.name) || (tr ? 'Перевод' : 'Операция'),
-    cat: dc ? clean(dc.name) : tr ? 'Перевод' : sc.get(t.id) ? `${sc.get(t.id)} категории` : clean(c?.name) || 'Без категории',
+    cat: dc ? clean(dc.name) : tr ? 'Перевод' : sc.get(t.id) ? `${sc.get(t.id)} категории` : un ? 'Без категории' : clean(c?.name) || 'Без категории',
     acc: tr ? `${clean(fa?.name) || '?'} → ${clean(ta?.name) || '?'}` : clean(acc?.name),
     icon: tr && !dc ? 'swap' : c?.icon || 'tag',
-    uncat: !tr && t.category_id == null
+    uncat: un
   };
 }
 
@@ -311,14 +320,20 @@ export async function rememberRule(action, note, categoryId) {
 }
 
 // Сколько прошлых операций без категории с таким же названием
+const uncatFilter = async () => {
+  const c = await sb.from('categories').select('id,name');
+  if (c.error) throw c.error;
+  const ids = c.data.filter((x) => UNCAT.test(x.name || '')).map((x) => x.id);
+  return ids.length ? `category_id.is.null,category_id.in.(${ids.join(',')})` : 'category_id.is.null';
+};
 export async function countUncat(action, note, exceptId) {
   const r = await sb.from('transactions').select('id', { count: 'exact', head: true })
-    .eq('action', action).eq('note', note).is('category_id', null).neq('id', exceptId);
+    .eq('action', action).eq('note', note).or(await uncatFilter()).neq('id', exceptId);
   if (r.error) throw r.error;
   return r.count ?? 0;
 }
 export async function applyUncat(action, note, categoryId) {
-  const r = await sb.from('transactions').update({ category_id: categoryId }).eq('action', action).eq('note', note).is('category_id', null);
+  const r = await sb.from('transactions').update({ category_id: categoryId }).eq('action', action).eq('note', note).or(await uncatFilter());
   if (r.error) throw r.error;
 }
 

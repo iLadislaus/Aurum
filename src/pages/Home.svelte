@@ -2,12 +2,14 @@
   import { onMount } from 'svelte';
   import { nav } from '../lib/nav.svelte.js';
   import { loadHome } from '../lib/data.js';
-  import { peek, refresh } from '../lib/cache.svelte.js';
+  import { peek, refresh, put } from '../lib/cache.svelte.js';
   import Icon from '../lib/Icon.svelte';
   import Summary from '../home/Summary.svelte';
   import { openHorizon } from '../lib/horizon.svelte.js';
   import FlowCard from '../home/FlowCard.svelte';
   import RecentOps from '../home/RecentOps.svelte';
+  import UncatBanner from '../lib/UncatBanner.svelte';
+  import { openOp } from '../lib/opcard.svelte.js';
   import { hb, isOn, openBlocks } from '../lib/homeblocks.svelte.js';
   import { openNewOp } from '../lib/newop.svelte.js';
   import { flyOpen } from '../lib/fly.js';
@@ -55,6 +57,7 @@
             <FlowCard months={d.months} {shown} />
           {:else}
             <div class="sh"><h2>Последние операции</h2><button class="all" onclick={() => (nav.tab = 'ops')}>Все</button></div>
+            <UncatBanner n={d.uncat?.n ?? 0} onopen={() => { if (!d.uncat?.first) return; put('ops.uncat', { ops: [d.uncat.first] }); openOp(d.uncat.first, 'ops.uncat'); }} />
             <RecentOps rows={d.recent} {shown} />
           {/if}
         </div>
