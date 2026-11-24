@@ -143,7 +143,6 @@
           <div class="lr"><span>Дата</span><b>{when}</b></div>
           {#if o.rate}<div class="lr"><span>Курс</span><b>{fmt(Number(o.rate), 2)}</b></div>{/if}
           {#if o.note.trim() && o.note.trim() !== o.name}<div class="lr"><span>Заметка</span><b>{o.note}</b></div>{/if}
-          {#if o.mono}<div class="lr lk"><svg viewBox="0 0 24 24" width="13" height="13"><rect x="5" y="11" width="14" height="9" rx="2.5" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg><span>Банковская операция: можно менять только категорию</span></div>{/if}
         </div>
 
         {#if typePick}
@@ -185,11 +184,12 @@
       {#if more > 0}<button class="ap" onclick={applyMore}>Применить ещё к {more} операциям без категории</button>{/if}
       {#if err}<p class="er">{err}</p>{/if}
 
-      <div class="act" class:one={o.mono || (tr && false)}>
-        {#if !o.mono}<button class="g" onclick={() => { const e = o; closeOp(); setTimeout(() => openNewOp(e), 250); }}><Icon name="pen" size={22} />Изменить</button>{/if}
-        {#if !o.mono}<button disabled={busy} onclick={rep}><Icon name="swap" size={22} />Повторить</button>{/if}
-        {#if !tr}<button disabled={split} onclick={openSplit}><Icon name="sliders" size={22} />Разделить</button>{/if}
-        {#if !o.mono}<button class="d" class:armed onclick={del}><Icon name="trash" size={22} />{armed ? 'Точно?' : 'Удалить'}</button>{/if}
+      {#if o.mono}<div class="pill"><Icon name="lock" size={14} />Из банка: меняется только категория</div>{/if}
+      <div class="act" class:one={o.mono}>
+        {#if !o.mono}<button class="g" onclick={() => { const e = o; closeOp(); setTimeout(() => openNewOp(e), 250); }}><i class="c"><Icon name="pen" size={24} /></i><span>Изменить</span></button>{/if}
+        {#if !o.mono}<button disabled={busy} onclick={rep}><i class="c"><Icon name="copy" size={24} /></i><span>Повторить</span></button>{/if}
+        {#if !tr}<button disabled={split} onclick={openSplit}><i class="c"><Icon name="split" size={24} /></i><span>Разделить</span></button>{/if}
+        {#if !o.mono}<button class="d" class:armed onclick={del}><i class="c"><Icon name="trash" size={24} /></i><span>{armed ? 'Точно?' : 'Удалить'}</span></button>{/if}
       </div>
     </div>
   {/if}
@@ -209,8 +209,6 @@
   .lr b { font-weight: 500; text-align: right; margin-left: auto; overflow-wrap: anywhere; }
   .lr b.red { color: #E5584D; }
   .cat :global(svg) { color: var(--muted); flex: none; }
-  .lk { justify-content: flex-start; gap: 7px; font-size: 12px; color: var(--muted); padding: 9px 16px; }
-  .lk svg { flex: none; fill: none; stroke: #C9A24A; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .seg { display: flex; gap: 4px; padding: 3px; border-radius: 12px; background: var(--fill); animation: rise2 .3s cubic-bezier(.2, .8, .2, 1) both; }
   @keyframes rise2 { from { opacity: 0; transform: translateY(8px); } }
   .seg button { flex: 1; padding: 8px 0; border-radius: 9px; font-size: 13.5px; font-weight: 600; transition: background .25s, color .25s; }
@@ -239,13 +237,16 @@
   .ap:disabled { opacity: .4; }
   .ap.un { background: var(--fill); color: var(--muted); margin-top: -10px; }
   .er { margin: 0; text-align: center; font-size: 13px; color: #E5584D; }
-  .act { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 12px; }
-  .act button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; height: 72px; border-radius: 18px; background: var(--card); box-shadow: var(--shadow); font-size: 12.5px; font-weight: 600; transition: background .25s, color .25s, transform .2s; }
-  .act button:active { transform: scale(.96); }
+  .act { display: flex; justify-content: space-between; padding: 4px 6px calc(env(safe-area-inset-bottom) + 10px); }
+  .act.one { justify-content: center; }
+  .act button { display: flex; flex-direction: column; align-items: center; gap: 7px; width: 76px; font-size: 12px; font-weight: 500; color: var(--text); }
+  .act .c { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; background: var(--card); color: var(--gold); box-shadow: inset 0 0 0 .5px rgba(214, 177, 95, .45); transition: transform .25s cubic-bezier(.3, 1.6, .5, 1), background .25s, color .25s; }
+  .act button:active .c { transform: scale(.9); }
   .act button:disabled { opacity: .45; }
-  .act.one button { flex-direction: row; height: 52px; gap: 10px; font-size: 14.5px; }
-  .act .g { background: linear-gradient(180deg, #F4D48A, #D09A32); color: #1a1206; box-shadow: 0 8px 18px -8px rgba(226, 172, 62, .6); }
-  .act .d { background: rgba(229, 72, 77, .14); color: #E5484D; box-shadow: none; }
-  .act .d.armed { background: #E5484D; color: #fff; }
+  .act .g .c { background: linear-gradient(180deg, #F4D48A, #D09A32); color: #1a1206; box-shadow: 0 8px 18px -8px rgba(226, 172, 62, .6); }
+  .act .d .c { background: rgba(229, 72, 77, .14); color: #E5484D; box-shadow: none; }
+  .act .d.armed .c { background: #E5484D; color: #fff; transform: scale(1.08); }
+  .act .d.armed span { color: #E5484D; }
+  .pill { display: flex; align-items: center; justify-content: center; gap: 7px; width: max-content; max-width: 100%; margin: 4px auto 18px; padding: 7px 13px; border-radius: 99px; background: rgba(214, 177, 95, .16); color: var(--gold); font-size: 12.5px; font-weight: 500; }
   @media (prefers-reduced-motion: reduce) { .bd.in > :global(.cf), .bd.in .grp, .bd.in .act, .seg, .pk, .sp { animation: none; } }
 </style>
