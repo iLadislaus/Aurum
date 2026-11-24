@@ -101,7 +101,7 @@ const nz = (x) => Number(x || 0);
 export async function loadAccounts() {
   const now = new Date();
   const [acc, bal, sum] = await Promise.all([
-    sb.from('accounts').select('id,name,block,currency,is_foreign,is_monobank,is_debt'),
+    sb.from('accounts').select('id,name,icon,is_budget_source,block,currency,is_foreign,is_monobank,is_debt'),
     sb.from('account_balances').select('id,balance,credit_limit'),
     sb.rpc('month_summary', { p_month: first(now.getFullYear(), now.getMonth()) })
   ]);
@@ -109,7 +109,7 @@ export async function loadAccounts() {
 
   const bm = new Map(bal.data.map((b) => [b.id, b]));
   const rows = acc.data.map((a) => ({
-    id: a.id, name: clean(a.name), block: a.block, currency: a.currency,
+    id: a.id, name: clean(a.name), icon: a.icon, src: a.is_budget_source, block: a.block, currency: a.currency,
     foreign: a.is_foreign, mono: a.is_monobank, debt: a.is_debt,
     balance: nz(bm.get(a.id)?.balance), limit: nz(bm.get(a.id)?.credit_limit)
   }));
@@ -130,7 +130,7 @@ export async function loadAccounts() {
     const g = fx.get(a.currency) || { currency: a.currency, balance: 0, names: [], list: [] };
     g.balance += a.balance;
     g.names.push(a.name);
-    g.list.push({ id: a.id, name: a.name, balance: a.balance });
+    g.list.push({ id: a.id, name: a.name, icon: a.icon, balance: a.balance });
     fx.set(a.currency, g);
   }
 
@@ -142,8 +142,16 @@ export async function loadAccounts() {
     envs, envsTotal: sumOf(envs),
     foreign: [...fx.values()],
     // долговые счета: баланс отрицательный, сумма долга — по модулю
-    debts: rows.filter((x) => x.debt).map((x) => ({ id: x.id, name: x.name, currency: x.currency, amount: Math.max(0, -x.balance), balance: x.balance }))
+    debts: rows.filter((x) => x.debt).map((x) => ({ id: x.id, icon: x.icon, name: x.name, currency: x.currency, amount: Math.max(0, -x.balance), balance: x.balance }))
   };
+}
+
+// Изменение счёта: название, значок и (для наличных и конвертов) «Источник бюджета». Остаток и валюта не трогаются
+export async function updateAccount(id, { name, icon, budgetSource, withSource }) {
+  const patch = { name, icon };
+  if (withSource) patch.is_budget_source = !!budgetSource;
+  const { error } = await sb.from('accounts').update(patch).eq('id', id);
+  if (error) throw error;
 }
 
 // Операции одного счёта: со знаком для этого счёта, по дням, плюс итоги текущего месяца

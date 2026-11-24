@@ -10,6 +10,7 @@
   import SwipeRow from '../lib/SwipeRow.svelte';
   import { openCtx } from '../lib/ctxmenu.svelte.js';
   import { openAcct } from '../lib/acctsheet.svelte.js';
+  import { openEdit } from '../lib/editacct.svelte.js';
   import { openNew } from '../lib/newacct.svelte.js';
   import { openNewOp } from '../lib/newop.svelte.js';
   import { flyOpen } from '../lib/fly.js';
@@ -21,9 +22,11 @@
   const ed = { t: 'Изменить', icon: 'pen' };
   const del = { t: 'Удалить', icon: 'trash', danger: true, sep: true };
   const menuCard = (el, id) => openCtx(el, [op(id), tr(id), ed, { t: 'Скрыть счёт', icon: 'eyeoff', sep: true }]);
-  const menuCash = (el, id) => openCtx(el, [op(id), tr(id), ed, del]);
-  const menuEnv = (el, id) => openCtx(el, [op(id), tr(id), ed, del]);
-  const menuDebt = (el, id) => openCtx(el, [op(id), tr(id), ed, del]);
+  // «Изменить» у ручных счетов открывает окно с названием, значком и источником бюджета
+  const edit = (a, kind) => ({ t: 'Изменить', icon: 'pen', run: () => openEdit({ id: a.id, name: a.name, icon: a.icon, src: a.src, kind }) });
+  const menuCash = (el, a, kind = 'cash') => openCtx(el, [op(a.id), tr(a.id), edit(a, kind), del]);
+  const menuEnv = (el, a) => openCtx(el, [op(a.id), tr(a.id), edit(a, 'env'), del]);
+  const menuDebt = (el, a) => openCtx(el, [op(a.id), tr(a.id), edit(a, 'debt'), del]);
 
   let d = $derived(peek('accounts'));
   let rates = $state(cachedRates());
@@ -95,7 +98,7 @@
         {/if}
       {/if}
       {#each d.cashes as c, i (c.id)}
-        <SwipeRow id={'ac' + c.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold full onrepeat={() => openNewOp(null, { acc: c.id })} ondelete={() => openNewOp(null, { acc: c.id, type: 'TRANSFER' })}><AccRow icon={/cash/i.test(c.name) ? 'cash' : 'wallet'} name={c.name} amount={cash(c.balance)} neg={c.balance < 0} top={d.cards.length > 0 || i > 0} onclick={() => openAcct({ id: c.id, name: c.name, kind: /cash/i.test(c.name) ? 'Наличные' : 'Кошелёк', balance: c.balance })} onlong={(el) => menuCash(el, c.id)} /></SwipeRow>
+        <SwipeRow id={'ac' + c.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold full onrepeat={() => openNewOp(null, { acc: c.id })} ondelete={() => openNewOp(null, { acc: c.id, type: 'TRANSFER' })}><AccRow icon={c.icon || (/cash/i.test(c.name) ? 'cash' : 'wallet')} name={c.name} amount={cash(c.balance)} neg={c.balance < 0} top={d.cards.length > 0 || i > 0} onclick={() => openAcct({ id: c.id, name: c.name, kind: /cash/i.test(c.name) ? 'Наличные' : 'Кошелёк', balance: c.balance })} onlong={(el) => menuCash(el, c)} /></SwipeRow>
       {/each}
     </div>
 
@@ -103,7 +106,7 @@
       <div class="sh rise" style="--i:3"><h2>Долги</h2></div>
       <div class="cd rise" style="--i:3">
         {#each debts as x, i (x.id)}
-          <SwipeRow id={'ac' + x.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold full onrepeat={() => openNewOp(null, { acc: x.id })} ondelete={() => openNewOp(null, { acc: x.id, type: 'TRANSFER' })}><AccRow icon="user" name={x.name} amount={x.amount} small={x.small} neg top={i > 0} onclick={() => openAcct({ id: x.id, name: x.name, kind: 'Долг', balance: x.balance })} onlong={(el) => menuDebt(el, x.id)} /></SwipeRow>
+          <SwipeRow id={'ac' + x.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold full onrepeat={() => openNewOp(null, { acc: x.id })} ondelete={() => openNewOp(null, { acc: x.id, type: 'TRANSFER' })}><AccRow icon={x.icon || 'user'} name={x.name} amount={x.amount} small={x.small} neg top={i > 0} onclick={() => openAcct({ id: x.id, name: x.name, kind: 'Долг', balance: x.balance })} onlong={(el) => menuDebt(el, x)} /></SwipeRow>
         {/each}
       </div>
     {/if}
@@ -111,13 +114,13 @@
     <div class="sh rise" style="--i:4"><h2>Конверты</h2><span>{cash(d.envsTotal, 0)}</span></div>
     <div class="cd rise" style="--i:4">
       {#each envFull as e, i (e.id)}
-        <SwipeRow id={'ac' + e.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold full onrepeat={() => openNewOp(null, { acc: e.id })} ondelete={() => openNewOp(null, { acc: e.id, type: 'TRANSFER' })}><AccRow icon={envIcon(e.name)} name={e.name} amount={cash(e.balance, 0)} top={i > 0} onclick={() => openAcct({ id: e.id, name: e.name, kind: 'Конверт', balance: e.balance })} onlong={(el) => menuEnv(el, e.id)} /></SwipeRow>
+        <SwipeRow id={'ac' + e.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold full onrepeat={() => openNewOp(null, { acc: e.id })} ondelete={() => openNewOp(null, { acc: e.id, type: 'TRANSFER' })}><AccRow icon={e.icon || envIcon(e.name)} name={e.name} amount={cash(e.balance, 0)} top={i > 0} onclick={() => openAcct({ id: e.id, name: e.name, kind: 'Конверт', balance: e.balance })} onlong={(el) => menuEnv(el, e)} /></SwipeRow>
       {/each}
       {#if envEmpty.length}
         <div class="ex" class:o={emptyOpen}>
           <div>
             {#each envEmpty as e, i (e.id)}
-              <div class="exr" style="--d:{i * 35}ms"><SwipeRow id={'ac' + e.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold full onrepeat={() => openNewOp(null, { acc: e.id })} ondelete={() => openNewOp(null, { acc: e.id, type: 'TRANSFER' })}><AccRow icon={envIcon(e.name)} name={e.name} amount={cash(e.balance, 0)} dim top={envFull.length > 0 || i > 0} onclick={() => openAcct({ id: e.id, name: e.name, kind: 'Конверт', balance: e.balance })} onlong={(el) => menuEnv(el, e.id)} /></SwipeRow></div>
+              <div class="exr" style="--d:{i * 35}ms"><SwipeRow id={'ac' + e.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold full onrepeat={() => openNewOp(null, { acc: e.id })} ondelete={() => openNewOp(null, { acc: e.id, type: 'TRANSFER' })}><AccRow icon={e.icon || envIcon(e.name)} name={e.name} amount={cash(e.balance, 0)} dim top={envFull.length > 0 || i > 0} onclick={() => openAcct({ id: e.id, name: e.name, kind: 'Конверт', balance: e.balance })} onlong={(el) => menuEnv(el, e)} /></SwipeRow></div>
             {/each}
           </div>
         </div>
@@ -136,7 +139,7 @@
         {#each d.foreign as f, gi (f.currency)}
           <div class="cap" class:t={gi > 0}><span>{f.currency === 'USD' ? 'Доллары' : f.currency === 'EUR' ? 'Евро' : f.currency}</span>{#if rates?.[f.currency]}<small>≈ {cash(Math.round(f.balance * rates[f.currency]), 0)}</small>{/if}</div>
           {#each [...(f.list ?? [])].sort((x, y) => y.balance - x.balance || x.name.localeCompare(y.name)) as a, i (a.id)}
-            <SwipeRow id={'ac' + a.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold full onrepeat={() => openNewOp(null, { acc: a.id })} ondelete={() => openNewOp(null, { acc: a.id, type: 'TRANSFER' })}><AccRow icon={f.currency === 'EUR' ? 'euro' : 'dollar'} name={a.name} amount={cash(a.balance, 2, f.currency)} dim={Math.abs(a.balance) < 0.005} top={i > 0} onclick={() => openAcct({ id: a.id, name: a.name, kind: 'Валютный счёт · ' + (f.currency === 'USD' ? 'доллары' : f.currency === 'EUR' ? 'евро' : f.currency), balance: a.balance, currency: f.currency })} onlong={(el) => menuCash(el, a.id)} /></SwipeRow>
+            <SwipeRow id={'ac' + a.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold full onrepeat={() => openNewOp(null, { acc: a.id })} ondelete={() => openNewOp(null, { acc: a.id, type: 'TRANSFER' })}><AccRow icon={a.icon && a.icon !== 'coin' ? a.icon : f.currency === 'EUR' ? 'euro' : 'dollar'} name={a.name} amount={cash(a.balance, 2, f.currency)} dim={Math.abs(a.balance) < 0.005} top={i > 0} onclick={() => openAcct({ id: a.id, name: a.name, kind: 'Валютный счёт · ' + (f.currency === 'USD' ? 'доллары' : f.currency === 'EUR' ? 'евро' : f.currency), balance: a.balance, currency: f.currency })} onlong={(el) => menuCash(el, a, 'fx')} /></SwipeRow>
           {/each}
         {/each}
       </div>
