@@ -250,12 +250,14 @@ function mapOp(t, cm, am, sc) {
   };
 }
 
-export async function loadMonthOps(y, m) {
-  const a = new Date(y, m, 1).toISOString(), b = new Date(y, m + 1, 1).toISOString();
+// Операции за любой период: a и b — границы (ISO), без границы — до края; страницами по 1000
+export async function loadOpsRange(a, b) {
   const rows = [];
   for (let from = 0; ; from += 1000) {
-    const r = await sb.from('transactions').select(OP_COLS).gte('date', a).lt('date', b)
-      .order('date', { ascending: false }).range(from, from + 999);
+    let q = sb.from('transactions').select(OP_COLS);
+    if (a) q = q.gte('date', a);
+    if (b) q = q.lt('date', b);
+    const r = await q.order('date', { ascending: false }).range(from, from + 999);
     if (r.error) throw r.error;
     rows.push(...r.data);
     if (r.data.length < 1000) break;
@@ -272,6 +274,37 @@ export async function loadMonthOps(y, m) {
   const am = new Map(accs.data.map((x) => [x.id, x]));
   const ops = rows.map((t) => mapOp(t, cm, am, sc));
   return { ops };
+}
+
+export const loadMonthOps = (y, m) => loadOpsRange(new Date(y, m, 1).toISOString(), new Date(y, m + 1, 1).toISOString());
+
+// Загрузчик по ключу кэша: ops.m.2026-10, ops.y.2026, ops.all, ops.r.2026-11-18.2026-11-24
+const dayStart = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+export function opsLoader(key) {
+  const p = key.split('.');
+  if (p[1] === 'm') { const [y, m] = p[2].split('-').map(Number); return () => loadMonthOps(y, m); }
+  if (p[1] === 'y') { const y = Number(p[2]); return () => loadOpsRange(new Date(y, 0, 1).toISOString(), new Date(y + 1, 0, 1).toISOString()); }
+  if (p[1] === 'r') { const f = dayStart(p[2]), t = dayStart(p[3]); t.setDate(t.getDate() + 1); return () => loadOpsRange(f.toISOString(), t.toISOString()); }
+  return () => loadOpsRange(null, null);
+}
+
+// Месяцы, в которых есть операции: «2026-10» → сколько операций (для выпадающих списков периода)
+export async function loadOpsMonths() {
+  const out = {};
+  for (let from = 0; ; from += 1000) {
+    const r = await sb.from('transactions').select('date').order('date', { ascending: false }).range(from, from + 999);
+    if (r.error) throw r.error;
+    for (const t of r.data) { const d = new Date(t.date); const k = d.getFullYear() + '-' + d.getMonth(); out[k] = (out[k] ?? 0) + 1; }
+    if (r.data.length < 1000) break;
+  }
+  return out;
+}
+
+// Счета для фильтра «Операций»: все, кроме долговых
+export async function loadAccList() {
+  const r = await sb.from('accounts').select('id,name,currency,is_foreign,is_debt,is_monobank').order('name');
+  if (r.error) throw r.error;
+  return { list: r.data.filter((a) => !a.is_debt).map((a) => ({ id: a.id, name: clean(a.name), cur: a.currency, foreign: !!a.is_foreign, mono: !!a.is_monobank })) };
 }
 
 export async function deleteOp(id) {

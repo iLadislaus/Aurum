@@ -1,6 +1,7 @@
 <script>
-  import { onMount, tick } from 'svelte';
-  import { loadMonthOps, deleteOp, repeatOp } from '../lib/data.js';
+  import { onMount, tick, untrack } from 'svelte';
+  import { slide, fly } from 'svelte/transition';
+  import { loadCategories, loadAccList, opsLoader, deleteOp, repeatOp } from '../lib/data.js';
   import { peek, refresh, put } from '../lib/cache.svelte.js';
   import { prefetchAll } from '../lib/prefetch.js';
   import { fmt, cash } from '../lib/format.js';
@@ -13,52 +14,45 @@
   import { flyOpen } from '../lib/fly.js';
   import Skeleton from '../lib/Skeleton.svelte';
   import UncatBanner from '../lib/UncatBanner.svelte';
+  import OpsPeriod from '../lib/OpsPeriod.svelte';
+  import OpsFilters from '../lib/OpsFilters.svelte';
+  import { per, fl, perKey, perWord, resetPeriod, customLabel, applyFilters, activeCount, toggle, TYPES, SUMR, SRC, FLAGS } from '../lib/opsfilter.svelte.js';
 
-  const SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
-  const now = new Date();
-  const months = Array.from({ length: 6 }, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
-    return { y: d.getFullYear(), m: d.getMonth(), key: `${d.getFullYear()}-${d.getMonth()}`, label: SHORT[d.getMonth()] + (d.getFullYear() !== now.getFullYear() ? ` ${String(d.getFullYear()).slice(2)}` : '') };
-  });
   const PAGE = 50;
 
-  let mi = $state(5);
   let err = $state('');
   let q = $state('');
   let searching = $state(false);
+  let focused = $state(false);
+  let fpOpen = $state(false);
   let onlyUncat = $state(false);
   let limit = $state(PAGE);
   let busy = $state(false);
-  let chipsEl;
   let sentinel = $state();
+  let inputEl = $state();
+  let accs = $state(peek('ops.accs')?.list ?? []);
+  let cats = $state(peek('cats')?.list ?? []);
 
-  let cur = $derived(months[mi]);
-  let data = $derived(peek('ops.m.' + cur.key));
+  // данные за выбранный период: Все, месяц, год или свой период
+  let key = $derived(perKey());
+  let data = $derived(peek(key));
+  let base = $derived(data?.ops ?? []);
 
-  async function load(i) {
-    const mo = months[i];
+  async function load(k) {
     err = '';
-    try { await refresh('ops.m.' + mo.key, () => loadMonthOps(mo.y, mo.m)); }
-    catch (e) { if (!peek('ops.m.' + mo.key)) err = e.message || 'Не удалось загрузить операции'; }
+    try { await refresh(k, opsLoader(k)); }
+    catch (e) { if (!peek(k)) err = e.message || 'Не удалось загрузить операции'; }
   }
-  onMount(() => { if (chipsEl) chipsEl.scrollLeft = chipsEl.scrollWidth; load(5); });
-  function pick(i) { if (i === mi) return; mi = i; limit = PAGE; onlyUncat = false; load(i); }
-
-  // итоги месяца по гривневым счетам: расходы за вычетом возвратов
-  let tot = $derived.by(() => {
-    let exp = 0, inc = 0;
-    for (const t of data?.ops ?? []) {
-      if (t.foreign || t.action === 'TRANSFER') continue;
-      if (t.action === 'EXPENSE') exp += t.amount; else if (t.action === 'RETURN') exp -= t.amount; else inc += t.amount;
-    }
-    return { exp, inc, net: inc - exp };
+  $effect(() => { const k = key; untrack(() => { limit = PAGE; onlyUncat = false; load(k); }); });
+  onMount(() => {
+    refresh('ops.accs', loadAccList).then((d) => (accs = d.list)).catch(() => {});
+    refresh('cats', loadCategories).then((d) => (cats = d.list)).catch(() => {});
   });
-  let uncatCount = $derived((data?.ops ?? []).filter((t) => t.uncat).length);
 
-  // умный поиск: по названию, категории, счёту, заметке и по сумме («500», «1 240,5»)
+  // фильтры по чипсам, затем умный поиск: по названию, категории, счёту, заметке и по сумме («500», «1 240,5»)
   const num = (s) => s.replace(/[\s ]/g, '').replace(',', '.');
   let found = $derived.by(() => {
-    let l = data?.ops ?? [];
+    let l = applyFilters(base);
     if (onlyUncat) l = l.filter((t) => t.uncat);
     const s = q.trim().toLowerCase();
     if (!s) return l;
@@ -66,11 +60,56 @@
     return l.filter((t) => (t.name + ' ' + t.cat + ' ' + t.acc + ' ' + t.note).toLowerCase().includes(s)
       || (/^[\d.]+$/.test(n) && String(Math.abs(t.amount)).replace(/\.0+$/, '').includes(n)));
   });
-  // подсказки: самые частые места месяца
-  let places = $derived.by(() => {
-    const m = new Map();
-    for (const t of data?.ops ?? []) { const k = t.note.trim(); if (k && t.action !== 'TRANSFER') m.set(k, (m.get(k) ?? 0) + 1); }
-    return [...m].sort((a, b) => b[1] - a[1]).slice(0, 6).map((x) => x[0]);
+  const nfil = $derived(activeCount());
+
+  // итоги выбранного по гривневым счетам: расходы за вычетом возвратов
+  let tot = $derived.by(() => {
+    let exp = 0, inc = 0;
+    for (const t of found) {
+      if (t.foreign || t.action === 'TRANSFER') continue;
+      if (t.action === 'EXPENSE') exp += t.amount; else if (t.action === 'RETURN') exp -= t.amount; else inc += t.amount;
+    }
+    return { exp, inc, net: inc - exp };
+  });
+  let uncatCount = $derived(base.filter((t) => t.uncat).length);
+
+  // подсказки под полем поиска: появляются, когда тапнули в поле; выбранное превращается в золотую капсулу
+  const TL = Object.fromEntries(TYPES.map((x) => [x[0], x[1]]));
+  let sugg = $derived.by(() => {
+    if (!focused) return [];
+    const s = q.trim().toLowerCase(), hit = (n) => !s || n.toLowerCase().includes(s);
+    const mm = new Map(), cm = new Map();
+    for (const t of base) {
+      if (t.action === 'TRANSFER') continue;
+      mm.set(t.name, (mm.get(t.name) ?? 0) + 1);
+      const id = t.uncat ? 'none' : t.category_id; if (id != null) cm.set(id, (cm.get(id) ?? 0) + 1);
+    }
+    const out = [];
+    const mers = [...mm].filter(([n]) => !fl.mers.includes(n) && hit(n)).sort((x, y) => y[1] - x[1]).slice(0, s ? 5 : 4);
+    out.push(...mers.map(([n, c]) => ({ g: 'МАГАЗИНЫ', k: 'mers', v: n, label: n, c, icon: 'cart' })));
+    const cs = [...cm].map(([id, c]) => ({ id, c, name: id === 'none' ? 'Без категории' : cats.find((x) => x.id === id)?.name ?? '' }))
+      .filter((x) => x.name && !fl.cats.includes(x.id) && hit(x.name)).sort((x, y) => y.c - x.c).slice(0, s ? 4 : 3);
+    out.push(...cs.map((x) => ({ g: 'КАТЕГОРИИ', k: 'cats', v: x.id, label: x.name, c: x.c, icon: 'tag' })));
+    if (s) {
+      out.push(...TYPES.filter((x) => !fl.types.includes(x[0]) && hit(x[1])).map((x) => ({ g: 'ВИД', k: 'types', v: x[0], label: x[1], icon: x[2] })));
+      out.push(...accs.filter((a) => !fl.accs.includes(a.id) && hit(a.name)).slice(0, 3).map((a) => ({ g: 'СЧЕТА', k: 'accs', v: a.id, label: a.name, icon: 'wallet' })));
+    }
+    return out;
+  });
+  function chosen(x) { toggle(x.k, x.v); q = ''; inputEl?.focus(); }
+
+  // капсулы выбранного: свой период и все фильтры; крестик снимает, период возвращается на текущий месяц
+  let caps = $derived.by(() => {
+    const o = [];
+    if (per.mode === 'custom') o.push({ id: 'per', label: customLabel(), icon: 'calendar', off: resetPeriod });
+    for (const v of fl.types) o.push({ id: 't' + v, label: TL[v], icon: TYPES.find((x) => x[0] === v)[2], off: () => toggle('types', v) });
+    for (const v of fl.accs) o.push({ id: 'a' + v, label: accs.find((a) => a.id === v)?.name ?? '…', icon: 'wallet', off: () => toggle('accs', v) });
+    for (const v of fl.cats) o.push({ id: 'c' + v, label: v === 'none' ? 'Без категории' : cats.find((c) => c.id === v)?.name ?? '…', icon: 'tag', off: () => toggle('cats', v) });
+    for (const v of fl.mers) o.push({ id: 'm' + v, label: v, icon: 'cart', off: () => toggle('mers', v) });
+    if (fl.sum >= 0) o.push({ id: 's', label: SUMR[fl.sum][0] + ' ₴', icon: 'coin', off: () => (fl.sum = -1) });
+    for (const v of fl.src) o.push({ id: 'r' + v, label: SRC.find((x) => x[0] === v)[1], icon: SRC.find((x) => x[0] === v)[2], off: () => toggle('src', v) });
+    for (const v of fl.flags) o.push({ id: 'f' + v, label: FLAGS.find((x) => x[0] === v)[1], icon: FLAGS.find((x) => x[0] === v)[2], off: () => toggle('flags', v) });
+    return o;
   });
 
   const dayKey = (iso) => new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'Europe/Kyiv' });
@@ -79,7 +118,8 @@
     const diff = Math.round((new Date(today) - new Date(k)) / 86400000);
     if (diff <= 0) return 'Сегодня';
     if (diff === 1) return 'Вчера';
-    return new Date(k + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+    const d = new Date(k + 'T12:00:00');
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', ...(d.getFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) });
   }
   // порции по 50: остальное подгружается при прокрутке
   let shownList = $derived(found.slice(0, limit));
@@ -101,14 +141,23 @@
     io.observe(sentinel);
     return () => io.disconnect();
   });
-  $effect(() => { q; onlyUncat; limit = PAGE; });
+  $effect(() => { q; onlyUncat; applyFilters; fl.types.length; fl.accs.length; fl.cats.length; fl.mers.length; fl.sum; fl.src.length; fl.flags.length; limit = PAGE; });
 
-  async function toggleSearch() { searching = !searching; if (!searching) q = ''; else { await tick(); document.getElementById('opq')?.focus(); } }
+  // поиск открывается только по лупе и без подсказок; закрывается касанием в сторону. Выбранные фильтры остаются, пока их не снимут крестиком
+  function closeSearch() { searching = false; focused = false; fpOpen = false; q = ''; inputEl?.blur(); }
+  function toggleSearch() { if (searching) closeSearch(); else searching = true; }
+  function away(e) {
+    if (!searching) return;
+    const t = e.target;
+    if (t.closest?.('.hb')) return;
+    if (t.closest?.('.sg, .frow, .fpwrap')) { if (!t.closest('.sg')) { focused = false; inputEl?.blur(); } return; }
+    closeSearch();
+  }
+  function togglePanel() { focused = false; inputEl?.blur(); fpOpen = !fpOpen; }
 
   // удаление и повтор: сразу правим список на экране, потом синхронизируем счета и главную
   async function remove(t) {
     if (t.mono) return;
-    const key = 'ops.m.' + cur.key;
     const old = peek(key);
     put(key, { ops: old.ops.filter((x) => x.id !== t.id) });
     try { await deleteOp(t.id); prefetchAll(true); }
@@ -117,7 +166,7 @@
   async function repeat(t) {
     if (t.mono) return;
     busy = true;
-    try { await repeatOp(t); await load(mi); prefetchAll(true); }
+    try { await repeatOp(t); await load(key); prefetchAll(true); }
     catch (e) { err = e.message || 'Не удалось повторить'; }
     busy = false;
   }
@@ -125,27 +174,49 @@
   const amt = (t) => sgn(t) + fmt(Math.abs(t.action === 'TRANSFER' ? t.amount : t.v), t.foreign ? 2 : Math.abs(t.amount) % 1 ? 2 : 0) + ' ' + t.sym;
 </script>
 
+<svelte:window onpointerdown={away} />
+
 <section>
   <div class="head rise">
     <h1 class="large-title">Операции</h1>
     <div class="hb">
-      <button class="rf" class:on={searching} aria-label="Поиск" onclick={toggleSearch}><Icon name={searching ? 'plus' : 'search'} size={20} /></button>
+      <button class="rf" class:on={searching || nfil > 0} aria-label="Поиск" onclick={toggleSearch}><Icon name={searching ? 'plus' : 'search'} size={20} />{#if nfil > 0 && !searching}<i class="bd">{nfil}</i>{/if}</button>
       <button class="rf plus" aria-label="Новая операция" onclick={(e) => flyOpen(e, () => openNewOp())}><Icon name="plus" size={20} /></button>
     </div>
   </div>
 
   {#if searching}
-    <div class="srch rise">
-      <label><Icon name="search" size={16} /><input id="opq" type="search" placeholder="Название, место, счёт или сумма" bind:value={q} /></label>
-      {#if !q && places.length}
-        <div class="hints">{#each places as p}<button onclick={() => (q = p)}>{p}</button>{/each}</div>
+    <div class="sg" transition:slide={{ duration: 280 }}>
+      <label><Icon name="search" size={16} /><input id="opq" type="search" placeholder="Название, место, счёт или сумма" autocomplete="off" bind:this={inputEl} bind:value={q} onfocus={() => { focused = true; fpOpen = false; }} /></label>
+      {#if sugg.length}
+        <div class="dd" role="listbox" transition:fly={{ y: -8, duration: 200 }}>
+          {#each sugg as x, i (x.k + x.v)}
+            {#if i === 0 || sugg[i - 1].g !== x.g}<div class="gl">{x.g}</div>{/if}
+            <button class="it" role="option" aria-selected="false" onpointerdown={(e) => e.preventDefault()} onclick={() => chosen(x)}>
+              <span class="ico"><Icon name={x.icon} size={15} /></span><span class="nm">{x.label}</span>{#if x.c}<span class="ct">{x.c}</span>{/if}
+            </button>
+          {/each}
+        </div>
       {/if}
     </div>
   {/if}
 
-  <div class="chips rise" style="--i:1" bind:this={chipsEl}>
-    {#each months as mo, i}<button class:on={mi === i} onclick={() => pick(i)}>{mo.label}</button>{/each}
-  </div>
+  {#if searching || caps.length}
+    <div class="frow" transition:slide={{ duration: 260 }}>
+      {#if searching}
+        <button class="addf" class:on={fpOpen} onclick={togglePanel}><Icon name="sliders" size={15} />{caps.length ? 'Фильтры' : 'Добавить фильтры'}<span class="cv" class:up={fpOpen}><Icon name="chevron" size={14} /></span></button>
+      {/if}
+      {#each caps as c (c.id)}
+        <span class="cap" transition:fly={{ y: 4, duration: 180 }}><Icon name={c.icon} size={14} />{c.label}<button aria-label="Убрать" onclick={c.off}><Icon name="close" size={14} /></button></span>
+      {/each}
+    </div>
+  {/if}
+
+  {#if searching && fpOpen}
+    <div class="fpwrap" transition:slide={{ duration: 320 }}><OpsFilters ops={base} {accs} {cats} /></div>
+  {/if}
+
+  <OpsPeriod />
 
   {#if err && !data}
     <p class="msg">{err}</p>
@@ -154,17 +225,17 @@
   {:else}
     <div class="sm rise" style="--i:1">
       <div class="r"><div><span>Расходы</span><b>{tot.exp ? '−' : ''}{cash(tot.exp, 0)}</b></div><div><span>Доходы</span><b class:pos={tot.inc > 0}>{tot.inc > 0 ? '+' : ''}{cash(tot.inc, 0)}</b></div></div>
-      <div class="nt"><span>Итого за месяц</span><b class:pos={tot.net >= 0}>{tot.net >= 0 ? '+' : '−'}{cash(Math.abs(tot.net), 0)}</b></div>
+      <div class="nt"><span>{nfil || q.trim() ? 'Итого по выбранному · ' + found.length : 'Итого ' + perWord()}</span><b class:pos={tot.net >= 0}>{tot.net >= 0 ? '+' : '−'}{cash(Math.abs(tot.net), 0)}</b></div>
     </div>
 
-    <UncatBanner n={uncatCount} onopen={() => { const t = (data?.ops ?? []).find((x) => x.uncat); if (t) openOp(t, 'ops.m.' + cur.key); }} />
+    <UncatBanner n={uncatCount} onopen={() => { const t = base.find((x) => x.uncat); if (t) openOp(t, key); }} />
 
     {#each groups as g (g.k)}
       <div class="dh"><span>{g.title}</span><b>{g.sum ? (g.sum > 0 ? '+' : '−') + cash(Math.abs(g.sum), 0) : ''}</b></div>
       <div class="cd">
         {#each g.items as t, i (t.id)}
           <SwipeRow id={t.id} nodelete={t.mono} norepeat={t.mono} ondelete={() => remove(t)} onrepeat={() => repeat(t)}>
-            <div class="op" class:un={t.uncat} class:top={i > 0} role="button" tabindex="0" onclick={() => !sw.id && openOp(t, 'ops.m.' + cur.key)} onkeydown={(e) => e.key === 'Enter' && openOp(t, 'ops.m.' + cur.key)}>
+            <div class="op" class:un={t.uncat} class:top={i > 0} role="button" tabindex="0" onclick={() => !sw.id && openOp(t, key)} onkeydown={(e) => e.key === 'Enter' && openOp(t, key)}>
               {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} name={t.name} />{/if}
               <div class="nm"><b>{t.name}</b><small>{t.cat}{t.acc ? ' · ' + t.acc : ''}</small></div>
               <span class="am" class:pos={t.v > 0 && t.action !== 'TRANSFER'} class:tr={t.action === 'TRANSFER'}>{amt(t)}</span>
@@ -173,7 +244,7 @@
         {/each}
       </div>
     {:else}
-      <p class="msg">{q || onlyUncat ? 'Ничего не найдено' : 'В этом месяце операций нет'}</p>
+      <p class="msg">{q || onlyUncat || nfil ? 'Ничего не найдено' : per.mode === 'all' ? 'Операций пока нет' : 'В этом периоде операций нет'}</p>
     {/each}
     {#if limit < found.length}<div class="more" bind:this={sentinel}>Подгружаю ещё…</div>{/if}
   {/if}
@@ -188,16 +259,28 @@
   .rf :global(svg) { width: 36px !important; height: 36px !important; padding: 9px; border-radius: 50%; background: var(--fill); color: var(--gold); box-sizing: border-box; transition: transform .4s cubic-bezier(.32, .72, 0, 1), background .3s; }
   .rf.plus :global(svg) { background: linear-gradient(160deg, #EBC77A, #B8862C); color: #fff; padding: 8px; }
   .rf.on :global(svg) { transform: rotate(45deg); background: var(--gold-soft); }
-  .srch { margin-bottom: 10px; }
-  .srch label { display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 12px; border-radius: 12px; background: var(--fill); color: var(--muted); }
-  .srch input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 15px; color: var(--text); -webkit-user-select: text; user-select: text; }
-  .hints { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin-top: 8px; }
-  .hints::-webkit-scrollbar { display: none; }
-  .hints button { white-space: nowrap; padding: 6px 12px; border-radius: 99px; background: var(--gold-soft); color: var(--gold); font-size: 13px; font-weight: 500; }
-  .chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-bottom: 12px; }
-  .chips::-webkit-scrollbar { display: none; }
-  .chips button { white-space: nowrap; padding: 7px 14px; border-radius: 99px; background: var(--fill); font-size: 14px; font-weight: 600; min-height: 36px; text-transform: capitalize; transition: background .25s, color .25s; }
-  .chips .on { background: linear-gradient(180deg, #F0D18A, #C9963A); color: #1a1206; }
+  .rf { position: relative; }
+  .bd { position: absolute; top: 0; right: 0; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: #1a1206; color: #F0CB82; font-size: 11px; font-weight: 600; font-style: normal; display: grid; place-items: center; }
+  .sg { position: relative; z-index: 6; margin-bottom: 10px; }
+  .sg label { display: flex; align-items: center; gap: 7px; height: 42px; padding: 0 14px; border-radius: 21px; background: var(--fill); color: var(--muted); transition: box-shadow .25s; }
+  .sg label:focus-within { box-shadow: 0 0 0 2px #D9B865; }
+  .sg input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 16px; color: var(--text); -webkit-user-select: text; user-select: text; }
+  .dd { position: absolute; left: 0; right: 0; top: 48px; max-height: 320px; overflow-y: auto; padding: 6px; border-radius: 20px; background: var(--card); box-shadow: 0 12px 34px rgba(0, 0, 0, .2), inset 0 0 0 .5px var(--line); transform-origin: top; overscroll-behavior: contain; }
+  .gl { padding: 8px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--muted); }
+  .it { display: flex; align-items: center; gap: 11px; width: 100%; padding: 7px 10px; border-radius: 14px; text-align: left; }
+  .it:active { background: var(--gold-soft); }
+  .it .ico { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--gold-soft); color: var(--gold); flex: none; }
+  .it .nm { flex: 1; min-width: 0; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .it .ct { font-size: 13px; color: var(--muted); }
+  .frow { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .addf { display: flex; align-items: center; gap: 6px; height: 32px; padding: 0 10px; border-radius: 16px; border: 1.5px dashed var(--gold); color: var(--gold); font-size: 14px; font-weight: 600; transition: background .25s, transform .15s; }
+  .addf:active { transform: scale(.95); }
+  .addf.on { background: var(--gold-soft); border-style: solid; }
+  .addf .cv { display: grid; transition: transform .3s; }
+  .addf .cv.up { transform: rotate(180deg); }
+  .cap { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 6px 0 10px; border-radius: 16px; background: linear-gradient(180deg, #F0D18A, #C9963A); color: #1a1206; font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .cap button { display: grid; place-items: center; width: 22px; height: 22px; opacity: .7; }
+  .fpwrap { margin-bottom: 0; }
   .sm { position: relative; border-radius: 24px; padding: 12px 14px; color: #F4EEDD; overflow: hidden; background: linear-gradient(155deg, #1d1911, #0c0c0b 70%); box-shadow: inset 0 1px 0 rgba(255, 232, 160, .35), inset 0 0 0 .5px rgba(232, 194, 119, .4); }
   .sm::before { content: ""; position: absolute; right: -30px; top: -40px; width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, rgba(244, 190, 90, .28), transparent 66%); pointer-events: none; }
   .sm .r { position: relative; display: flex; gap: 10px; }
