@@ -5,8 +5,7 @@
   import { peek, refresh } from '../lib/cache.svelte.js';
   import Icon from '../lib/Icon.svelte';
   import Summary from '../home/Summary.svelte';
-  import Horizon from '../home/Horizon.svelte';
-  import Sheet from '../lib/Sheet.svelte';
+  import { openHorizon } from '../lib/horizon.svelte.js';
   import FlowCard from '../home/FlowCard.svelte';
   import RecentOps from '../home/RecentOps.svelte';
   import { hb, isOn, openBlocks } from '../lib/homeblocks.svelte.js';
@@ -17,7 +16,7 @@
   const month = new Date().toLocaleDateString('ru-RU', { month: 'long' });
   let d = $derived(peek('home'));
   let err = $state('');
-  let shown = $state(false), settled = $state(false), hz = $state(false);
+  let shown = $state(false), settled = $state(false);
   // анимация появления блоков — один раз: при перестановке блоки переносятся в DOM и без этого мигали бы
   $effect(() => { if (shown) { const t = setTimeout(() => (settled = true), 1500); return () => clearTimeout(t); } });
   // данные приходят из Supabase; анимации стартуют, когда экран уже нарисован
@@ -50,7 +49,7 @@
       {#if bl.on}
         <div class:rise={!settled} class:bal={bl.id === 'balance'} style="--i:{Math.min(i + 1, 5)}">
           {#if bl.id === 'balance'}
-            <Summary d={d} {shown} {month} onaccounts={() => (nav.tab = 'accounts')} onbudget={() => (nav.tab = 'budget')} onhorizon={() => (hz = true)} />
+            <Summary d={d} {shown} {month} onaccounts={() => (nav.tab = 'accounts')} onbudget={() => (nav.tab = 'budget')} onhorizon={openHorizon} />
           {:else if bl.id === 'flow'}
             <div class="sh"><h2>Денежный поток</h2></div>
             <FlowCard months={d.months} {shown} />
@@ -64,8 +63,6 @@
   </div>
   {/if}
 </section>
-
-{#if d}<Sheet open={hz} onclose={() => (hz = false)} fit title="На горизонте"><div class="hzs"><Horizon items={d.horizon} shown={hz} /></div></Sheet>{/if}
 
 <style>
   section { padding: 0 16px calc(110px + var(--safe-b)); }
@@ -82,6 +79,5 @@
   .blocks > .bal:first-child { margin-top: 0; }
   .sh h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: .35px; }
   .all { font-size: 15px; color: var(--gold); min-height: 28px; }
-  .hzs { padding: 0 0 8px; }
   .msg { text-align: center; color: var(--muted); padding: 40px 0; }
 </style>

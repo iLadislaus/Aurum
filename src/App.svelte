@@ -13,6 +13,8 @@
   import { acct } from './lib/acctsheet.svelte.js';
   import HomeBlocks from './lib/HomeBlocks.svelte';
   import { hb } from './lib/homeblocks.svelte.js';
+  import HorizonSheet from './lib/HorizonSheet.svelte';
+  import { hz } from './lib/horizon.svelte.js';
   import { prefetchAll } from './lib/prefetch.js';
   import { startUpdateWatch } from './lib/update.svelte.js';
   import { onMount } from 'svelte';
@@ -42,7 +44,7 @@
   });
 </script>
 
-<main bind:this={scroller} class:back={acct.open || na.open || hb.open || oc.open || no.open}>
+<main bind:this={scroller} class:back={acct.open || na.open || hb.open || oc.open || no.open || hz.open}>
   {#if !auth.ready}
     <!-- проверяем вход -->
   {:else if !auth.session}
@@ -58,7 +60,7 @@
   {/if}
 </main>
 <UpdateBanner />
-{#if auth.session}<AccountSheet /><HomeBlocks /><NewAccount /><OpCard /><NewOp /><CtxMenu />{/if}
+{#if auth.session}<AccountSheet /><HomeBlocks /><HorizonSheet /><NewAccount /><OpCard /><NewOp /><CtxMenu />{/if}
 {#if auth.session}<TabBar />{/if}
 
 <style>
