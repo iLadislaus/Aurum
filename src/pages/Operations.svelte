@@ -324,10 +324,10 @@
   .pw { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 6; height: 0; }
   .bk { position: absolute; left: -16px; right: -16px; top: calc(-1 * env(safe-area-inset-top, 0px)); height: calc(env(safe-area-inset-top, 0px) + 52px); background: var(--bg); opacity: 0; pointer-events: none; transition: opacity .2s; }
   .bk.on { opacity: 1; }
-  .pill { position: absolute; left: 0; right: 0; top: 6px; display: flex; justify-content: space-between; align-items: center; height: 40px; padding: 0 18px; border-radius: 99px; color: #F4EEDD; font-size: 14px; background: #17130a; box-shadow: inset 0 0 0 .5px rgba(232, 194, 119, .55); transform: translateY(-16px) scale(.96); opacity: 0; pointer-events: none; transition: transform .3s cubic-bezier(.3, .9, .3, 1), opacity .2s; }
+  .pill { position: absolute; left: 0; right: 0; top: 6px; display: flex; justify-content: space-between; align-items: center; height: 40px; padding: 0 18px; border-radius: 99px; color: var(--text); font-size: 14px; background: var(--card); box-shadow: inset 0 0 0 .5px var(--gline), var(--shadow); transform: translateY(-16px) scale(.96); opacity: 0; pointer-events: none; transition: transform .3s cubic-bezier(.3, .9, .3, 1), opacity .2s; }
   .pill.on { transform: none; opacity: 1; pointer-events: auto; }
   .pill b { font-size: 15px; font-variant-numeric: tabular-nums; }
-  .pill b.pos { color: #30D158; }
+  .pill b.pos { color: var(--pos); }
   .pb { display: flex; gap: 3px; height: 6px; margin: 9px 3px 0; }
   .pb i { display: block; border-radius: 99px; transition: flex .7s cubic-bezier(.3, .9, .3, 1); }
   .pb .e { background: linear-gradient(90deg, #F4DDA6, #D9A93F); }
