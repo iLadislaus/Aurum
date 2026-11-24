@@ -25,18 +25,26 @@ export async function loadHome() {
   const y = now.getFullYear(), m = now.getMonth();
   // три месяца: два прошлых и текущий
   const mons = [m - 5, m - 4, m - 3, m - 2, m - 1, m].map((k) => new Date(Date.UTC(y, k, 1)));
-  const [bal, cats, ops, accs, rec, ...sums] = await Promise.all([
-    sb.from('account_balances').select('balance,is_foreign'),
+  const [bal, cats, ops, accs, rec, todayOps, ...sums] = await Promise.all([
+    sb.from('account_balances').select('id,balance,is_foreign'),
     sb.from('categories').select('id,name,icon'),
     sb.from('transactions').select(OP_COLS).order('date', { ascending: false }).limit(5),
-    sb.from('accounts').select('id,name,currency,is_foreign'),
+    sb.from('accounts').select('id,name,currency,is_foreign,block,is_monobank'),
     sb.from('recurring_payments').select('id,name,amount,period,next_date,category_id').eq('active', true).eq('dismissed', false).order('next_date'),
+    sb.from('transactions').select('amount,date,account_id').eq('action', 'EXPENSE').gte('date', new Date(now.getTime() - 36 * 3600e3).toISOString()),
     ...mons.map((d) => sb.rpc('month_summary', { p_month: first(d.getUTCFullYear(), d.getUTCMonth()) }))
   ]);
-  for (const r of [bal, cats, ops, accs, rec, ...sums]) if (r.error) throw r.error;
+  for (const r of [bal, cats, ops, accs, rec, todayOps, ...sums]) if (r.error) throw r.error;
 
   const catMap = new Map(cats.data.map((c) => [c.id, c]));
   const total = bal.data.filter((a) => !a.is_foreign).reduce((s, a) => s + Number(a.balance), 0);
+  // показатели карточки: карты и наличные, конверты, траты за сегодня (только гривна)
+  const kind = new Map(accs.data.map((a) => [a.id, a]));
+  const homeBal = bal.data.filter((a) => !a.is_foreign);
+  const cardsCash = homeBal.filter((a) => { const k = kind.get(a.id); return k && (k.is_monobank || k.block === 'card'); }).reduce((s, a) => s + Number(a.balance), 0);
+  const envs = homeBal.filter((a) => kind.get(a.id)?.block === 'env').reduce((s, a) => s + Number(a.balance), 0);
+  const day0 = ymd(now);
+  const today = todayOps.data.filter((t) => ymd(new Date(t.date)) === day0 && !kind.get(t.account_id)?.is_foreign).reduce((s, t) => s + Number(t.amount), 0);
 
   const months = sums.map((r, i) => {
     const d = mons[i], s = r.data;
@@ -52,14 +60,13 @@ export async function loadHome() {
   const start = total - delta;
   const pct = start > 0 ? (delta / start) * 100 : 0;
 
-  const today = ymd(now);
   const horizon = rec.data.map((p) => ({
     id: p.id,
     name: clean(p.name).split('\n')[0],
     cat: clean(catMap.get(p.category_id)?.name) || 'Без категории',
     period: PERIOD[p.period] ?? '',
     amount: Number(p.amount),
-    days: Math.round((new Date(p.next_date) - new Date(today)) / 86400000),
+    days: Math.round((new Date(p.next_date) - new Date(day0)) / 86400000),
     icon: catMap.get(p.category_id)?.icon || 'tag'
   }));
 
@@ -72,7 +79,7 @@ export async function loadHome() {
   const recent = ops.data.map((t) => mapOp(t, catMap, am, sc));
 
   return {
-    total, delta, pct,
+    total, delta, pct, cardsCash, envs, today,
     budget: { plan: Number(cur.budget), spent: Number(cur.expense) - Number(cur.returns) },
     months, horizon, recent
   };

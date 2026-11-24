@@ -1,11 +1,9 @@
 // Блоки главной: порядок и видимость хранятся на телефоне
 const KEY = 'aurum.homeBlocks', LESSON = 'aurum.hbLesson';
 export const BLOCKS = [
-  { id: 'balance', n: 'Общий баланс', i: 'wallet' },
-  { id: 'budget', n: 'Бюджет', i: 'chart' },
-  { id: 'flow', n: 'Денежный поток', i: 'swap' },
-  { id: 'horizon', n: 'На горизонте', i: 'bolt' },
-  { id: 'recent', n: 'Последние операции', i: 'cards' }
+  { id: 'balance', n: 'Баланс, бюджет, горизонт', i: 'wallet' },
+  { id: 'recent', n: 'Последние операции', i: 'cards' },
+  { id: 'flow', n: 'Денежный поток', i: 'swap' }
 ];
 
 function load() {
