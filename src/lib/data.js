@@ -93,18 +93,17 @@ const nz = (x) => Number(x || 0);
 // Экран «Счета»: карты Monobank одной группой, Wallet и Cash, конверты, валютные счета, долги
 export async function loadAccounts() {
   const now = new Date();
-  const [acc, bal, debts, sum] = await Promise.all([
-    sb.from('accounts').select('id,name,block,currency,is_foreign,is_monobank'),
+  const [acc, bal, sum] = await Promise.all([
+    sb.from('accounts').select('id,name,block,currency,is_foreign,is_monobank,is_debt'),
     sb.from('account_balances').select('id,balance,credit_limit'),
-    sb.from('debts').select('id,name,currency,amount').order('id'),
     sb.rpc('month_summary', { p_month: first(now.getFullYear(), now.getMonth()) })
   ]);
-  for (const r of [acc, bal, debts, sum]) if (r.error) throw r.error;
+  for (const r of [acc, bal, sum]) if (r.error) throw r.error;
 
   const bm = new Map(bal.data.map((b) => [b.id, b]));
   const rows = acc.data.map((a) => ({
     id: a.id, name: clean(a.name), block: a.block, currency: a.currency,
-    foreign: a.is_foreign, mono: a.is_monobank,
+    foreign: a.is_foreign, mono: a.is_monobank, debt: a.is_debt,
     balance: nz(bm.get(a.id)?.balance), limit: nz(bm.get(a.id)?.credit_limit)
   }));
   const home = rows.filter((a) => !a.foreign);
@@ -120,7 +119,7 @@ export async function loadAccounts() {
 
   // валютные счета по валютам
   const fx = new Map();
-  for (const a of rows.filter((x) => x.foreign)) {
+  for (const a of rows.filter((x) => x.foreign && !x.debt)) {
     const g = fx.get(a.currency) || { currency: a.currency, balance: 0, names: [], list: [] };
     g.balance += a.balance;
     g.names.push(a.name);
@@ -135,7 +134,8 @@ export async function loadAccounts() {
     cashes, cardCashTotal: sumOf(cards) + sumOf(cashes),
     envs, envsTotal: sumOf(envs),
     foreign: [...fx.values()],
-    debts: debts.data.map((d) => ({ id: d.id, name: clean(d.name), currency: d.currency, amount: nz(d.amount) }))
+    // долговые счета: баланс отрицательный, сумма долга — по модулю
+    debts: rows.filter((x) => x.debt).map((x) => ({ id: x.id, name: x.name, currency: x.currency, amount: Math.max(0, -x.balance), balance: x.balance }))
   };
 }
 
@@ -198,10 +198,11 @@ export async function loadOpsForAll(ids) {
 
 // Новый счёт. Начальный остаток записывается операцией «Коррекция баланса» (категория 25), как уже сделано в базе
 export async function createAccount({ type, name, icon, currency, budgetSource, balance }) {
+  const debt = type === 'debt';
   const { data, error } = await sb.from('accounts').insert({
     name, icon, currency,
     block: type === 'env' ? 'env' : type === 'cash' ? 'card' : null,
-    is_foreign: type === 'fx', is_budget_source: budgetSource
+    is_foreign: type === 'fx' || debt, is_debt: debt, is_budget_source: budgetSource
   }).select('id').single();
   if (error) throw error;
   if (balance) {
@@ -212,12 +213,6 @@ export async function createAccount({ type, name, icon, currency, budgetSource, 
     if (e2) throw e2;
   }
   return data.id;
-}
-
-// Новый долг (раздел «Долги» на экране «Счета»)
-export async function createDebt({ name, currency, amount }) {
-  const r = await sb.from('debts').insert({ name, currency, amount });
-  if (r.error) throw r.error;
 }
 
 // ---- Операции за месяц (экран «Операции»)

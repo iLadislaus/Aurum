@@ -1,6 +1,6 @@
 <script>
   import { na, closeNew } from './newacct.svelte.js';
-  import { createAccount, createDebt, loadAccounts } from './data.js';
+  import { createAccount, loadAccounts } from './data.js';
   import { refresh } from './cache.svelte.js';
   import Icon from './Icon.svelte';
   import Sheet from './Sheet.svelte';
@@ -35,13 +35,7 @@
     if (type === 'debt' && !amount) { err = 'Введите сумму долга'; return; }
     busy = true; err = '';
     try {
-      if (type === 'debt') {
-        await createDebt({ name: name.trim(), currency: cur, amount: Math.abs(amount) });
-        await refresh('accounts', loadAccounts);
-        closeNew();
-        return;
-      }
-      await createAccount({ type, name: name.trim(), icon, currency: type === 'fx' ? cur : 'UAH', budgetSource: type !== 'fx' && src, balance: amount });
+      await createAccount({ type, name: name.trim(), icon: type === 'debt' ? 'user' : icon, currency: type === 'fx' || type === 'debt' ? cur : 'UAH', budgetSource: type !== 'fx' && type !== 'debt' && src, balance: type === 'debt' ? -Math.abs(amount) : amount });
       await refresh('accounts', loadAccounts);
       closeNew();
     } catch (e) { err = e.message || 'Не удалось создать счёт'; busy = false; }

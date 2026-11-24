@@ -27,6 +27,7 @@
     for (const a of d.cashes) add(a, 'Карты и наличные', /cash/i.test(a.name) ? 'cash' : 'wallet');
     for (const a of d.envs) add(a, 'Конверты', envIcon(a.name));
     for (const g of d.foreign ?? []) for (const a of g.list ?? []) add(a, 'Валютные', g.currency === 'EUR' ? 'euro' : 'dollar', g.currency);
+    for (const x of d.debts ?? []) add(x, 'Долги', 'user', x.currency);
     return l;
   });
   const groups = $derived.by(() => {

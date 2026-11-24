@@ -22,6 +22,7 @@
   const menuCard = (el, id) => openCtx(el, [op(id), tr(id), ed, { t: 'Скрыть счёт', icon: 'eyeoff', sep: true }]);
   const menuCash = (el, id) => openCtx(el, [op(id), tr(id), ed, del]);
   const menuEnv = (el, id) => openCtx(el, [op(id), tr(id), ed, del]);
+  const menuDebt = (el, id) => openCtx(el, [op(id), tr(id), ed, del]);
 
   let d = $derived(peek('accounts'));
   let rates = $state(cachedRates());
@@ -103,7 +104,7 @@
       <div class="sh rise" style="--i:3"><h2>Долги</h2></div>
       <div class="cd rise" style="--i:3">
         {#each debts as x, i (x.id)}
-          <AccRow icon="user" name={x.name} amount={x.amount} small={x.small} neg top={i > 0} />
+          <AccRow icon="user" name={x.name} amount={x.amount} small={x.small} neg top={i > 0} onclick={() => openAcct({ id: x.id, name: x.name, kind: 'Долг', balance: x.balance })} onlong={(el) => menuDebt(el, x.id)} />
         {/each}
       </div>
     {/if}
