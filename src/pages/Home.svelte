@@ -4,10 +4,10 @@
   import { loadHome } from '../lib/data.js';
   import { peek, refresh } from '../lib/cache.svelte.js';
   import Icon from '../lib/Icon.svelte';
-  import BalanceCard from '../home/BalanceCard.svelte';
-  import BudgetCard from '../home/BudgetCard.svelte';
-  import FlowCard from '../home/FlowCard.svelte';
+  import Summary from '../home/Summary.svelte';
   import Horizon from '../home/Horizon.svelte';
+  import Sheet from '../lib/Sheet.svelte';
+  import FlowCard from '../home/FlowCard.svelte';
   import RecentOps from '../home/RecentOps.svelte';
   import { hb, isOn, openBlocks } from '../lib/homeblocks.svelte.js';
   import { openNewOp } from '../lib/newop.svelte.js';
@@ -17,7 +17,7 @@
   const month = new Date().toLocaleDateString('ru-RU', { month: 'long' });
   let d = $derived(peek('home'));
   let err = $state('');
-  let shown = $state(false), settled = $state(false);
+  let shown = $state(false), settled = $state(false), hz = $state(false);
   // анимация появления блоков — один раз: при перестановке блоки переносятся в DOM и без этого мигали бы
   $effect(() => { if (shown) { const t = setTimeout(() => (settled = true), 1500); return () => clearTimeout(t); } });
   // данные приходят из Supabase; анимации стартуют, когда экран уже нарисован
@@ -50,16 +50,10 @@
       {#if bl.on}
         <div class:rise={!settled} class:bal={bl.id === 'balance'} style="--i:{Math.min(i + 1, 5)}">
           {#if bl.id === 'balance'}
-            <BalanceCard total={d.total} delta={d.delta} pct={d.pct} {shown} onopen={() => (nav.tab = 'accounts')} />
-          {:else if bl.id === 'budget'}
-            <div class="sh"><h2>Бюджет на {month}</h2></div>
-            <button class="bt" onclick={() => (nav.tab = 'budget')} aria-label="Открыть бюджет"><BudgetCard budget={d.budget} {shown} /></button>
+            <Summary d={d} {shown} {month} onaccounts={() => (nav.tab = 'accounts')} onbudget={() => (nav.tab = 'budget')} onhorizon={() => (hz = true)} />
           {:else if bl.id === 'flow'}
             <div class="sh"><h2>Денежный поток</h2></div>
             <FlowCard months={d.months} {shown} />
-          {:else if bl.id === 'horizon'}
-            <div class="sh"><h2>На горизонте</h2></div>
-            <Horizon items={d.horizon} {shown} />
           {:else}
             <div class="sh"><h2>Последние операции</h2><button class="all" onclick={() => (nav.tab = 'ops')}>Все</button></div>
             <RecentOps rows={d.recent} {shown} />
@@ -70,6 +64,8 @@
   </div>
   {/if}
 </section>
+
+{#if d}<Sheet open={hz} onclose={() => (hz = false)} fit title="На горизонте"><div class="hzs"><Horizon items={d.horizon} shown={hz} /></div></Sheet>{/if}
 
 <style>
   section { padding: 0 16px calc(110px + var(--safe-b)); }
@@ -86,7 +82,6 @@
   .blocks > .bal:first-child { margin-top: 0; }
   .sh h2 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: .35px; }
   .all { font-size: 15px; color: var(--gold); min-height: 28px; }
+  .hzs { padding: 0 0 8px; }
   .msg { text-align: center; color: var(--muted); padding: 40px 0; }
-  .bt { display: block; width: 100%; text-align: left; border-radius: 28px; transition: transform .15s; }
-  .bt:active { transform: scale(.98); }
 </style>
