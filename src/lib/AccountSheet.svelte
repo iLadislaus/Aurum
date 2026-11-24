@@ -70,7 +70,7 @@
           <div class="cd rise" style="--i:{Math.min(4 + gi * 2, 12)}">
             {#each g.ops as o (o.id)}
               <div class="r">
-                <OpAvatar icon={o.icon} size={34} />
+                <OpAvatar icon={o.icon} size={34} name={o.name} />
                 <div class="m"><div class="n">{o.name}</div><div class="s">{o.cat}</div></div>
                 <b class:pos={o.amount > 0}>{o.amount > 0 ? '+' : ''}{c(o.amount)}</b>
               </div>

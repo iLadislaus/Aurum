@@ -115,7 +115,7 @@
       <CardFace {theme} kind={kind[o.action].toUpperCase()}>
         {#snippet amount()}<div class="big"><span class="v">{amt}</span><u>{o.sym}</u></div>{/snippet}
         {#snippet chip()}
-          {#if !tr}<div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} />{/if}<span class="cn">{o.name}{#if o.cat !== o.name}<small>{o.cat}</small>{/if}</span></div>{/if}
+          {#if !tr}<div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} name={o.name} />{/if}<span class="cn">{o.name}{#if o.cat !== o.name}<small>{o.cat}</small>{/if}</span></div>{/if}
         {/snippet}
         {#snippet acct()}
           {#if tr}

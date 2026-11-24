@@ -20,7 +20,7 @@
 <div class="grp" class:in={shown}>
   {#each rows as t, i (t.id)}
     <div class="op" class:top={i > 0} role="button" tabindex="0" onclick={() => openOp(t, KEY)} onkeydown={(e) => e.key === 'Enter' && openOp(t, KEY)}>
-      {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} />{/if}
+      {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} name={t.name} />{/if}
       <div class="nm"><b>{t.name}</b><small>{t.cat}{t.acc ? ' · ' + t.acc : ''} · {when(t.date)}</small></div>
       <span class="am" class:pos={t.v > 0 && t.action !== 'TRANSFER'}>{amt(t)}</span>
     </div>

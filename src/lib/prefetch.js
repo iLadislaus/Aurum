@@ -2,6 +2,7 @@
 import { refresh, put } from './cache.svelte.js';
 import { loadHome, loadAccounts, loadOpsForAll, loadMonthOps } from './data.js';
 import { loadRates } from './rate.js';
+import { loadBrands } from './brands.svelte.js';
 
 let last = 0;
 export function prefetchAll(force = false) {
@@ -15,4 +16,5 @@ export function prefetchAll(force = false) {
   }).catch(() => {});
   { const n = new Date(); refresh(`ops.m.${n.getFullYear()}-${n.getMonth()}`, () => loadMonthOps(n.getFullYear(), n.getMonth())).catch(() => {}); }
   loadRates().catch(() => {});
+  loadBrands().catch(() => {});
 }
