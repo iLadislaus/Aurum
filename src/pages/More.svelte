@@ -2,6 +2,8 @@
   import Screen from '../lib/Screen.svelte';
   import Icon from '../lib/Icon.svelte';
   import { sb } from '../lib/supabase.js';
+  import { openAnalytics } from '../lib/analytics.svelte.js';
+  import { bg } from '../lib/budget.svelte.js';
 
   let rules = $state(null), rec = $state(null), mono = $state('');
 
@@ -24,10 +26,10 @@
 
 <Screen title="Ещё">
   <div class="grp rise" style="--i:1">
-    <button class="it" onclick={() => tap('an')}>
+    <button class="it" onclick={() => openAnalytics(bg.ym)}>
       <span class="ic"><Icon name="chart" size={17} /></span>
       <span class="m"><b>Аналитика</b><small>куда уходят деньги, динамика по месяцам</small></span>
-      {#if soon.on === 'an'}<span class="pill">скоро</span>{:else}<span class="ch"><Icon name="chevron" size={14} /></span>{/if}
+      <span class="ch"><Icon name="chevron" size={14} /></span>
     </button>
     <button class="it" onclick={() => tap('ru')}>
       <span class="ic"><Icon name="sliders" size={17} /></span>
