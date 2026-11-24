@@ -20,13 +20,16 @@
     refresh('ops.' + id, () => loadAccountOps(id)).catch((e) => { if (!peek('ops.' + id)) err = e.message || 'Не удалось загрузить операции'; });
   });
 
-  const dayKey = (iso) => new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'Europe/Kyiv' });
+  // форматтеры создаём один раз: toLocaleDateString с часовым поясом на каждую операцию заметно тормозит
+  const dayFmt = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Kyiv' });
+  const titleFmt = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' });
+  const dayKey = (iso) => dayFmt.format(new Date(iso));
   function dayTitle(key) {
     const today = dayKey(new Date().toISOString());
     const diff = Math.round((new Date(today) - new Date(key)) / 86400000);
     if (diff <= 0) return 'Сегодня';
     if (diff === 1) return 'Вчера';
-    return new Date(key + 'T12:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+    return titleFmt.format(new Date(key + 'T12:00:00'));
   }
   let groups = $derived.by(() => {
     if (!data) return [];
@@ -45,7 +48,7 @@
   const c = (v) => cash(v, 2, acct.currency);
 </script>
 
-<Sheet open={acct.open} onclose={closeAcct} title={acct.name} sub={acct.kind} z={55}>
+<Sheet open={acct.open} onclose={closeAcct} title={acct.name} sub={acct.kind} z={55} snap={0.3}>
       {#key k}
       <div class="hero">
         <small>Остаток</small>
