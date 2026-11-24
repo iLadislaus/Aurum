@@ -269,7 +269,7 @@
             <div class="op" class:un={t.uncat} class:top={i > 0} role="button" tabindex="0" use:longpress={(el) => menuOp(el, t)} onclick={() => !sw.id && openOp(t, key)} onkeydown={(e) => e.key === 'Enter' && openOp(t, key)}>
               {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} name={t.splits ? '' : t.name} />{/if}
               <div class="nm"><b>{t.name}</b><small>{t.cat}{t.acc ? ' · ' + t.acc : ''}</small></div>
-              <span class="am" class:pos={t.v > 0 && t.action !== 'TRANSFER'} class:tr={t.action === 'TRANSFER'}>{amt(t)}</span>
+              <span class="ar"><span class="am" class:pos={t.v > 0 && t.action !== 'TRANSFER'} class:tr={t.action === 'TRANSFER'}>{amt(t)}</span>{#if t.net != null}<small class="nt">итого {fmt(t.net, t.net % 1 ? 2 : 0)} {t.sym}</small>{/if}</span>
             </div>
           </SwipeRow>
         {/each}
@@ -353,6 +353,8 @@
   .nm small { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .am { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .am.tr { color: var(--text); }
+  .ar { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .nt { font-size: 12px; font-weight: 600; color: var(--gold); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .msg { text-align: center; color: var(--muted); padding: 40px 0; }
   .more { text-align: center; padding: 18px; font-size: 12.5px; color: var(--muted); }
   .toast { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); padding: 9px 16px; border-radius: 99px; background: rgba(30, 28, 20, .92); color: #E8C277; font-size: 13px; z-index: 20; }

@@ -52,7 +52,7 @@
           <div class="op" class:top={i > 0} role="button" tabindex="0" onclick={() => openOp(o, key)} onkeydown={(e) => e.key === 'Enter' && openOp(o, key)}>
             <OpAvatar icon={o.icon} size={38} name={o.splits ? '' : o.name} />
             <div class="nm"><b>{o.name}</b><small>{o.acc || o.cat}</small></div>
-            <span class="am" class:pos={o.v > 0}>{amt(o)}</span>
+            <span class="ar"><span class="am" class:pos={o.v > 0}>{amt(o)}</span>{#if o.net != null}<small class="nt">итого {fmt(o.net, o.net % 1 ? 2 : 0)} {o.sym}</small>{/if}</span>
           </div>
         {/each}
       </div>
@@ -73,5 +73,7 @@
   .nm { flex: 1; min-width: 0; } .nm b { display: block; font-size: 15px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .nm small { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .am { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; } .pos { color: var(--pos); }
+  .ar { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .nt { font-size: 12px; font-weight: 600; color: var(--gold); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .msg { text-align: center; color: var(--muted); padding: 40px 0; }
 </style>

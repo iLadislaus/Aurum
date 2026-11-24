@@ -75,7 +75,7 @@
               <div class="r">
                 <OpAvatar icon={o.icon} size={34} name={o.splits ? '' : o.name} />
                 <div class="m"><div class="n">{o.name}</div><div class="s">{o.cat}</div></div>
-                <b class:pos={o.amount > 0}>{o.amount > 0 ? '+' : ''}{c(o.amount)}</b>
+                <span class="ar"><b class:pos={o.amount > 0}>{o.amount > 0 ? '+' : ''}{c(o.amount)}</b>{#if o.net != null}<small class="nt">итого {c(o.net)}</small>{/if}</span>
               </div>
             {/each}
           </div>
@@ -126,4 +126,6 @@
   .hero::after { content: ""; position: absolute; top: 0; bottom: 0; width: 60%; left: -70%; pointer-events: none; transform: skewX(-18deg); background: linear-gradient(100deg, transparent, rgba(255, 236, 170, .22), transparent); animation: sweep .9s cubic-bezier(.4, 0, .2, 1) .45s both; }
   .empty { margin: 24px 0; text-align: center; color: var(--muted); font-size: 14px; }
   @media (prefers-reduced-motion: reduce) { .rise, .hero, .hero::after { animation: none; } }
+  .ar { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+  .nt { font-size: 12px; font-weight: 600; color: var(--gold); font-variant-numeric: tabular-nums; white-space: nowrap; }
 </style>
