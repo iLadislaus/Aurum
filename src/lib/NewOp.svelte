@@ -51,7 +51,8 @@
   const debts = $derived(peek('accounts')?.debts ?? []);
   const debt = $derived(debts.find((d) => d.id === debtId) ?? null);
   const mode = $derived.by(() => {
-    if (isTr || split) return 'op';
+    // обычную операцию (в т.ч. «Начальный остаток» по долгу) при правке не превращаем в долговой перевод
+    if (isTr || split || (no.edit && no.edit.action !== 'TRANSFER')) return 'op';
     const c = cats.find((x) => x.id === catId);
     if (c?.debt) return type === 'INCOME' ? 'taken' : type === 'EXPENSE' ? 'repay' : 'op';
     return c?.name === 'FX income' && type === 'INCOME' ? 'fxin' : 'op';
@@ -180,6 +181,7 @@
     if (mode === 'repay') {
       if (!debt) return 'Выбери долг.';
       if (!accId) return 'Нет счёта в этой валюте.';
+      if (accId === debt.id) return 'Нельзя гасить долг с самого долга.';
       if (fx && !(num(amt2) > 0)) return 'Укажи, сколько покроет.';
       if (covered > debt.amount + 0.005) return 'Платёж больше долга.';
       return '';

@@ -2,12 +2,36 @@
   import { untrack } from 'svelte';
   import OpAvatar from '../lib/OpAvatar.svelte';
   import { fmt } from '../lib/format.js';
-  import { put } from '../lib/cache.svelte.js';
+  import { put, peek } from '../lib/cache.svelte.js';
+  import SwipeRow from '../lib/SwipeRow.svelte';
+  import { sw } from '../lib/swipe.svelte.js';
+  import { longpress } from '../lib/longpress.js';
+  import { openCtx } from '../lib/ctxmenu.svelte.js';
+  import { deleteOp, repeatOp } from '../lib/data.js';
+  import { prefetchAll } from '../lib/prefetch.js';
   import { openOp } from '../lib/opcard.svelte.js';
   let { rows, shown } = $props();
   const KEY = 'ops.recent';
   // карточка операции берёт свежую версию из кэша — кладём туда пятёрку с Главной
   $effect(() => { const r = rows; untrack(() => put(KEY, { ops: r })); });
+  let err = $state('');
+  // удаление и повтор: список правим сразу, потом синхронизируем счета и остальные экраны
+  async function remove(t) {
+    if (t.mono) return;
+    const old = peek('home');
+    if (old) put('home', { ...old, recent: old.recent.filter((x) => x.id !== t.id) });
+    try { await deleteOp(t.id); prefetchAll(true); }
+    catch (e) { if (old) put('home', old); err = e.message || 'Не удалось удалить'; }
+  }
+  async function repeat(t) {
+    if (t.mono) return;
+    try { await repeatOp(t); prefetchAll(true); }
+    catch (e) { err = e.message || 'Не удалось повторить'; }
+  }
+  const menu = (el, t) => openCtx(el, [
+    ...(t.mono ? [] : [{ t: 'Повторить', icon: 'swap', run: () => repeat(t) }]),
+    ...(t.mono ? [] : [{ t: 'Удалить', icon: 'trash', danger: true, run: () => remove(t) }])
+  ]);
   const sgn = (t) => (t.action === 'TRANSFER' ? '' : t.v > 0 ? '+' : '−');
   const amt = (t) => sgn(t) + fmt(Math.abs(t.action === 'TRANSFER' ? t.amount : t.v), t.foreign ? 2 : Math.abs(t.amount) % 1 ? 2 : 0) + ' ' + t.sym;
   const when = (iso) => {
@@ -19,15 +43,18 @@
 
 <div class="grp" class:in={shown}>
   {#each rows as t, i (t.id)}
-    <div class="op" class:top={i > 0} role="button" tabindex="0" onclick={() => openOp(t, KEY)} onkeydown={(e) => e.key === 'Enter' && openOp(t, KEY)}>
+    <SwipeRow id={t.id} nodelete={t.mono} norepeat={t.mono} ondelete={() => remove(t)} onrepeat={() => repeat(t)}>
+    <div class="op" class:top={i > 0} role="button" tabindex="0" use:longpress={(el) => menu(el, t)} onclick={() => !sw.id && openOp(t, KEY)} onkeydown={(e) => e.key === 'Enter' && openOp(t, KEY)}>
       {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} name={t.name} />{/if}
       <div class="nm"><b>{t.name}</b><small>{t.cat}{t.acc ? ' · ' + t.acc : ''} · {when(t.date)}</small></div>
       <span class="am" class:pos={t.v > 0 && t.action !== 'TRANSFER'}>{amt(t)}</span>
     </div>
+    </SwipeRow>
   {:else}
     <div class="empty">Операций пока нет</div>
   {/each}
 </div>
+{#if err}<p class="er">{err}</p>{/if}
 
 <style>
   .grp { background: var(--card); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; opacity: 0; transform: translateY(10px); transition: opacity .6s, transform .6s; }
@@ -40,5 +67,6 @@
   .nm small { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .am { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .am.pos { color: var(--pos); }
+  .er { margin: 8px 4px 0; font-size: 13px; color: #E5584D; text-align: center; }
   .empty { padding: 18px 16px; color: var(--muted); text-align: center; }
 </style>
