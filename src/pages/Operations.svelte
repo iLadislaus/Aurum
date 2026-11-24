@@ -251,7 +251,7 @@
       <div class="nt"><span>{nfil || q.trim() ? 'Итого по выбранному · ' + found.length : 'Итого ' + perWord()}</span><b class:pos={tot.net >= 0}>{tot.net >= 0 ? '+' : '−'}{cash(Math.abs(tot.net), 0)}</b></div>
     </div>
     <!-- тонкая плашка: появляется, когда карточка итогов уехала вверх; высоты не меняет, поэтому ничего не пересчитывается -->
-    <div class="pw"><i class="bk" class:on={col}></i><button class="pill" class:on={col} tabindex={col ? 0 : -1} onclick={() => card?.closest('main')?.scrollTo({ top: 0, behavior: 'smooth' })}><span>{periodText}</span><b class:pos={tot.net >= 0}>{tot.net >= 0 ? '+' : '−'}{cash(Math.abs(tot.net), 0)}</b></button></div>
+    <div class="pw"><button class="pill" class:on={col} tabindex={col ? 0 : -1} onclick={() => card?.closest('main')?.scrollTo({ top: 0, behavior: 'smooth' })}><span>{periodText}</span><b class:pos={tot.net >= 0}>{tot.net >= 0 ? '+' : '−'}{cash(Math.abs(tot.net), 0)}</b></button></div>
   {/if}
 
   {#if err && !data}
@@ -322,9 +322,7 @@
   .fpwrap { margin-bottom: 0; }
   .sm { margin-top: 8px; }
   .pw { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 6; height: 0; }
-  .bk { position: absolute; left: -16px; right: -16px; top: calc(-1 * env(safe-area-inset-top, 0px)); height: calc(env(safe-area-inset-top, 0px) + 52px); background: var(--bg); opacity: 0; pointer-events: none; transition: opacity .2s; }
-  .bk.on { opacity: 1; }
-  .pill { position: absolute; left: 0; right: 0; top: 6px; display: flex; justify-content: space-between; align-items: center; height: 40px; padding: 0 18px; border-radius: 99px; color: #F4EEDD; font-size: 14px; background: #17130a; box-shadow: inset 0 0 0 .5px rgba(232, 194, 119, .55); transform: translateY(-16px) scale(.96); opacity: 0; pointer-events: none; transition: transform .3s cubic-bezier(.3, .9, .3, 1), opacity .2s; }
+  .pill { position: absolute; left: 0; right: 0; top: 12px; display: flex; justify-content: space-between; align-items: center; height: 40px; padding: 0 18px; border-radius: 99px; color: #F4EEDD; font-size: 14px; background: linear-gradient(155deg, #241d10, #0c0c0b 80%); box-shadow: inset 0 0 0 .5px rgba(232, 194, 119, .45), 0 8px 20px rgba(0, 0, 0, .35); transform: translateY(-16px) scale(.96); opacity: 0; pointer-events: none; transition: transform .3s cubic-bezier(.3, .9, .3, 1), opacity .2s; }
   .pill.on { transform: none; opacity: 1; pointer-events: auto; }
   .pill b { font-size: 15px; font-variant-numeric: tabular-nums; }
   .pill b.pos { color: #30D158; }
@@ -344,7 +342,7 @@
   .sm .pos { color: #30D158; }
   .op.un { background: rgba(229, 88, 77, .07); }
   .op.un .nm small { color: #D43D32; font-weight: 600; }
-  .dh { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 52px); z-index: 4; display: flex; justify-content: space-between; margin: 0 -16px; padding: 18px 20px 7px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; font-variant-numeric: tabular-nums; background: linear-gradient(var(--bg) 72%, transparent); }
+  .dh { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 58px); z-index: 4; display: flex; justify-content: space-between; margin: 0 -16px; padding: 18px 20px 7px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; font-variant-numeric: tabular-nums; background: linear-gradient(var(--bg) 72%, transparent); }
   .dh b { text-transform: none; letter-spacing: 0; }
   .cd { background: var(--card); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; }
   .op { position: relative; display: flex; align-items: center; gap: 11px; padding: 10px 14px; min-height: 56px; }
