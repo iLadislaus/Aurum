@@ -6,6 +6,7 @@
   import { prefetchAll } from './prefetch.js';
   import { fmt } from './format.js';
   import Sheet from './Sheet.svelte';
+  import SwipeRow from './SwipeRow.svelte';
   import OpAvatar from './OpAvatar.svelte';
   import Icon from './Icon.svelte';
   import { envIcon } from './icons.js';
@@ -335,7 +336,8 @@
       <div class="sleft"><span>Сумма {fmt(total, 2)} {SYM[cur] ?? cur}</span><b class:ok={total > 0 && left === 0}>{total > 0 && left === 0 ? 'Сходится' : left < 0 ? `Больше на ${fmt(-left, 2)}` : `Осталось ${fmt(left, 2)}`}</b></div>
       <div class="rows">
         {#each parts as p, i (i)}
-          <div class="pt">
+          <SwipeRow id={'sp' + i} norepeat dconfirm={false} nodelete={i === 0 || parts.length <= 2} ondelete={() => (parts = parts.filter((_, k) => k !== i))}>
+          <div class="pt" class:nx={i > 0}>
             <label class="pc"><span class="pi"><Icon name={catOf(p.id)?.icon ?? 'tag'} size={17} /></span><span class="pn" class:ph={!p.id}>{catOf(p.id)?.name ?? 'Категория'}</span>
               <select value={p.id ?? 0} onchange={(e) => { parts[i].id = Number(e.currentTarget.value) || null; err = ''; }}><option value={0}>Категория</option>{#each plainCats as c (c.id)}<option value={c.id}>{c.name}</option>{/each}</select></label>
             {#if i === 0}
@@ -344,8 +346,8 @@
                 oninput={(e) => { fsEdit = e.currentTarget.value; amt = fmtIn(+(rest + num(e.currentTarget.value)).toFixed(2)); err = ''; }}
                 onblur={() => (fsEdit = null)} />
             {:else}<input class="pa" inputmode="decimal" placeholder="0" bind:value={parts[i].s} oninput={() => (err = '')} />{/if}
-            {#if parts.length > 2 && i > 0}<button class="px" aria-label="Убрать" onclick={() => (parts = parts.filter((_, k) => k !== i))}>✕</button>{/if}
           </div>
+          </SwipeRow>
         {/each}
         <button class="add" onclick={() => (parts = [...parts, { id: null, s: '' }])}>+ Добавить категорию</button>
       </div>
@@ -408,14 +410,13 @@
   .sleft { display: flex; justify-content: space-between; margin: 7px 4px 0; font-size: 12.5px; color: var(--muted); }
   .sleft b { font-weight: 600; color: #E5584D; transition: color .3s; } .sleft b.ok { color: var(--pos); }
   .pt { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 14px; }
-  .pt + .pt::before { content: ""; position: absolute; top: 0; left: 14px; right: 0; height: .5px; background: var(--line); }
+  .pt.nx::before { content: ""; position: absolute; top: 0; left: 14px; right: 0; height: .5px; background: var(--line); }
   .pc { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; }
   .pi { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: rgba(232, 194, 119, .1); color: var(--gold); }
   .pn { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14.5px; font-weight: 600; } .pn.ph { color: var(--muted); font-weight: 400; }
   .pc select { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; font-size: 16px; }
   .pa { width: 96px; padding: 7px 10px; border: 0; outline: 0; border-radius: 10px; background: var(--fill); color: var(--text); font: inherit; font-size: 16px; font-weight: 600; text-align: right; -webkit-user-select: text; user-select: text; }
   .pa.main { color: var(--text); }
-  .px { color: var(--muted); font-size: 15px; padding: 0 2px; }
   .add { width: 100%; text-align: left; padding: 12px 14px; color: var(--gold); font-weight: 500; border-top: .5px solid var(--line); }
   .er { flex: none; margin: 6px 14px 0; font-size: 13px; color: #E5584D; text-align: center; }
   .gw { position: relative; flex: none; margin: 6px 12px calc(14px + var(--safe-b)); }

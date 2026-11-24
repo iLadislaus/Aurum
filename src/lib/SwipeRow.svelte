@@ -1,7 +1,7 @@
 <script>
   // Строка со свайпом как в iOS: влево — «Удалить», вправо — «Повторить». Первое нажатие на кнопку просит подтверждения
   import { sw } from './swipe.svelte.js';
-  let { id, ondelete, onrepeat, nodelete = false, norepeat = false, rlabel = 'Повторить', rconfirm = true, children } = $props();
+  let { id, ondelete, onrepeat, nodelete = false, norepeat = false, rlabel = 'Повторить', rconfirm = true, dconfirm = true, children } = $props();
   const W = 92;
   let x = $state(0), drag = $state(false), armed = $state(''), timer;
   let open = $derived(sw.id === id);
@@ -28,7 +28,7 @@
     return { destroy() { node.removeEventListener('touchstart', ts); node.removeEventListener('touchmove', tm); node.removeEventListener('touchend', te); node.removeEventListener('touchcancel', te); } };
   }
   function close() { x = 0; sw.id = ''; arm(''); }
-  function del() { if (nodelete) return; if (armed === 'd') { close(); ondelete?.(); } else arm('d'); }
+  function del() { if (nodelete) return; if (!dconfirm || armed === 'd') { close(); ondelete?.(); } else arm('d'); }
   function rep() { if (norepeat) return; if (!rconfirm) { close(); onrepeat?.(); return; } if (armed === 'r') { close(); onrepeat?.(); } else arm('r'); }
 </script>
 
