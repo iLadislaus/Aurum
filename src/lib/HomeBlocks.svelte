@@ -2,7 +2,7 @@
   import Icon from './Icon.svelte';
   import { hb, meta, toggle, move, closeBlocks, endLesson } from './homeblocks.svelte.js';
 
-  const RH = 68;
+  const RH = 70; // высота строки 58 + зазор 12
   // появление строк — только при открытии окна: при перестановке Svelte переносит узлы, и CSS-анимация запускалась бы заново (строки мигали бы и пропадали)
   let intro = $state(false), introT;
   $effect(() => { clearTimeout(introT); intro = hb.open; if (hb.open) introT = setTimeout(() => (intro = false), 1000); });
@@ -20,7 +20,10 @@
     if (!drag) return;
     const y = Math.max(0, Math.min((hb.list.length - 1) * RH, from * RH + e.clientY - dy0));
     drag.y = y;
-    move(drag.id, Math.round(y / RH));
+    // как магниты одной стороной: сосед уступает место, когда перетаскиваемая строка прошла треть шага, и они не соприкасаются
+    const cur = hb.list.findIndex((x) => x.id === drag.id);
+    if (y > cur * RH + RH * 0.34) move(drag.id, Math.min(hb.list.length - 1, cur + 1));
+    else if (y < cur * RH - RH * 0.34) move(drag.id, Math.max(0, cur - 1));
   }
   const drop = () => { drag = null; };
   const top = (id, i) => (drag?.id === id ? drag.y : i * RH);
@@ -57,7 +60,7 @@
   <div class="sh" class:dragging={sdrag} bind:this={shEl} role="dialog" aria-modal="true" aria-label="Блоки главной" style:transform={hb.open ? `translateY(${pos}px)` : undefined}>
     <div class="top" onpointerdown={sdown} onpointermove={smove} onpointerup={sup} onpointercancel={sup}>
       <div class="gr"></div>
-      <div class="tt"><b>Блоки главной</b><button class="ok" onpointerdown={(e) => e.stopPropagation()} onclick={closeBlocks}>Готово</button></div>
+      <div class="tt"><b>Блоки главной</b></div>
     </div>
     <div class="ls" style:height="{hb.list.length * RH}px">
       {#each hb.list as b, i (b.id)}
@@ -100,9 +103,8 @@
   .tt { display: flex; justify-content: space-between; align-items: center; }
   .tt { padding-top: 10px; }
   .tt b { font-size: 24px; font-weight: 700; letter-spacing: -.3px; }
-  .ok { border-radius: 99px; padding: 8px 17px; background: var(--gold-soft); color: var(--gold); font-size: 15px; font-weight: 600; }
   .ls { position: relative; margin: 8px 14px 0; flex: none; }
-  .r { position: absolute; left: 0; right: 0; height: 58px; display: flex; align-items: center; gap: 4px; padding: 0 14px 0 4px; border-radius: 99px; background: var(--card); box-shadow: var(--shadow, none), inset 0 0 0 .5px var(--line); transition: transform .28s cubic-bezier(.32, .72, 0, 1), box-shadow .2s; }
+  .r { position: absolute; left: 0; right: 0; height: 58px; display: flex; align-items: center; gap: 4px; padding: 0 14px 0 4px; border-radius: 99px; background: var(--card); box-shadow: var(--shadow, none), inset 0 0 0 .5px var(--line); transition: transform .2s cubic-bezier(.32, .72, 0, 1), box-shadow .2s; }
   .r.intro { animation: hbIn .45s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(.12s + var(--n, 0) * 55ms); }
   @keyframes hbIn { from { opacity: 0; } }
   .r.lift { z-index: 3; transition: box-shadow .2s; box-shadow: 0 10px 24px -6px rgba(0, 0, 0, .55), inset 0 0 0 .5px rgba(232, 194, 119, .6); }
