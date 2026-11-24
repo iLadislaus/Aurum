@@ -1,6 +1,7 @@
 <script>
   import OpAvatar from '../lib/OpAvatar.svelte';
   import Icon from '../lib/Icon.svelte';
+  import { openNewPay } from '../lib/newpay.svelte.js';
   import { money, daysLabel } from '../lib/format.js';
   let { items, shown } = $props();
 
@@ -31,7 +32,7 @@
   {#if list.length}
     <div class="foot"><span>{range === 'month' ? 'Осталось заплатить в этом месяце' : `За ${HORIZON} дней`}</span><b>{money(left)}</b></div>
   {/if}
-  <button class="add"><Icon name="plus" size={16} /> Добавить плановый платёж</button>
+  <button class="add" onclick={openNewPay}><Icon name="plus" size={16} /> Добавить плановый платёж</button>
 </div>
 
 <style>

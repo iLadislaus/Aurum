@@ -1,5 +1,7 @@
 <script>
   import Icon from '../lib/Icon.svelte';
+  import { openNewPay } from '../lib/newpay.svelte.js';
+  import { daysLabel } from '../lib/format.js';
   import { fmt, money, signed } from '../lib/format.js';
   let { d, shown, month, onaccounts, onbudget, onhorizon } = $props();
 
@@ -17,9 +19,7 @@
   let perDay = $derived(Math.max(0, remaining) / Math.max(1, daysLeft));
 
   // на горизонте: платежи на 14 дней
-  const HORIZON = 14;
-  let soon = $derived(d.horizon.filter((p) => p.days <= HORIZON).sort((a, b) => a.days - b.days));
-  let soonSum = $derived(soon.reduce((s, p) => s + p.amount, 0));
+  let next = $derived([...d.horizon].filter((p) => p.days >= 0).sort((a, b) => a.days - b.days)[0]);
 </script>
 
 <div class="cd" class:in={shown}>
@@ -53,10 +53,10 @@
     <div class="bd"><small>{over ? 'Лимит' : 'Можно в день'}</small><b>{money(over ? d.budget.plan : perDay)}</b></div>
   </button>
 
-  <button class="s hz" onclick={onhorizon} aria-label="На горизонте">
-    <span class="ht"><b>На горизонте</b> <i>· {soon.length ? `${soon.length} на ${HORIZON} дней, ${money(soonSum)}` : `${HORIZON} дней платежей нет`}</i></span>
-    <u><Icon name="plus" size={14} /> {soon.length ? 'Подробнее' : 'Добавить'}</u>
-  </button>
+  <div class="s hz">
+    <button class="ht" onclick={onhorizon} aria-label="На горизонте"><b>На горизонте</b> <i>{next ? `· ${next.name} ${daysLabel(next.days)} · ${money(next.amount)}` : '· платежей нет'}</i></button>
+    <button class="pl" onclick={openNewPay} aria-label="Новый платёж"><Icon name="plus" size={16} /></button>
+  </div>
 </div>
 
 <style>
@@ -98,10 +98,11 @@
   .bd small { font-size: 12.5px; color: #a99366; }
   .bd b { font-size: 16px; white-space: nowrap; }
 
-  .hz { justify-content: space-between; gap: 10px; font-size: 14px; }
-  .ht { min-width: 0; }
-  .ht b { font-size: 15px; }
-  .ht i { font-style: normal; color: #a99366; }
-  .hz u { text-decoration: none; display: inline-flex; align-items: center; gap: 4px; color: #E8C277; font-weight: 600; white-space: nowrap; flex: none; }
+  .hz { justify-content: space-between; gap: 10px; font-size: 14px; padding: 0 8px 0 18px; min-height: 48px; cursor: default; }
+  .hz:active { background: none; }
+  .ht { flex: 1; min-width: 0; text-align: left; color: inherit; min-height: 48px; display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; }
+  .ht b { font-size: 15px; flex: none; }
+  .ht i { font-style: normal; color: #a99366; overflow: hidden; text-overflow: ellipsis; }
+  .pl { flex: none; width: 44px; height: 44px; display: grid; place-items: center; color: #E8C277; }
   @media (prefers-reduced-motion: reduce) { .au, .dot::after { animation: none; } }
 </style>

@@ -371,3 +371,11 @@ export async function saveOp(id, f) {
   if (r.error) throw r.error;
   return r.data[0].id;
 }
+
+// Новый плановый платёж («На горизонте»)
+export async function addPlanned({ name, amount, categoryId, period, nextDate }) {
+  const r = await sb.from('recurring_payments').insert({
+    name, pattern: name.toLowerCase(), amount, period, next_date: nextDate, category_id: categoryId ?? null, active: true, dismissed: false
+  });
+  if (r.error) throw r.error;
+}
