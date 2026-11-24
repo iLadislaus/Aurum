@@ -39,6 +39,11 @@ export const ICONS = {
   copy: 'M9 9h10a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V10a1 1 0 0 1 1-1zM16 9V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3',
   split: 'M3 12h6l4-5h5M9 12l4 5h5M16 4l3 3-3 3M16 14l3 3-3 3',
   lock: 'M6 11h12a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-7a1 1 0 0 1 1-1zM8 11V8a4 4 0 0 1 8 0v3',
+  calendar: 'M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM4 10h16M8 3v4M16 3v4',
+  close: 'M6 6l12 12M18 6L6 18',
+  arrowup: 'M7 17L17 7M9 7h8v8',
+  arrowdown: 'M17 7L7 17M15 17H7V9',
+  back: 'M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3',
   tag: 'M4 12V5a1 1 0 0 1 1-1h7l8 8-8 8zM8.5 8.5h.01'
 };
 export const iconPath = (k) => ICONS[k] ?? ICONS.tag;

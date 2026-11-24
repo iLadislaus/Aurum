@@ -15,6 +15,8 @@
   import { hb } from './lib/homeblocks.svelte.js';
   import HorizonSheet from './lib/HorizonSheet.svelte';
   import NewPay from './lib/NewPay.svelte';
+  import PeriodSheet from './lib/PeriodSheet.svelte';
+  import { cal } from './lib/opsfilter.svelte.js';
   import { prefetchAll } from './lib/prefetch.js';
   import { startUpdateWatch } from './lib/update.svelte.js';
   import { onMount } from 'svelte';
@@ -44,7 +46,7 @@
   });
 </script>
 
-<main bind:this={scroller} class:back={acct.open || na.open || hb.open || oc.open || no.open}>
+<main bind:this={scroller} class:back={acct.open || na.open || hb.open || oc.open || no.open || cal.open}>
   {#if !auth.ready}
     <!-- проверяем вход -->
   {:else if !auth.session}
@@ -60,7 +62,7 @@
   {/if}
 </main>
 <UpdateBanner />
-{#if auth.session}<AccountSheet /><HomeBlocks /><HorizonSheet /><NewPay /><NewAccount /><OpCard /><NewOp /><CtxMenu />{/if}
+{#if auth.session}<AccountSheet /><HomeBlocks /><HorizonSheet /><NewPay /><PeriodSheet /><NewAccount /><OpCard /><NewOp /><CtxMenu />{/if}
 {#if auth.session}<TabBar />{/if}
 
 <style>
