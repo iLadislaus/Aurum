@@ -44,7 +44,7 @@
 <div class="grp" class:in={shown}>
   {#each rows as t, i (t.id)}
     <SwipeRow id={t.id} nodelete={t.mono} norepeat={t.mono} ondelete={() => remove(t)} onrepeat={() => repeat(t)}>
-    <div class="op" class:top={i > 0} role="button" tabindex="0" use:longpress={(el) => menu(el, t)} onclick={() => !sw.id && openOp(t, KEY)} onkeydown={(e) => e.key === 'Enter' && openOp(t, KEY)}>
+    <div class="op" class:un={t.uncat} class:top={i > 0} role="button" tabindex="0" use:longpress={(el) => menu(el, t)} onclick={() => !sw.id && openOp(t, KEY)} onkeydown={(e) => e.key === 'Enter' && openOp(t, KEY)}>
       {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} name={t.name} />{/if}
       <div class="nm"><b>{t.name}</b><small>{t.cat}{t.acc ? ' · ' + t.acc : ''} · {when(t.date)}</small></div>
       <span class="am" class:pos={t.v > 0 && t.action !== 'TRANSFER'}>{amt(t)}</span>
@@ -57,6 +57,8 @@
 {#if err}<p class="er">{err}</p>{/if}
 
 <style>
+  .op.un { background: rgba(229, 88, 77, .07); }
+  .op.un .nm small { color: #D43D32; font-weight: 600; }
   .grp { background: var(--card); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; opacity: 0; transform: translateY(10px); transition: opacity .6s, transform .6s; }
   .grp.in { opacity: 1; transform: none; }
   .op { position: relative; display: flex; align-items: center; gap: 11px; padding: 10px 14px; min-height: 56px; cursor: pointer; }

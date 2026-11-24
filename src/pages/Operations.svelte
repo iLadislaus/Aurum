@@ -12,6 +12,7 @@
   import { openNewOp } from '../lib/newop.svelte.js';
   import { flyOpen } from '../lib/fly.js';
   import Skeleton from '../lib/Skeleton.svelte';
+  import UncatBanner from '../lib/UncatBanner.svelte';
 
   const SHORT = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
   const now = new Date();
@@ -156,16 +157,14 @@
       <div class="nt"><span>Итого за месяц</span><b class:pos={tot.net >= 0}>{tot.net >= 0 ? '+' : '−'}{cash(Math.abs(tot.net), 0)}</b></div>
     </div>
 
-    {#if uncatCount}
-      <button class="nc" class:on={onlyUncat} onclick={() => (onlyUncat = !onlyUncat)}><u>{uncatCount}</u>{onlyUncat ? 'показаны без категории · все' : 'без категории · разобрать'}</button>
-    {/if}
+    <UncatBanner n={uncatCount} onopen={() => { const t = (data?.ops ?? []).find((x) => x.uncat); if (t) openOp(t, 'ops.m.' + cur.key); }} />
 
     {#each groups as g (g.k)}
       <div class="dh"><span>{g.title}</span><b>{g.sum ? (g.sum > 0 ? '+' : '−') + cash(Math.abs(g.sum), 0) : ''}</b></div>
       <div class="cd">
         {#each g.items as t, i (t.id)}
           <SwipeRow id={t.id} nodelete={t.mono} norepeat={t.mono} ondelete={() => remove(t)} onrepeat={() => repeat(t)}>
-            <div class="op" class:top={i > 0} role="button" tabindex="0" onclick={() => !sw.id && openOp(t, 'ops.m.' + cur.key)} onkeydown={(e) => e.key === 'Enter' && openOp(t, 'ops.m.' + cur.key)}>
+            <div class="op" class:un={t.uncat} class:top={i > 0} role="button" tabindex="0" onclick={() => !sw.id && openOp(t, 'ops.m.' + cur.key)} onkeydown={(e) => e.key === 'Enter' && openOp(t, 'ops.m.' + cur.key)}>
               {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} name={t.name} />{/if}
               <div class="nm"><b>{t.name}</b><small>{t.cat}{t.acc ? ' · ' + t.acc : ''}</small></div>
               <span class="am" class:pos={t.v > 0 && t.action !== 'TRANSFER'} class:tr={t.action === 'TRANSFER'}>{amt(t)}</span>
@@ -209,10 +208,8 @@
   .nt b { font-size: 15px; display: inline; }
   .pos { color: var(--pos); }
   .sm .pos { color: #30D158; }
-  .nc { display: inline-flex; align-items: center; gap: 8px; margin: 12px 0 0; padding: 7px 13px 7px 8px; border-radius: 99px; background: rgba(255, 138, 126, .14); color: #E5584D; font-size: 13px; font-weight: 600; }
-  .nc.on { background: #E5584D; color: #fff; }
-  .nc u { display: grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: #E5584D; color: #fff; font-size: 12px; text-decoration: none; }
-  .nc.on u { background: #fff; color: #E5584D; }
+  .op.un { background: rgba(229, 88, 77, .07); }
+  .op.un .nm small { color: #D43D32; font-weight: 600; }
   .dh { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 4; display: flex; justify-content: space-between; margin: 0 -16px; padding: 18px 20px 7px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; font-variant-numeric: tabular-nums; background: linear-gradient(var(--bg) 72%, transparent); }
   .dh b { text-transform: none; letter-spacing: 0; }
   .cd { background: var(--card); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; }
