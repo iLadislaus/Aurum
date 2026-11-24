@@ -7,6 +7,7 @@
   import Icon from '../lib/Icon.svelte';
   import BalanceDetail from '../home/BalanceDetail.svelte';
   import AccRow from '../accounts/AccRow.svelte';
+  import SwipeRow from '../lib/SwipeRow.svelte';
   import { openCtx } from '../lib/ctxmenu.svelte.js';
   import { openAcct } from '../lib/acctsheet.svelte.js';
   import { openNew } from '../lib/newacct.svelte.js';
@@ -94,7 +95,7 @@
         {/if}
       {/if}
       {#each d.cashes as c, i (c.id)}
-        <AccRow icon={/cash/i.test(c.name) ? 'cash' : 'wallet'} name={c.name} amount={cash(c.balance)} neg={c.balance < 0} top={d.cards.length > 0 || i > 0} onclick={() => openAcct({ id: c.id, name: c.name, kind: /cash/i.test(c.name) ? 'Наличные' : 'Кошелёк', balance: c.balance })} onlong={(el) => menuCash(el, c.id)} />
+        <SwipeRow id={'ac' + c.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold onrepeat={() => openNewOp(null, { acc: c.id })} ondelete={() => openNewOp(null, { acc: c.id, type: 'TRANSFER' })}><AccRow icon={/cash/i.test(c.name) ? 'cash' : 'wallet'} name={c.name} amount={cash(c.balance)} neg={c.balance < 0} top={d.cards.length > 0 || i > 0} onclick={() => openAcct({ id: c.id, name: c.name, kind: /cash/i.test(c.name) ? 'Наличные' : 'Кошелёк', balance: c.balance })} onlong={(el) => menuCash(el, c.id)} /></SwipeRow>
       {/each}
     </div>
 
@@ -102,7 +103,7 @@
       <div class="sh rise" style="--i:3"><h2>Долги</h2></div>
       <div class="cd rise" style="--i:3">
         {#each debts as x, i (x.id)}
-          <AccRow icon="user" name={x.name} amount={x.amount} small={x.small} neg top={i > 0} onclick={() => openAcct({ id: x.id, name: x.name, kind: 'Долг', balance: x.balance })} onlong={(el) => menuDebt(el, x.id)} />
+          <SwipeRow id={'ac' + x.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold onrepeat={() => openNewOp(null, { acc: x.id })} ondelete={() => openNewOp(null, { acc: x.id, type: 'TRANSFER' })}><AccRow icon="user" name={x.name} amount={x.amount} small={x.small} neg top={i > 0} onclick={() => openAcct({ id: x.id, name: x.name, kind: 'Долг', balance: x.balance })} onlong={(el) => menuDebt(el, x.id)} /></SwipeRow>
         {/each}
       </div>
     {/if}
@@ -110,13 +111,13 @@
     <div class="sh rise" style="--i:4"><h2>Конверты</h2><span>{cash(d.envsTotal, 0)}</span></div>
     <div class="cd rise" style="--i:4">
       {#each envFull as e, i (e.id)}
-        <AccRow icon={envIcon(e.name)} name={e.name} amount={cash(e.balance, 0)} top={i > 0} onclick={() => openAcct({ id: e.id, name: e.name, kind: 'Конверт', balance: e.balance })} onlong={(el) => menuEnv(el, e.id)} />
+        <SwipeRow id={'ac' + e.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold onrepeat={() => openNewOp(null, { acc: e.id })} ondelete={() => openNewOp(null, { acc: e.id, type: 'TRANSFER' })}><AccRow icon={envIcon(e.name)} name={e.name} amount={cash(e.balance, 0)} top={i > 0} onclick={() => openAcct({ id: e.id, name: e.name, kind: 'Конверт', balance: e.balance })} onlong={(el) => menuEnv(el, e.id)} /></SwipeRow>
       {/each}
       {#if envEmpty.length}
         <div class="ex" class:o={emptyOpen}>
           <div>
             {#each envEmpty as e, i (e.id)}
-              <div class="exr" style="--d:{i * 35}ms"><AccRow icon={envIcon(e.name)} name={e.name} amount={cash(e.balance, 0)} dim top={envFull.length > 0 || i > 0} onclick={() => openAcct({ id: e.id, name: e.name, kind: 'Конверт', balance: e.balance })} onlong={(el) => menuEnv(el, e.id)} /></div>
+              <div class="exr" style="--d:{i * 35}ms"><SwipeRow id={'ac' + e.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold onrepeat={() => openNewOp(null, { acc: e.id })} ondelete={() => openNewOp(null, { acc: e.id, type: 'TRANSFER' })}><AccRow icon={envIcon(e.name)} name={e.name} amount={cash(e.balance, 0)} dim top={envFull.length > 0 || i > 0} onclick={() => openAcct({ id: e.id, name: e.name, kind: 'Конверт', balance: e.balance })} onlong={(el) => menuEnv(el, e.id)} /></SwipeRow></div>
             {/each}
           </div>
         </div>
@@ -135,7 +136,7 @@
         {#each d.foreign as f, gi (f.currency)}
           <div class="cap" class:t={gi > 0}><span>{f.currency === 'USD' ? 'Доллары' : f.currency === 'EUR' ? 'Евро' : f.currency}</span>{#if rates?.[f.currency]}<small>≈ {cash(Math.round(f.balance * rates[f.currency]), 0)}</small>{/if}</div>
           {#each [...(f.list ?? [])].sort((x, y) => y.balance - x.balance || x.name.localeCompare(y.name)) as a, i (a.id)}
-            <AccRow icon={f.currency === 'EUR' ? 'euro' : 'dollar'} name={a.name} amount={cash(a.balance, 2, f.currency)} dim={Math.abs(a.balance) < 0.005} top={i > 0} onclick={() => openAcct({ id: a.id, name: a.name, kind: 'Валютный счёт · ' + (f.currency === 'USD' ? 'доллары' : f.currency === 'EUR' ? 'евро' : f.currency), balance: a.balance, currency: f.currency })} onlong={(el) => menuCash(el, c.id)} />
+            <SwipeRow id={'ac' + a.id} rlabel="Операция" rconfirm={false} dlabel="Перевод" dconfirm={false} dgold onrepeat={() => openNewOp(null, { acc: a.id })} ondelete={() => openNewOp(null, { acc: a.id, type: 'TRANSFER' })}><AccRow icon={f.currency === 'EUR' ? 'euro' : 'dollar'} name={a.name} amount={cash(a.balance, 2, f.currency)} dim={Math.abs(a.balance) < 0.005} top={i > 0} onclick={() => openAcct({ id: a.id, name: a.name, kind: 'Валютный счёт · ' + (f.currency === 'USD' ? 'доллары' : f.currency === 'EUR' ? 'евро' : f.currency), balance: a.balance, currency: f.currency })} onlong={(el) => menuCash(el, a.id)} /></SwipeRow>
           {/each}
         {/each}
       </div>

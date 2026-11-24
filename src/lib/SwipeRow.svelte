@@ -1,7 +1,7 @@
 <script>
   // Строка со свайпом как в iOS: влево — «Удалить», вправо — «Повторить». Первое нажатие на кнопку просит подтверждения
   import { sw } from './swipe.svelte.js';
-  let { id, ondelete, onrepeat, nodelete = false, norepeat = false, rlabel = 'Повторить', rconfirm = true, dconfirm = true, children } = $props();
+  let { id, ondelete, onrepeat, nodelete = false, norepeat = false, rlabel = 'Повторить', dlabel = 'Удалить', dgold = false, rconfirm = true, dconfirm = true, children } = $props();
   const W = 92;
   let x = $state(0), drag = $state(false), armed = $state(''), timer;
   let open = $derived(sw.id === id);
@@ -34,7 +34,7 @@
 
 <div class="sr" use:swipe>
   {#if !norepeat}<button class="a l" class:armed={armed === 'r'} style:width="{W}px" onclick={rep} tabindex={x > 0 ? 0 : -1}>{armed === 'r' ? 'Точно?' : rlabel}</button>{/if}
-  {#if !nodelete}<button class="a r" class:armed={armed === 'd'} style:width="{W}px" onclick={del} tabindex={x < 0 ? 0 : -1}>{armed === 'd' ? 'Точно?' : 'Удалить'}</button>{/if}
+  {#if !nodelete}<button class="a r" class:armed={armed === 'd'} class:gold={dgold} style:width="{W}px" onclick={del} tabindex={x < 0 ? 0 : -1}>{armed === 'd' ? 'Точно?' : dlabel}</button>{/if}
   <div class="c" class:drag style:transform="translateX({x}px)" onclick={() => x !== 0 && close()} role="presentation">{@render children()}</div>
 </div>
 
