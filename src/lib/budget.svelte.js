@@ -9,3 +9,7 @@ export const openPlan = () => { bg.plan = true; };
 export const closePlan = () => { bg.plan = false; };
 export const openDist = () => { bg.dist = true; };
 export const closeDist = () => { bg.dist = false; };
+// Все операции одной категории за месяц: { id, name, icon, ym } или null
+export const co = $state({ cat: null });
+export const openCatOps = (cat, ym) => { co.cat = { id: cat.id, name: cat.name, icon: cat.icon, ym }; };
+export const closeCatOps = () => { co.cat = null; };

@@ -3,7 +3,7 @@
   import Screen from '../lib/Screen.svelte';
   import Skeleton from '../lib/Skeleton.svelte';
   import Icon from '../lib/Icon.svelte';
-  import { bg, bd, openCats, openPlan, openDist } from '../lib/budget.svelte.js';
+  import { bg, bd, openCats, openPlan, openDist, openCatOps } from '../lib/budget.svelte.js';
   import { loadBudgetMonth, monthKey } from '../lib/budget.js';
   import { fmt } from '../lib/format.js';
 
@@ -90,7 +90,7 @@
       {#if l.length}
         <h2>{h}<span><b>{fmt(sum(l, 'fact'))}</b> из {fmt(sum(l, 'plan'))} ₴</span></h2>
         <div class="grp">{#each l as c (c.id)}{@const x = info(c)}
-          <button class="r" onclick={openPlan}>
+          <button class="r" onclick={() => openCatOps(c, ym)}>
             <div class="ic"><Icon name={c.icon} size={17} /></div>
             <div class="m"><b>{c.name}</b>{#if x.cap}<small class={x.tone}>{x.cap}</small>{/if}
               <div class="bar"><i class={x.tone === 'o' ? 'o' : x.tone === 'w' ? 'w' : ''} style:width="{x.w}%"></i>{#each x.ticks as t}<s class:f={t.f} style:left="{t.at}%"></s>{/each}</div></div>
@@ -103,7 +103,7 @@
 
     {#if out.length}
       <h2>Вне плана<span><b>{fmt(sum(out, 'fact'))}</b> ₴</span></h2>
-      <div class="grp">{#each out as c (c.id)}<div class="r"><div class="ic re"><Icon name={c.icon} size={17} /></div><div class="m"><b>{c.name}</b><small>{c.debt ? 'погашение долга' : 'без плана'}</small></div><div class="rt o">−{fmt(c.fact)} ₴</div></div>{/each}</div>
+      <div class="grp">{#each out as c (c.id)}<button class="r" onclick={() => openCatOps(c, ym)}><div class="ic re"><Icon name={c.icon} size={17} /></div><div class="m"><b>{c.name}</b><small>{c.debt ? 'погашение долга' : 'без плана'}</small></div><div class="rt o">−{fmt(c.fact)} ₴</div></button>{/each}</div>
     {/if}
 
     <h2>Доходы<span><b>{fmt(sum(inc, 'fact'))}</b> из {fmt(sum(inc, 'plan'))} ₴</span></h2>
