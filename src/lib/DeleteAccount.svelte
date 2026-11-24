@@ -47,7 +47,7 @@
     {#if done}
       <div class="ok"><span class="ck"><Icon name="check" size={26} /></span><b>{done}</b></div>
     {:else if n == null}
-      <p class="sb">Считаю операции…</p>
+      <div class="sk" aria-busy="true"><p class="sb">Считаю операции…</p></div>
     {:else if n === 0}
       <p class="sb">Операций на этом счёте нет. Счёт будет удалён.</p>
     {:else if !cands.length}
@@ -55,6 +55,7 @@
     {:else}
       <p class="sb">На счёте {n} {word(n)}. Выберите, куда их перенести{a?.balance ? `: остаток ${cash(a.balance)} перейдёт вместе с ними` : ''}.</p>
       <div class="lb">Перенести на</div>
+      <div class="ls" role="listbox" class:long={cands.length > 3}>
       {#each cands as x (x.id)}
         <button class="op" class:s={to === x.id} onclick={() => { to = x.id; err = ''; }}>
           <span class="ci"><Icon name={x.icon || 'wallet'} size={17} /></span>
@@ -62,6 +63,7 @@
           <span class="rd"><Icon name="check" size={13} /></span>
         </button>
       {/each}
+      </div>
     {/if}
     {#if err}<p class="er">{err}</p>{/if}
   </div>
@@ -75,6 +77,10 @@
 <style>
   .bd { padding: 0 2px; }
   .sb { margin: 2px 8px 10px; text-align: center; font-size: 13px; line-height: 1.45; color: var(--muted); }
+  .sk { min-height: 230px; display: grid; align-content: start; padding-top: 6px; }
+  .ls { display: grid; }
+  .ls.long { max-height: 188px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding: 2px 2px 4px; scrollbar-width: none; }
+  .ls.long::-webkit-scrollbar { display: none; }
   .lb { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 8px 4px 6px; }
   .op { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: var(--card); border-radius: 14px; padding: 8px 12px; margin-bottom: 6px; box-shadow: var(--shadow); transition: box-shadow .25s; }
   .op.s { box-shadow: 0 0 0 1.5px #C9A24A; }
