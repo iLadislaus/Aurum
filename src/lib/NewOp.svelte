@@ -331,6 +331,8 @@
 
     {#if split}
       <div class="lb">Категории операции</div>
+      <div class="sbar">{#each eff as p}<i style:width="{total > 0 ? Math.min(100, p.v / total * 100) : 0}%"></i>{/each}</div>
+      <div class="sleft"><span>Сумма {fmt(total, 2)} {SYM[cur] ?? cur}</span><b class:ok={total > 0 && left === 0}>{total > 0 && left === 0 ? 'Сходится' : left < 0 ? `Больше на ${fmt(-left, 2)}` : `Осталось ${fmt(left, 2)}`}</b></div>
       <div class="rows">
         {#each parts as p, i (i)}
           <div class="pt">
@@ -346,9 +348,6 @@
           </div>
         {/each}
         <button class="add" onclick={() => (parts = [...parts, { id: null, s: '' }])}>+ Добавить категорию</button>
-      </div>
-      <div class="tt" class:okc={total > 0 && left === 0} class:bad={left !== 0}>
-        {left === 0 && total > 0 ? `✓ Итого ${fmt(total, 2)} ${SYM[cur] ?? cur} — сходится` : `Итого ${fmt(total - left, 2)} из ${fmt(total, 2)} ${SYM[cur] ?? cur}`}
       </div>
     {/if}
   </div>
@@ -404,6 +403,10 @@
   .tg::after { content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px rgba(0, 0, 0, .25); transition: transform .38s cubic-bezier(.3, 1.5, .5, 1), width .2s; }
   .tg.on { background: linear-gradient(180deg, #F2D58F, #D49E36); box-shadow: 0 0 14px -2px rgba(226, 172, 62, .55); } .tg.on::after { transform: translateX(20px); }
   .tg:active::after { width: 34px; } .tg.on:active::after { transform: translateX(13px); }
+  .sbar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; background: var(--fill); margin: 4px 2px 0; }
+  .sbar i { background: linear-gradient(90deg, #C99A3C, #F0D18A); border-right: 1px solid var(--bg); transition: width .4s cubic-bezier(.32, .72, 0, 1); }
+  .sleft { display: flex; justify-content: space-between; margin: 7px 4px 0; font-size: 12.5px; color: var(--muted); }
+  .sleft b { font-weight: 600; color: #E5584D; transition: color .3s; } .sleft b.ok { color: var(--pos); }
   .pt { position: relative; display: flex; align-items: center; gap: 10px; padding: 8px 14px; }
   .pt + .pt::before { content: ""; position: absolute; top: 0; left: 14px; right: 0; height: .5px; background: var(--line); }
   .pc { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; }
@@ -414,7 +417,6 @@
   .pa.main { color: var(--text); }
   .px { color: var(--muted); font-size: 15px; padding: 0 2px; }
   .add { width: 100%; text-align: left; padding: 12px 14px; color: var(--gold); font-weight: 500; border-top: .5px solid var(--line); }
-  .tt { text-align: center; font-size: 12.5px; color: var(--muted); margin: 8px 0 0; transition: color .3s; } .tt.okc { color: var(--pos); } .tt.bad { color: var(--neg); }
   .er { flex: none; margin: 6px 14px 0; font-size: 13px; color: #E5584D; text-align: center; }
   .gw { position: relative; flex: none; margin: 6px 12px calc(14px + var(--safe-b)); }
   .go { position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 48px; color: #2A1D05; font-size: 16px; font-weight: 600; transition: opacity .2s; }
