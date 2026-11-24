@@ -48,7 +48,6 @@
 
 <div class="cd" id="hz-anchor" class:in={shown}>
   <i class="au" aria-hidden="true"></i>
-  <i class="shn" aria-hidden="true"></i>
   <div class="s top" role="button" tabindex="0" aria-label="Открыть счета" onclick={onaccounts} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onaccounts?.())}>
     <div class="cap"><span class="dot"></span>Общий баланс <i>· {stamp}</i></div>
     <div class="lf" bind:this={lfEl}>
@@ -101,8 +100,13 @@
     opacity: 0; transform: translateY(10px); transition: opacity .6s, transform .6s; }
   .cd.in { opacity: 1; transform: none; }
   .au { position: absolute; right: -40px; top: -50px; width: 200px; height: 200px; border-radius: 50%; background: radial-gradient(circle, rgba(244,190,90,.28), rgba(244,190,90,0) 66%); animation: smBr 6s ease-in-out infinite; pointer-events: none; }
-  .shn { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 40%, rgba(255,232,160,.12) 50%, transparent 60%); transform: translateX(-120%); animation: smSh 5s ease-in-out 1s infinite; }
-  @keyframes smSh { 40%, 100% { transform: translateX(120%); } }
+  .cd::before, .cd::after { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; pointer-events: none; z-index: 2;
+    background: conic-gradient(from var(--a), transparent 0deg, transparent 250deg, rgba(232,194,119,.25) 300deg, rgba(255,236,170,.95) 345deg, transparent 360deg);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+    animation: smOrb 7s linear infinite; }
+  .cd::after { filter: blur(5px); opacity: .55; }
+  @property --a { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+  @keyframes smOrb { to { --a: 360deg; } }
   @keyframes smBr { 50% { transform: scale(1.2); opacity: .6; } }
   .s { position: relative; display: flex; align-items: center; width: 100%; text-align: left; padding: 14px 18px; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background .15s; }
   .s + .s { border-top: .5px solid rgba(232,194,119,.18); }
@@ -148,5 +152,5 @@
   .ht b { font-size: 15px; flex: none; }
   .ht i { font-style: normal; color: #a99366; overflow: hidden; text-overflow: ellipsis; }
   .pl { flex: none; width: 44px; height: 44px; display: grid; place-items: center; color: #E8C277; }
-  @media (prefers-reduced-motion: reduce) { .au, .dot::after, .shn { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .au, .dot::after, .cd::before, .cd::after { animation: none; } }
 </style>
