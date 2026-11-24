@@ -61,17 +61,21 @@
   const total = $derived(o ? Math.abs(o.amount) : 0);
   // первая часть — основная: из неё вычитаются остальные, меньше нуля она не бывает
   const rest = $derived(parts.slice(1).reduce((t, p) => t + (Number(p.v) || 0), 0));
-  const eff = $derived(parts.map((p, i) => (i === 0 ? Math.max(0, +(total - rest).toFixed(2)) : Number(p.v) || 0)));
+  // пока первую строку не трогали, она считается сама; если поправили — остаётся как ввели
+  let autoFirst = $state(true), firstEdit = $state(null);
+  const plain = (v) => (v ? String(+Number(v).toFixed(2)).replace('.', ',') : '');
+  const parse = (t) => parseFloat(String(t).replace(/\s/g, '').replace(',', '.')) || 0;
+  const eff = $derived(parts.map((p, i) => (i === 0 ? (autoFirst ? Math.max(0, +(total - rest).toFixed(2)) : Number(p.v) || 0) : Number(p.v) || 0)));
   const left = $derived(+(total - eff.reduce((t, v) => t + v, 0)).toFixed(2));
   const catOf = (id) => cats.find((c) => c.id === id);
   async function openSplit() {
-    split = true; pick = false; typePick = false;
+    split = true; pick = false; typePick = false; autoFirst = true; firstEdit = null;
     let ex = [];
     if (o.splits) { try { ex = await loadSplits(o.id); } catch {} }
-    parts = ex.length ? ex.map((x) => ({ id: x.category_id, v: x.amount })) : [{ id: o.category_id ?? list[0]?.id, v: total }, { id: null, v: 0 }];
+    parts = ex.length ? ex.map((x) => ({ id: x.category_id, v: x.amount, s: plain(x.amount) })) : [{ id: o.category_id ?? list[0]?.id, v: total, s: '' }, { id: null, v: 0, s: '' }];
   }
-  function addPart() { parts = [...parts, { id: null, v: 0 }]; }
-  function setPart(i, val) { parts[i].v = parseFloat(String(val).replace(/\s/g, '').replace(',', '.')) || 0; }
+  function addPart() { parts = [...parts, { id: null, v: 0, s: '' }]; }
+  function setPart(i, val) { parts[i].s = val; parts[i].v = parse(val); }
   async function doSplit() {
     busy = true; err = '';
     try {
@@ -178,8 +182,11 @@
             <div class="pt">
               <label class="pc"><OpAvatar icon={catOf(p.id)?.icon ?? 'tag'} size={30} /><span class:ph={!p.id}>{catOf(p.id)?.name ?? 'Категория'}</span><Icon name="chevron" size={13} />
                 <select value={p.id ?? 0} onchange={(e) => { parts[i].id = Number(e.currentTarget.value) || null; }}><option value={0}>Категория</option>{#each list as c (c.id)}<option value={c.id}>{c.name}</option>{/each}</select></label>
-              {#if i === 0}<input class="au" readonly value={fmt(eff[0], 2)} />
-              {:else}<input inputmode="decimal" placeholder="0" value={p.v ? fmt(p.v, 2) : ''} oninput={(e) => setPart(i, e.currentTarget.value)} onblur={(e) => (e.currentTarget.value = p.v ? fmt(p.v, 2) : '')} />{/if}
+              {#if i === 0}<input class:au={autoFirst} inputmode="decimal" placeholder="0" value={firstEdit ?? plain(eff[0])}
+                onfocus={() => (firstEdit = plain(eff[0]))}
+                oninput={(e) => { firstEdit = e.currentTarget.value; parts[0].v = parse(firstEdit); autoFirst = firstEdit.trim() === ''; }}
+                onblur={() => (firstEdit = null)} />
+              {:else}<input inputmode="decimal" placeholder="0" value={p.s ?? ''} oninput={(e) => setPart(i, e.currentTarget.value)} onblur={() => (parts[i].s = plain(parts[i].v))} />{/if}
               {#if parts.length > 2 && i > 0}<button aria-label="Убрать" onclick={() => (parts = parts.filter((_, k) => k !== i))}>✕</button>{/if}
             </div>
           {/each}
