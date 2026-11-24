@@ -53,14 +53,12 @@
           {#if i === 0 || months[i - 1].y !== x.y}<div class="yl">{x.y}</div>{/if}
           <button class="pr" class:s={per.mode === 'month' && per.y === x.y && per.m === x.m} role="option" aria-selected={per.y === x.y && per.m === x.m} onclick={() => pickMonth(x)}>
             <span class="nm">{FULL[x.m]}</span><span class="ct">{x.n || ''}</span>
-            {#if per.mode === 'month' && per.y === x.y && per.m === x.m}<Icon name="check" size={16} />{/if}
           </button>
         {/each}
       {:else}
         {#each years as x (x.y)}
           <button class="pr" class:s={per.mode === 'year' && per.yr === x.y} role="option" aria-selected={per.yr === x.y} onclick={() => pickYear(x)}>
             <span class="nm">{x.y}</span><span class="ct">{x.n || ''}</span>
-            {#if per.mode === 'year' && per.yr === x.y}<Icon name="check" size={16} />{/if}
           </button>
         {/each}
       {/if}
@@ -83,6 +81,5 @@
   .pr:active { background: var(--gold-soft); }
   .pr .nm { flex: 1; font-weight: 500; }
   .pr .ct { font-size: 13px; color: var(--muted); }
-  .pr.s .nm { font-weight: 700; color: var(--gold); }
-  .pr.s :global(svg) { color: var(--gold); }
+  .pr.s .nm, .pr.s .ct { font-weight: 700; color: var(--gold); }
 </style>
