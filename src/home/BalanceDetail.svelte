@@ -37,7 +37,7 @@
   .dot { position: relative; width: 6px; height: 6px; border-radius: 50%; background: #E8C277; flex: none; }
   .dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #E8C277; animation: bdPl 2.2s ease-out infinite; }
   .sum { position: relative; margin-top: 2px; font-size: 34px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; }
-  .sum small { font-size: .62em; color: #E8C277; }
+  .sum small { font-size: .5em; letter-spacing: 0; margin-left: .06em; color: #E8C277; }
   .dl { position: relative; margin-top: 2px; font-size: 12px; color: #E8C277; }
   .dl.dn { color: #FF8A7E; }
   .bar { position: relative; display: flex; gap: 3px; height: 10px; margin: 14px 0 4px; }
