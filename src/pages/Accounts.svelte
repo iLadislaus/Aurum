@@ -22,6 +22,7 @@
   const menuCard = (el, id) => openCtx(el, [op(id), tr(id), ed, { t: 'Скрыть счёт', icon: 'eyeoff', sep: true }]);
   const menuCash = (el, id) => openCtx(el, [op(id), tr(id), ed, del]);
   const menuEnv = (el, id) => openCtx(el, [op(id), tr(id), ed, del]);
+  const menuDebt = (el, id) => openCtx(el, [op(id), tr(id), ed, del]);
 
   let d = $derived(peek('accounts'));
   let rates = $state(cachedRates());
@@ -48,15 +49,13 @@
   let envEmpty = $derived(envList.filter(isEmpty));
   let emptyOpen = $state(false);
 
-  // долг в гривнах по курсу Monobank; если курса нет, остаётся в исходной валюте
+  // долг показываем в той валюте, в которой он взят (красным, со знаком минус); для валютного долга мелко под ним примерно в гривнах по курсу
   let debts = $derived.by(() => {
     if (!d) return [];
     return d.debts.map((x) => {
       const rate = x.currency === 'UAH' ? 1 : rates?.[x.currency];
-      const own = fmt(x.amount, 0) + ' ' + (CUR[x.currency] ?? '₴');
-      return rate
-        ? { ...x, uah: x.amount * rate, amount: x.currency === 'UAH' ? '−' + own : '≈ −' + fmt(x.amount * rate, 0) + ' ₴', small: x.currency === 'UAH' ? '' : own }
-        : { ...x, uah: null, amount: '−' + own, small: '' };
+      const own = '−' + fmt(x.amount, x.amount % 1 ? 2 : 0) + ' ' + (CUR[x.currency] ?? '₴');
+      return { ...x, uah: rate ? x.amount * rate : null, amount: own, small: x.currency !== 'UAH' && rate ? '≈ ' + fmt(x.amount * rate, 0) + ' ₴' : '' };
     });
   });
   // долги в гривнах по курсу; без курса учитываем только гривневые
@@ -103,7 +102,7 @@
       <div class="sh rise" style="--i:3"><h2>Долги</h2></div>
       <div class="cd rise" style="--i:3">
         {#each debts as x, i (x.id)}
-          <AccRow icon="user" name={x.name} amount={x.amount} small={x.small} neg top={i > 0} />
+          <AccRow icon="user" name={x.name} amount={x.amount} small={x.small} neg top={i > 0} onclick={() => openAcct({ id: x.id, name: x.name, kind: 'Долг', balance: x.balance })} onlong={(el) => menuDebt(el, x.id)} />
         {/each}
       </div>
     {/if}

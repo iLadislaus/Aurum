@@ -11,7 +11,7 @@ export function prefetchAll(force = false) {
   last = now;
   refresh('home', loadHome).catch(() => {});
   refresh('accounts', loadAccounts).then((d) => {
-    const ids = [...d.cards, ...d.cashes, ...d.envs, ...d.foreign.flatMap((f) => f.list)].map((a) => a.id);
+    const ids = [...d.cards, ...d.cashes, ...d.envs, ...d.debts, ...d.foreign.flatMap((f) => f.list)].map((a) => a.id);
     return loadOpsForAll(ids).then((m) => m.forEach((v, id) => put('ops.' + id, v)));
   }).catch(() => {});
   { const n = new Date(); refresh(`ops.m.${n.getFullYear()}-${n.getMonth()}`, () => loadMonthOps(n.getFullYear(), n.getMonth())).catch(() => {}); }
