@@ -1,6 +1,6 @@
 <script>
   import { na, closeNew } from './newacct.svelte.js';
-  import { createAccount, loadAccounts } from './data.js';
+  import { createAccount, createDebt, loadAccounts } from './data.js';
   import { refresh } from './cache.svelte.js';
   import Icon from './Icon.svelte';
   import Sheet from './Sheet.svelte';
@@ -8,33 +8,39 @@
   const TYPES = [
     { k: 'cash', t: 'Наличные', s: 'Кошелёк, касса, заначка', icon: 'wallet' },
     { k: 'env', t: 'Конверт', s: 'Деньги под цель или категорию', icon: 'mail' },
-    { k: 'fx', t: 'Валютный счёт', s: 'USD, EUR, вне общего баланса', icon: 'dollar' }
+    { k: 'fx', t: 'Валютный счёт', s: 'USD, EUR, вне общего баланса', icon: 'dollar' },
+    { k: 'debt', t: 'Долг', s: 'Кому вы должны', icon: 'user' }
   ];
   const PICK = ['wallet', 'cash', 'coin', 'bank', 'gift', 'car', 'home', 'health', 'study', 'sofa', 'family', 'sport', 'film', 'digital', 'cart', 'basket', 'care', 'cloth', 'card'];
   const CURS = [{ c: 'USD', s: '$' }, { c: 'EUR', s: '€' }];
-  const KIND = { cash: 'Наличные', env: 'Конверт', fx: 'Валютный счёт · вне общего баланса' };
+  const DCURS = [{ c: 'UAH', s: '₴' }, { c: 'USD', s: '$' }, { c: 'EUR', s: '€' }];
+  const KIND = { cash: 'Наличные', env: 'Конверт', fx: 'Валютный счёт · вне общего баланса', debt: 'Долг' };
 
   let type = $state(null);
   let name = $state(''), icon = $state('wallet'), bal = $state(''), cur = $state('USD'), src = $state(false);
   let busy = $state(false), err = $state('');
-  let full = $state(false);
 
   $effect(() => {
     if (na.open) { type = null; name = ''; icon = 'wallet'; bal = ''; cur = 'USD'; src = false; busy = false; err = ''; }
   });
 
-  $effect(() => { if (!type && full) full = false; });
-
-  const sym = $derived(type === 'fx' ? CURS.find((x) => x.c === cur).s : '₴');
-  // на выбор типа хватает половины окна, после выбора раскрываем на весь экран
-  const pick = (t) => { full = true; type = t.k; icon = t.icon === 'mail' ? 'mail' : t.k === 'fx' ? 'coin' : t.icon; };
+  const sym = $derived(type === 'fx' ? CURS.find((x) => x.c === cur).s : type === 'debt' ? DCURS.find((x) => x.c === cur).s : '₴');
+  // окно по высоте содержимого: на выбор типа короткое, после выбора вырастает ровно под форму, кнопка всегда видна
+  const pick = (t) => { type = t.k; icon = t.icon === 'mail' ? 'mail' : t.k === 'fx' ? 'coin' : t.icon; cur = t.k === 'debt' ? 'UAH' : 'USD'; };
   const amount = $derived(Number(String(bal).replace(/\s/g, '').replace(',', '.')) || 0);
 
   async function create() {
     if (busy) return;
-    if (!name.trim()) { err = 'Введите название'; return; }
+    if (!name.trim()) { err = type === 'debt' ? 'Укажите, кому вы должны' : 'Введите название'; return; }
+    if (type === 'debt' && !amount) { err = 'Введите сумму долга'; return; }
     busy = true; err = '';
     try {
+      if (type === 'debt') {
+        await createDebt({ name: name.trim(), currency: cur, amount: Math.abs(amount) });
+        await refresh('accounts', loadAccounts);
+        closeNew();
+        return;
+      }
       await createAccount({ type, name: name.trim(), icon, currency: type === 'fx' ? cur : 'UAH', budgetSource: type !== 'fx' && src, balance: amount });
       await refresh('accounts', loadAccounts);
       closeNew();
@@ -42,7 +48,7 @@
   }
 </script>
 
-<Sheet open={na.open} onclose={closeNew} bind:full title={type ? TYPES.find((x) => x.k === type).t : 'Новый счёт'} z={56}>
+<Sheet open={na.open} onclose={closeNew} fit title={type ? TYPES.find((x) => x.k === type).t : 'Новый счёт'} z={56}>
   {#snippet lead()}
     <button class="bk" class:on={type} aria-label="Назад" onclick={() => (type = null)}><Icon name="chevron" size={20} /></button>
   {/snippet}
@@ -59,28 +65,33 @@
       <div class="pv">
         <span class="ci"><Icon name={icon} size={20} /></span>
         <span class="pm"><b>{name.trim() || 'Новый счёт'}</b><small>{type ? KIND[type] : ''}</small></span>
-        <em>{amount ? amount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00'} {sym}</em>
+        <em>{type === 'debt' && amount ? '−' : ''}{amount ? Math.abs(amount).toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0,00'} {sym}</em>
       </div>
-      <div class="lb">Название</div>
-      <input class="in" placeholder="Например, Заначка" maxlength="24" bind:value={name} oninput={() => (err = '')} />
-      <div class="lb">Значок</div>
-      <div class="strip">
-        {#each PICK as k (k)}<button class:s={icon === k} aria-label={k} onclick={() => (icon = k)}><Icon name={k} size={19} /></button>{/each}
-      </div>
+      <div class="lb">{type === 'debt' ? 'Кому должны' : 'Название'}</div>
+      <input class="in" placeholder={type === 'debt' ? 'Например, Nana' : 'Например, Заначка'} maxlength="24" bind:value={name} oninput={() => (err = '')} />
+      {#if type !== 'debt'}
+        <div class="lb">Значок</div>
+        <div class="strip">
+          {#each PICK as k (k)}<button class:s={icon === k} aria-label={k} onclick={() => (icon = k)}><Icon name={k} size={19} /></button>{/each}
+        </div>
+      {/if}
       {#if type === 'fx'}
         <div class="lb">Валюта</div>
         <div class="cur">{#each CURS as x (x.c)}<button class:s={cur === x.c} onclick={() => (cur = x.c)}>{x.c} {x.s}</button>{/each}</div>
+      {:else if type === 'debt'}
+        <div class="lb">Валюта</div>
+        <div class="cur">{#each DCURS as x (x.c)}<button class:s={cur === x.c} onclick={() => (cur = x.c)}>{x.c} {x.s}</button>{/each}</div>
       {/if}
-      <div class="lb">Начальный остаток</div>
-      <input class="in big" inputmode="decimal" placeholder="0,00" bind:value={bal} />
-      {#if type !== 'fx'}
+      <div class="lb">{type === 'debt' ? 'Сумма долга' : 'Начальный остаток'}</div>
+      <input class="in big" inputmode="decimal" placeholder="0,00" bind:value={bal} oninput={() => (err = '')} />
+      {#if type !== 'fx' && type !== 'debt'}
         <button class="tg" class:on={src} onclick={() => (src = !src)}><span>Источник бюджета</span><i></i></button>
       {/if}
       {#if err}<p class="er">{err}</p>{/if}
     </div>
   </div>
   {#snippet footer()}
-    {#if type}<button class="go" disabled={busy} onclick={create}>{busy ? 'Создаю…' : 'Создать счёт'}</button>{/if}
+    {#if type}<button class="go" disabled={busy} onclick={create}>{busy ? 'Создаю…' : type === 'debt' ? 'Добавить долг' : 'Создать счёт'}</button>{/if}
   {/snippet}
 </Sheet>
 
@@ -88,10 +99,11 @@
   .bk { position: absolute; left: 4px; top: 2px; width: 32px; height: 28px; color: #C9A24A; opacity: 0; pointer-events: none; transition: opacity .25s; transform: rotate(90deg); z-index: 1; }
   .bk.on { opacity: 1; pointer-events: auto; }
   .stg { display: grid; padding: 0 2px; }
-  .s1, .s2 { grid-area: 1 / 1; min-width: 0; transition: transform .45s cubic-bezier(.32, .72, 0, 1), opacity .35s, visibility 0s .45s; }
-  .s2 { transform: translateX(40px); opacity: 0; visibility: hidden; }
-  .s1.out { transform: translateX(-40px); opacity: 0; visibility: hidden; }
-  .s2.in { transform: none; opacity: 1; visibility: visible; transition-delay: 0s; }
+  .s1, .s2 { grid-area: 1 / 1; min-width: 0; overflow: hidden; transition: transform .45s cubic-bezier(.32, .72, 0, 1), opacity .35s, max-height .45s cubic-bezier(.32, .72, 0, 1), visibility 0s .45s; }
+  .s1 { max-height: 420px; }
+  .s2 { max-height: 0; transform: translateX(40px); opacity: 0; visibility: hidden; }
+  .s1.out { max-height: 0; transform: translateX(-40px); opacity: 0; visibility: hidden; }
+  .s2.in { max-height: 760px; transform: none; opacity: 1; visibility: visible; transition-delay: 0s; }
   .tl { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: var(--card); border-radius: 16px; padding: 9px 12px; margin-bottom: 7px; box-shadow: var(--shadow); transition: transform .15s; }
   .tl:active { transform: scale(.97); }
   .tl b { display: block; font-size: 15px; font-weight: 600; }
