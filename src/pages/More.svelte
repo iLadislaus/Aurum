@@ -59,7 +59,7 @@
   .m { flex: 1; min-width: 0; }
   .m b { display: block; font-weight: 500; font-size: 15px; }
   .m small { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .ch { color: var(--muted); opacity: .6; display: grid; }
+  .ch { color: var(--muted); opacity: .6; display: grid; transform: rotate(-90deg); }
   .pill { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 99px; background: var(--gold-soft); color: var(--gold); font-variant-numeric: tabular-nums; }
   .pill.ok { background: rgba(48,209,88,.16); color: var(--pos); }
   .ver { margin: 18px 0 0; text-align: center; font-size: 12px; color: var(--muted); }
