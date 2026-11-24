@@ -30,7 +30,7 @@
     const d = acctData();
     if (!d) return [];
     const l = [];
-    const add = (a, grp, icon, currency) => l.push({ id: a.id, name: a.name, currency: currency || a.currency || 'UAH', grp, icon, mono: !!a.mono });
+    const add = (a, grp, icon, currency) => l.push({ id: a.id, name: a.name, currency: currency || a.currency || 'UAH', grp, icon, mono: !!a.mono, bal: typeof a.balance === 'number' ? a.balance : null });
     for (const a of d.cards) add(a, 'Карты и наличные', 'card');
     for (const a of d.cashes) add(a, 'Карты и наличные', /cash/i.test(a.name) ? 'cash' : 'wallet');
     for (const a of d.envs) add(a, 'Конверты', envIcon(a.name));
@@ -92,6 +92,10 @@
     if (mode === 'repay') { const r = Math.max(0, +(debt.amount - covered).toFixed(2)); return r ? `−${dn(debt.amount, debt.currency)} → −${dn(r, debt.currency)}` : `−${dn(debt.amount, debt.currency)} → долг закрыт`; }
     return '';
   });
+  // итог перевода: остатки «до → после» (при правке операции остаток уже учитывает её, поэтому без них)
+  const trFrom = $derived(isTr ? acc(fromId) : null), trTo = $derived(isTr ? acc(toId) : null);
+  const trIn = $derived(fx ? num(amt2) : total);
+  const sb = (a, d) => (no.edit || !a || a.bal == null || !(total > 0) ? '' : `${dn(a.bal, a.currency)} → ${dn(+(a.bal + d).toFixed(2), a.currency)}`);
   const fmtRate = (v) => String(+v.toFixed(v < 1 ? 4 : 2)).replace('.', ',');
   function recalc() {
     const r = num(rateIn ?? '');
@@ -249,7 +253,7 @@
   </div>
 {/snippet}
 
-<Sheet open={no.open} onclose={closeNewOp} fit {title} z={57}>
+<Sheet open={no.open} onclose={closeNewOp} fit minh="86%" {title} z={57}>
   <div class="bd" class:in={no.open}>
     {#if menu}<button class="mb" aria-label="Закрыть список" onclick={() => (menu = null)}></button>{/if}
     <div class="seg" style:--n={TYPES.findIndex((t) => t[0] === type)}>
@@ -330,6 +334,19 @@
       {/if}
     </div>
 
+    {#if isTr}
+      <div class="tsm">
+        <div class="th">ИТОГ ПЕРЕВОДА</div>
+        <div class="tf">
+          <div class="ta"><small>Откуда</small><b>{trFrom?.name ?? '…'}</b>{#if sb(trFrom, -total)}<em>{sb(trFrom, -total)}</em>{/if}</div>
+          <i class="tar"></i>
+          <div class="ta"><small>Куда</small><b>{trTo?.name ?? '…'}</b>{#if sb(trTo, trIn)}<em>{sb(trTo, trIn)}</em>{/if}</div>
+        </div>
+        {#if fx && total > 0 && trIn > 0}<div class="tx2"><span>{dn(total, fxFrom)}</span>×<span>{rateVal ? fmtRate(fxFrom === 'UAH' ? 1 / rateVal : rateVal) : '…'}</span>=<span>{dn(trIn, fxTo)}</span></div>{/if}
+        <div class="tt"><span>{fx ? 'Зачислится' : 'Переводится'}</span><b>{fmt(trIn, 2)}<u>{SYM[fx ? fxTo : cur] ?? ''}</u></b></div>
+      </div>
+    {/if}
+
     {#if split}
       <div class="lb">Категории операции</div>
       <div class="sbar">{#each eff as p}<i style:width="{total > 0 ? Math.min(100, p.v / total * 100) : 0}%"></i>{/each}</div>
@@ -385,6 +402,21 @@
   .ch { display: flex; flex-wrap: wrap; gap: 8px; padding: 2px 2px 0; }
   .pp { padding: 8px 14px; border-radius: 99px; background: var(--fill); color: var(--text); font-size: 14px; font-weight: 500; transition: background .2s, color .2s, transform .25s cubic-bezier(.3, 1.5, .5, 1); }
   .pp.on { background: linear-gradient(160deg, #F2D58F, #CD9A3A); color: #1a1206; font-weight: 600; transform: scale(1.04); }
+  .tsm { margin-top: 12px; padding: 14px 14px 12px; border-radius: 18px; color: #F4EEDD; background: #141109; box-shadow: 0 0 0 .5px rgba(232,194,119,.35); font-variant-numeric: tabular-nums; animation: rise .55s cubic-bezier(.2, .9, .3, 1) both; }
+  .th { font-size: 10px; letter-spacing: .14em; color: #a99366; margin-bottom: 10px; }
+  .tf { display: flex; align-items: center; gap: 8px; }
+  .ta { flex: 1; min-width: 0; background: rgba(255,255,255,.05); border-radius: 12px; padding: 8px 10px; }
+  .ta small { display: block; font-size: 10px; color: #a99366; }
+  .ta b { display: block; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ta em { font-style: normal; font-size: 11px; color: #a99366; white-space: nowrap; }
+  .tar { flex: none; width: 36px; height: 2px; border-radius: 2px; background: rgba(232,194,119,.25); position: relative; overflow: hidden; }
+  .tar::after { content: ""; position: absolute; top: 0; bottom: 0; width: 14px; border-radius: 2px; background: #E8C277; animation: tmv 1.8s ease-in-out infinite; }
+  @keyframes tmv { from { left: -14px; } to { left: 36px; } }
+  .tx2 { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 10px 0 2px; font-size: 12px; color: #F6E3A1; }
+  .tx2 span { padding: 3px 9px; border-radius: 99px; background: rgba(232,194,119,.12); box-shadow: inset 0 0 0 .5px rgba(232,194,119,.3); }
+  .tsm .tt { display: flex; justify-content: space-between; align-items: baseline; margin-top: 8px; padding-top: 10px; border-top: .5px solid rgba(232,194,119,.18); font-size: 12px; color: #a99366; }
+  .tsm .tt b { font-size: 22px; font-weight: 700; color: #F4EEDD; letter-spacing: -.02em; }
+  .tsm .tt u { text-decoration: none; font-size: .55em; margin-left: .3em; color: #E8C277; }
   .fp { display: flex; align-items: center; gap: 10px; padding: 11px 14px; }
   .fp > div, .fp label { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   .fp small { font-size: 11px; color: var(--muted); }
