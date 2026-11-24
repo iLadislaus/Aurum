@@ -166,7 +166,7 @@
         {#each g.items as t, i (t.id)}
           <SwipeRow id={t.id} nodelete={t.mono} norepeat={t.mono} ondelete={() => remove(t)} onrepeat={() => repeat(t)}>
             <div class="op" class:top={i > 0} role="button" tabindex="0" onclick={() => !sw.id && openOp(t, 'ops.m.' + cur.key)} onkeydown={(e) => e.key === 'Enter' && openOp(t, 'ops.m.' + cur.key)}>
-              {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} />{/if}
+              {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} name={t.name} />{/if}
               <div class="nm"><b>{t.name}</b><small>{t.cat}{t.acc ? ' · ' + t.acc : ''}</small></div>
               <span class="am" class:pos={t.v > 0 && t.action !== 'TRANSFER'} class:tr={t.action === 'TRANSFER'}>{amt(t)}</span>
             </div>
