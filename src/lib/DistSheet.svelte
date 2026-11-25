@@ -2,7 +2,7 @@
   import Sheet from './Sheet.svelte';
   import Icon from './Icon.svelte';
   import { bg, closeDist } from './budget.svelte.js';
-  import { loadBudgetCats, loadPlan, loadDist, formDist, undoDist, monthKey } from './budget.js';
+  import { loadBudgetCats, loadPlan, loadDist, loadCashIn, formDist, undoDist, monthKey, isCorr } from './budget.js';
   import { refresh, peek } from './cache.svelte.js';
   import { prefetchAll } from './prefetch.js';
   import { fmt, plural } from './format.js';
@@ -16,7 +16,7 @@
 
   let full = $state(false);
   let view = $state(1), t = $state(0), covO = $state(false), busy = $state(false), err = $state('');
-  let plan = $state({}), got = $state({}), dist = $state(null);
+  let plan = $state({}), got = $state({}), xfer = $state(0), dist = $state(null);
   let A = $state({});            // catId → [аванс, зарплата, другое]
   let txt = $state({});          // подписи в полях текущей вкладки
   let batch = $state(null), left = $state(0), timer = 0;
@@ -27,14 +27,15 @@
     try {
       await refresh('bcats', loadBudgetCats, true);
       const [p, ds] = await Promise.all([loadPlan(month), loadDist(month)]);
-      plan = p.plan; got = p.got; dist = ds;
+      const ci = await loadCashIn(month, ds.cash);
+      plan = p.plan; got = ci.got; xfer = ci.xfer; dist = ds;
     } catch (e) { err = e.message || 'Не удалось загрузить'; }
   }
   $effect(() => { if (bg.dist) { view = 1; t = 0; A = {}; txt = {}; err = ''; covO = false; batch = null; clearInterval(timer); load(); } });
 
   const envOf = (id) => d?.envs.find((e) => e.id === id);
   const idx = (c) => (c.grp === 'Аванс' ? 0 : c.grp === 'Зарплата' ? 1 : 2);
-  const gotT = $derived([0, 1, 2].map((k) => (d?.cats ?? []).filter((c) => c.income && idx(c) === k).reduce((s, c) => s + (got[c.id] || 0), 0)));
+  const gotT = $derived([0, 1, 2].map((k) => (d?.cats ?? []).filter((c) => c.income && !isCorr(c.name) && idx(c) === k).reduce((s, c) => s + (got[c.id] || 0), 0) + (k === 2 ? xfer : 0)));
   const freeT = $derived([0, 1, 2].map((k) => Math.max(0, gotT[k] - (dist?.done[k] ?? 0))));
   const rowsAll = $derived((d?.cats ?? []).filter((c) => !c.income && envOf(c.env)).map((c) => ({ c, need: Math.max(0, (plan[c.id] || 0) - Math.max(0, envOf(c.env).balance)) })));
   const R = $derived(rowsAll.filter((r) => r.need > 0));
@@ -130,7 +131,7 @@
             <div class="cov" class:o={covO}><div>{#each COV as r (r.c.id)}<div class="row c"><div class="ic"><Icon name={r.c.icon} size={17} /></div><div class="m"><b>{r.c.name}</b><small><Icon name="mail" size={13} />Конверт {envOf(r.c.env).name}</small></div><span class="nd ok">хватает ✓</span></div>{/each}</div></div>
           </div>
         {/if}
-        <p class="hint">Деньги идут из Cash в конверт отдельными переводами. Категории без конверта платятся из Cash напрямую, их раскладывать не нужно.</p>
+        <p class="hint">Раскладываются только деньги на Cash: доходы, пришедшие на Cash, и переводы на Cash с карт. Деньги идут из Cash в конверт отдельными переводами. Категории без конверта платятся из Cash напрямую, их раскладывать не нужно.</p>
       {/if}
       {#if err && view === 1}<p class="er">{err}</p>{/if}
     </div>

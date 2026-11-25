@@ -74,6 +74,24 @@ export async function savePlan(month, vals, ids, prev) {
 
 // ── Разложить деньги ──
 const INC_KEYS = ['advance', 'salary', 'other'];
+// корректировки баланса — не доход, в «Получено» не считаются
+export const isCorr = (name) => /balanc|corect|correct|корректир/i.test(name || '');
+// Что реально лежит на Cash и его можно разложить: доходы, пришедшие на Cash, и переводы на Cash с карт (сняли деньги)
+export async function loadCashIn(month, cash) {
+  if (!cash) return { got: {}, xfer: 0 };
+  const [y, m] = month.split('-').map(Number);
+  const a = new Date(y, m - 1, 1).toISOString(), z = new Date(y, m, 1).toISOString();
+  const [inc, xf, env] = await Promise.all([
+    sb.from('transactions').select('category_id,amount').eq('action', 'INCOME').eq('account_id', cash).gte('date', a).lt('date', z),
+    sb.from('transactions').select('amount,from_account_id').eq('action', 'TRANSFER').eq('to_account_id', cash).gte('date', a).lt('date', z),
+    sb.from('accounts').select('id').eq('block', 'env')
+  ]);
+  for (const r of [inc, xf, env]) if (r.error) throw r.error;
+  const got = {}; for (const r of inc.data) got[r.category_id] = (got[r.category_id] || 0) + Number(r.amount);
+  const envIds = new Set(env.data.map((e) => e.id));
+  const xfer = xf.data.filter((r) => !envIds.has(r.from_account_id)).reduce((s, r) => s + Number(r.amount), 0);
+  return { got, xfer };
+}
 export async function loadDist(month) {
   const [d, m, a] = await Promise.all([
     sb.from('budget_distribution').select('category_id,advance,salary,other').eq('month', month),
