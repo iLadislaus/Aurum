@@ -74,6 +74,8 @@ export async function savePlan(month, vals, ids, prev) {
 
 // ── Разложить деньги ──
 const INC_KEYS = ['advance', 'salary', 'other'];
+// корректировки баланса — не доход, в «Получено» не считаются
+export const isCorr = (name) => /balanc|corect|correct|корректир/i.test(name || '');
 export async function loadDist(month) {
   const [d, m, a] = await Promise.all([
     sb.from('budget_distribution').select('category_id,advance,salary,other').eq('month', month),
