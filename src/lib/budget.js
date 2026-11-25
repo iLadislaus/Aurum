@@ -155,8 +155,11 @@ export async function loadBudgetMonth(month) {
     mode: x.spend_mode || 'spread', parts: x.spend_parts || 4, grp: x.type === 'INCOME' ? incomeGroup(x.name) : null,
     plan: p.plan[x.id] || 0, fact: x.type === 'INCOME' ? p.got[x.id] || 0 : Math.max(0, spent[x.id] || 0)
   }));
+  // свободно для раскладки — только то, что физически лежит на Cash (как в окне «Разложить»)
   const gk = { 'Аванс': 0, 'Зарплата': 1, 'Другое': 2 };
-  const got = [0, 0, 0]; for (const x of cats) if (x.income) got[gk[x.grp]] += x.fact;
+  const ci = await loadCashIn(month, ds.cash);
+  const got = [0, 0, 0]; for (const x of cats) if (x.income && !isCorr(x.name)) got[gk[x.grp]] += ci.got[x.id] || 0;
+  got[2] += ci.xfer;
   const free = got.map((g, i) => Math.max(0, g - ds.done[i]));
   return { cats, free, at: Date.now() };
 }
