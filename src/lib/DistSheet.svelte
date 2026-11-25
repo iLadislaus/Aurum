@@ -2,7 +2,7 @@
   import Sheet from './Sheet.svelte';
   import Icon from './Icon.svelte';
   import { bg, closeDist } from './budget.svelte.js';
-  import { loadBudgetCats, loadPlan, loadDist, formDist, undoDist, monthKey, isCorr } from './budget.js';
+  import { loadBudgetCats, loadPlan, loadDist, loadCashIn, formDist, undoDist, monthKey, isCorr } from './budget.js';
   import { refresh, peek } from './cache.svelte.js';
   import { prefetchAll } from './prefetch.js';
   import { fmt, plural } from './format.js';
@@ -16,7 +16,7 @@
 
   let full = $state(false);
   let view = $state(1), t = $state(0), covO = $state(false), busy = $state(false), err = $state('');
-  let plan = $state({}), got = $state({}), dist = $state(null);
+  let plan = $state({}), got = $state({}), xfer = $state(0), dist = $state(null);
   let A = $state({});            // catId → [аванс, зарплата, другое]
   let txt = $state({});          // подписи в полях текущей вкладки
   let batch = $state(null), left = $state(0), timer = 0;
@@ -27,20 +27,15 @@
     try {
       await refresh('bcats', loadBudgetCats, true);
       const [p, ds] = await Promise.all([loadPlan(month), loadDist(month)]);
-      plan = p.plan; got = p.got; dist = ds;
+      const ci = await loadCashIn(month, ds.cash);
+      plan = p.plan; got = ci.got; xfer = ci.xfer; dist = ds;
     } catch (e) { err = e.message || 'Не удалось загрузить'; }
   }
-  $effect(() => { if (bg.dist) { view = 1; t = 0; A = {}; txt = {}; err = ''; covO = false; batch = null; src = 0; clearInterval(timer); load(); } });
+  $effect(() => { if (bg.dist) { view = 1; t = 0; A = {}; txt = {}; err = ''; covO = false; batch = null; clearInterval(timer); load(); } });
 
-  // откуда берутся деньги: Cash по умолчанию, можно выбрать карту или другой счёт
-  let src = $state(0);
-  const acc = $derived(peek('accounts'));
-  const srcList = $derived([...(acc?.cashes ?? []), ...(acc?.cards ?? [])].map((x) => ({ id: x.id, name: String(x.name).replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}️‍]/gu, '').trim() })));
-  const srcId = $derived(src || dist?.cash || 0);
-  const srcName = $derived(srcList.find((x) => x.id === srcId)?.name || 'Cash');
   const envOf = (id) => d?.envs.find((e) => e.id === id);
   const idx = (c) => (c.grp === 'Аванс' ? 0 : c.grp === 'Зарплата' ? 1 : 2);
-  const gotT = $derived([0, 1, 2].map((k) => (d?.cats ?? []).filter((c) => c.income && !isCorr(c.name) && idx(c) === k).reduce((s, c) => s + (got[c.id] || 0), 0)));
+  const gotT = $derived([0, 1, 2].map((k) => (d?.cats ?? []).filter((c) => c.income && !isCorr(c.name) && idx(c) === k).reduce((s, c) => s + (got[c.id] || 0), 0) + (k === 2 ? xfer : 0)));
   const freeT = $derived([0, 1, 2].map((k) => Math.max(0, gotT[k] - (dist?.done[k] ?? 0))));
   const rowsAll = $derived((d?.cats ?? []).filter((c) => !c.income && envOf(c.env)).map((c) => ({ c, need: Math.max(0, (plan[c.id] || 0) - Math.max(0, envOf(c.env).balance)) })));
   const R = $derived(rowsAll.filter((r) => r.need > 0));
@@ -75,7 +70,7 @@
   async function make() {
     busy = true; err = '';
     try {
-      batch = await formDist(month, label, srcId, items.map((i) => ({ cat: i.cat, env: i.env, name: i.name, a: i.a })));
+      batch = await formDist(month, label, dist.cash, items.map((i) => ({ cat: i.cat, env: i.env, name: i.name, a: i.a })));
       view = 3; left = 60; clearInterval(timer);
       timer = setInterval(() => { left -= 1; if (left <= 0) { clearInterval(timer); batch = null; } }, 1000);
       refresh('bcats', loadBudgetCats, true).catch(() => {}); prefetchAll(true);
@@ -91,7 +86,7 @@
   const mm = (s) => `0:${String(s).padStart(2, '0')}`;
 </script>
 
-<Sheet open={bg.dist} onclose={() => { clearInterval(timer); closeDist(); }} title="Разложить деньги" sub="{label} · в конверты" bind:full>
+<Sheet open={bg.dist} onclose={() => { clearInterval(timer); closeDist(); }} title="Разложить деньги" sub="{label} · из Cash в конверты" bind:full>
   <div class="vp">
     <div class="vs" class:act={view === 1} style:transform="translateX({view === 1 ? 0 : -100}%)" class:off={view !== 1}>
       <div class="cd hz">
@@ -136,16 +131,15 @@
             <div class="cov" class:o={covO}><div>{#each COV as r (r.c.id)}<div class="row c"><div class="ic"><Icon name={r.c.icon} size={17} /></div><div class="m"><b>{r.c.name}</b><small><Icon name="mail" size={13} />Конверт {envOf(r.c.env).name}</small></div><span class="nd ok">хватает ✓</span></div>{/each}</div></div>
           </div>
         {/if}
-        <p class="hint">Деньги идут в конверт отдельными переводами с выбранного счёта (по умолчанию Cash). Категории без конверта платятся напрямую, их раскладывать не нужно.</p>
+        <p class="hint">Раскладываются только деньги на Cash: доходы, пришедшие на Cash, и переводы на Cash с карт. Деньги идут из Cash в конверт отдельными переводами. Категории без конверта платятся из Cash напрямую, их раскладывать не нужно.</p>
       {/if}
       {#if err && view === 1}<p class="er">{err}</p>{/if}
     </div>
 
     <div class="vs" class:act={view === 2} style:transform="translateX({view === 1 ? 100 : view === 2 ? 0 : -100}%)" class:off={view !== 2}>
       <div class="nav"><button class="back" aria-label="Назад" onclick={() => (view = 1)}><Icon name="chevron" size={22} /></button><b>Сформировать</b><span class="sp"></span></div>
-      <label class="srcp"><span>Списать с</span><select bind:value={src}>{#each srcList as x (x.id)}<option value={x.id === dist?.cash ? 0 : x.id}>{x.name}</option>{/each}</select></label>
-      <div class="grp">{#each items as i (i.cat)}<div class="tr"><div class="ic"><Icon name={i.icon} size={17} /></div><div class="arr">{srcName} <Icon name="arrowup" size={14} /> {i.envName}</div><b>{fmt(i.a.reduce((s, v) => s + v, 0))} ₴</b></div>{/each}</div>
-      <div class="sm"><div><span>Переводов будет создано</span><b>{items.length}</b></div><div><span>Всего с «{srcName}»</span><b>{fmt(allSum)} ₴</b></div><div><span>Операции с датой</span><b>сегодня</b></div></div>
+      <div class="grp">{#each items as i (i.cat)}<div class="tr"><div class="ic"><Icon name={i.icon} size={17} /></div><div class="arr">Cash <Icon name="arrowup" size={14} /> {i.envName}</div><b>{fmt(i.a.reduce((s, v) => s + v, 0))} ₴</b></div>{/each}</div>
+      <div class="sm"><div><span>Переводов будет создано</span><b>{items.length}</b></div><div><span>Всего из Cash</span><b>{fmt(allSum)} ₴</b></div><div><span>Операции с датой</span><b>сегодня</b></div></div>
       <p class="hint">Отменить можно в течение минуты.</p>
       {#if err}<p class="er">{err}</p>{/if}
     </div>
@@ -154,7 +148,7 @@
       <div class="dn3">
         <div class="ckm"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg></div>
         <h3>Готово · {nT(items.length)}</h3>
-        <p>{fmt(allSum)} ₴ переведено с «{srcName}» в конверты</p>
+        <p>{fmt(allSum)} ₴ переведено из Cash в конверты</p>
         {#if batch}<button class="undo" disabled={busy} onclick={undo}>Отменить ({mm(left)})</button>{/if}
         {#if err}<p class="er">{err}</p>{/if}
       </div>
@@ -208,7 +202,6 @@
   .ic { width: 34px; height: 34px; border-radius: 50%; background: var(--gold-soft); color: var(--gold); display: grid; place-items: center; flex: none; }
   .m { flex: 1; min-width: 0; } .m b { display: block; font-weight: 500; } .m small { display: flex; align-items: flex-start; gap: 4px; font-size: 11.5px; line-height: 1.3; color: var(--muted); margin-top: 1px; white-space: normal; overflow-wrap: anywhere; } .m small :global(svg) { flex: none; color: var(--gold); margin-top: 1px; }
   .nw { white-space: nowrap; }
-  .srcp { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 12px; padding: 4px 14px; min-height: 48px; border-radius: 16px; background: var(--card); box-shadow: var(--shadow); } .srcp span { color: var(--muted); font-size: 14px; } .srcp select { max-width: 62%; font: inherit; font-size: 16px; font-weight: 600; color: var(--gold); background: none; border: 0; outline: 0; text-align: right; text-align-last: right; }
   .bar { height: 4px; border-radius: 2px; background: rgba(118, 118, 128, .2); margin-top: 6px; overflow: hidden; } .bar i { display: block; height: 100%; border-radius: 2px; background: linear-gradient(90deg, #9C7420, #E8C277); transition: width .6s cubic-bezier(.2, .8, .2, 1); } .bar i.d { background: linear-gradient(90deg, #248A3D, #4CD470); }
   .rt { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; width: 104px; }
   .am { width: 104px; height: 34px; border-radius: 11px; background: var(--fill); border: 0; text-align: right; padding: 0 11px; font: inherit; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); outline: none; transition: box-shadow .2s, background .2s; }
