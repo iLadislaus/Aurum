@@ -117,7 +117,7 @@
               {@const lf = r.need - tot(r.c.id)}
               <div class="row">
                 <div class="ic"><Icon name={r.c.icon} size={17} /></div>
-                <div class="m"><b>{r.c.name}</b><small><Icon name="mail" size={13} />Конверт {envOf(r.c.env).name} · нужно {fmt(r.need)} ₴</small>
+                <div class="m"><b>{r.c.name}</b><small><Icon name="mail" size={13} /><span>Конверт {envOf(r.c.env).name} <span class="nw">· нужно {fmt(r.need)} ₴</span></span></small>
                   <div class="bar"><i class:d={lf <= 0} style:width="{Math.min(100, tot(r.c.id) / r.need * 100)}%"></i></div></div>
                 <div class="rt"><input class="am" inputmode="numeric" placeholder="0" value={shown(r.c.id)} oninput={(e) => ed(r.c.id, e.currentTarget.value)} onfocus={(e) => e.currentTarget.select()} onblur={() => blur(r.c.id)} />
                   <span class="nd" class:ok={lf <= 0}>{lf <= 0 ? (lf < 0 ? 'с запасом ✓' : 'хватает ✓') : 'ещё ' + fmt(lf)}</span></div>
@@ -200,6 +200,7 @@
   .row { display: flex; align-items: center; gap: 12px; padding: 9px 12px 9px 14px; position: relative; min-height: 60px; } .row + .row::before { content: ""; position: absolute; left: 60px; right: 0; top: 0; border-top: .5px solid var(--line); }
   .ic { width: 34px; height: 34px; border-radius: 50%; background: var(--gold-soft); color: var(--gold); display: grid; place-items: center; flex: none; }
   .m { flex: 1; min-width: 0; } .m b { display: block; font-weight: 500; } .m small { display: flex; align-items: flex-start; gap: 4px; font-size: 11.5px; line-height: 1.3; color: var(--muted); margin-top: 1px; white-space: normal; overflow-wrap: anywhere; } .m small :global(svg) { flex: none; color: var(--gold); margin-top: 1px; }
+  .nw { white-space: nowrap; }
   .bar { height: 4px; border-radius: 2px; background: rgba(118, 118, 128, .2); margin-top: 6px; overflow: hidden; } .bar i { display: block; height: 100%; border-radius: 2px; background: linear-gradient(90deg, #9C7420, #E8C277); transition: width .6s cubic-bezier(.2, .8, .2, 1); } .bar i.d { background: linear-gradient(90deg, #248A3D, #4CD470); }
   .rt { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; width: 104px; }
   .am { width: 104px; height: 34px; border-radius: 11px; background: var(--fill); border: 0; text-align: right; padding: 0 11px; font: inherit; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); outline: none; transition: box-shadow .2s, background .2s; }
