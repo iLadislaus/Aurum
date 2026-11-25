@@ -145,7 +145,7 @@
   .r + .r::before { content: ""; position: absolute; left: 60px; right: 0; top: 0; border-top: .5px solid var(--line); }
   .ic { width: 34px; height: 34px; border-radius: 50%; background: var(--gold-soft); color: var(--gold); display: grid; place-items: center; flex: none; }
   .m { flex: 1; min-width: 0; } .m b { display: block; font-weight: 500; }
-  .m small { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--muted); margin-top: 1px; white-space: nowrap; } .m small :global(svg) { flex: none; color: var(--gold); }
+  .m small { display: flex; align-items: flex-start; gap: 4px; font-size: 11.5px; line-height: 1.3; color: var(--muted); margin-top: 1px; white-space: normal; overflow-wrap: anywhere; } .m small :global(svg) { flex: none; color: var(--gold); margin-top: 1px; }
   .bar { height: 4px; border-radius: 2px; background: rgba(118, 118, 128, .2); margin-top: 6px; overflow: hidden; }
   .bar i { display: block; height: 100%; border-radius: 2px; background: linear-gradient(90deg, #9C7420, #E8C277); transition: width .6s cubic-bezier(.2, .8, .2, 1); }
   .rt { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; width: 104px; }
