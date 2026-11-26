@@ -10,7 +10,7 @@
     <img class="bgi" src="{import.meta.env.BASE_URL}cards/mono-{theme}.jpg" alt="" draggable="false" />
     <span class="kd">{kind}</span>
     <div class="ab">{@render amount()}</div>
-    <div class="mac">{@render acct()}</div>
+    <div class="mch">{@render chip?.()}</div>
   {:else}
     <div class="art" aria-hidden="true">
       <svg viewBox="0 0 360 236" preserveAspectRatio="xMidYMid slice">
@@ -45,7 +45,8 @@
   .c3 { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 22px; }
   .kd { position: absolute; top: 22px; right: 22px; font-size: 12px; letter-spacing: .16em; font-weight: 700; color: var(--sub); }
   .cf.mono .ab { position: absolute; left: 22px; top: 31%; }
-  .mch { position: absolute; left: 22px; right: 22px; top: 53%; }
+  .mch { position: absolute; left: 20px; right: 20px; bottom: 16px; }
+  .cf.mono :global(.ct) { font-size: 16px; } .cf.mono :global(.cn small) { margin-top: 1px; }
   .mac { position: absolute; left: 20px; bottom: 16px; }
   /* общие части содержимого (разметку дают окна) */
   .cf :global(.big) { display: flex; align-items: baseline; gap: 8px; margin-top: 26px; }
@@ -59,8 +60,10 @@
   .cf.mono :global(.big u) { font-size: 22px; }
   .cf.mono .ab { white-space: nowrap; }
   .cf :global(.ct) { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 16px; font-weight: 600; color: var(--fg); }
-  .cf.mono :global(.ct) { font-size: 14px; gap: 8px; }
+  .cf.mono :global(.ct) { gap: 10px; }
   .cf :global(.ct span) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cf :global(.ct .cn) { white-space: normal; overflow: visible; text-overflow: clip; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.2; max-width: 80%; overflow-wrap: anywhere; }
+  .cf :global(.ct .cn.lg) { font-size: 13px; }
   .cf :global(.cn) { display: flex; flex-direction: column; line-height: 1.15; }
   .cf :global(.cn small) { font-size: 12px; color: var(--sub); font-weight: 500; margin-top: 2px; }
   .cf :global(.dw) { position: relative; min-width: 0; }
