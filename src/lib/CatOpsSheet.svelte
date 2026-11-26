@@ -63,7 +63,8 @@
 </Sheet>
 
 <style>
-  .bd { padding: 0 6px 24px; min-height: 50vh; }
+  .bd { padding: 0 6px 24px; min-height: 50vh; margin-top: -8px; }
+  .bd > .dh:first-child { margin-top: 2px; }
   .dh { display: flex; justify-content: space-between; margin: 14px 8px 6px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; font-variant-numeric: tabular-nums; }
   .dh b { text-transform: none; letter-spacing: 0; }
   .cd { background: var(--card); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
