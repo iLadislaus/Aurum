@@ -226,6 +226,17 @@ export function buildReport(raw, period, now = new Date()) {
     .map((x) => ({ name: x.name, currency: x.currency, amount: -x.balance, uah: x.currency === 'UAH' ? -x.balance : rates[x.currency] ? r2(-x.balance * rates[x.currency]) : null }));
   const list = home.filter((x) => Math.abs(x.balance) > 0.004).sort((x, y) => y.balance - x.balance).map((x) => ({ name: x.name, balance: x.balance }));
 
+  // валютные сбережения: отдельно от гривны, в доходы и расходы не входят
+  const SYMS = [...new Set(foreign.map((x) => x.currency))];
+  const known = foreign.every((x) => x.uah != null);
+  const savingsUah = known ? sum(foreign, (x) => x.uah) : null;
+  const savings = foreign.length ? {
+    list: foreign, uah: savingsUah,
+    byCurrency: SYMS.map((c) => ({ currency: c, balance: sum(foreign.filter((x) => x.currency === c), (x) => x.balance) })),
+    all: known ? r2(homeTotal + savingsUah) : null,
+    share: known && homeTotal + savingsUah > 0 ? Math.max(0, Math.min(100, Math.round((savingsUah / (homeTotal + savingsUah)) * 100))) : null
+  } : null;
+
   // остаток гривневых счетов на конец каждого месяца: от сегодняшнего остатка отматываем движения назад
   const flows = raw.ops.map((o) => {
     const mine = (id) => id != null && am.has(id) && !am.get(id).is_foreign;
@@ -294,7 +305,7 @@ export function buildReport(raw, period, now = new Date()) {
     prev: comparable ? { ...pt, saldo: r2(pt.inc - pt.exp), from: pq.from, to: pq.to } : null,
     expChange: comparable ? change(t.exp, pt.exp) : null, incChange: comparable ? change(t.inc, pt.inc) : null,
     avgDay: elapsed ? r2(t.exp / elapsed) : 0,
-    cats, mand, opt, merchants, big, sources, incCats, months, days, topDay, weekdays, plan,
+    savings, cats, mand, opt, merchants, big, sources, incCats, months, days, topDay, weekdays, plan,
     accounts: { homeTotal, cardsCash, envs, list, foreign, debts, debtUah, debtKnown }, capital,
     health, forecast, upcoming, notes, ops
   };

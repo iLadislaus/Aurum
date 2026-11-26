@@ -22,7 +22,8 @@
   let raw = $state.raw(null), err = $state('');
   let kind = $state('m'), tab = $state(0), pick = $state({ m: nowYm, q: 0, y: 0 });
   let from = $state(today.slice(0, 8) + '01'), to = $state(today);
-  let openCat = $state(null), help = $state(false), xl = $state('');
+  let openCat = $state(null), help = $state(false), savOpen = $state(false), xl = $state('');
+  const CUR = { USD: 'доллары', EUR: 'евро' };
 
   async function load() {
     err = '';
@@ -34,7 +35,7 @@
     if (!an.open) return;
     untrack(() => {
       const v = Math.min(an.ym, nowYm);
-      kind = 'm'; tab = 0; openCat = null; xl = '';
+      kind = 'm'; tab = 0; openCat = null; savOpen = false; xl = '';
       pick = { m: v, q: Math.floor(v / 12) * 4 + Math.floor((v % 12) / 3), y: Math.floor(v / 12) };
       load();
     });
@@ -152,6 +153,32 @@
               {#if r.taken}{@render line('Взято в долг', money(r.taken))}{/if}
               {#if r.expChange != null}<small>Расходы {r.expChange === 0 ? 'как' : `на ${Math.abs(r.expChange)}% ${r.expChange > 0 ? 'выше' : 'ниже'}, чем`} {r.prevLabel}</small>{:else}<small>Сравнить не с чем: учёт ведётся с {ruDate(r.first)}</small>{/if}
             </div>
+            {#if r.savings}
+              {@const s = r.savings}
+              <div class="card sav">
+                <button class="sv" onclick={() => (savOpen = !savOpen)} aria-expanded={savOpen}>
+                  <span class="ln mid"><span class="lbl"><Icon name="lock" size={16} />Сбережения в валюте</span><span class="ar" class:up={savOpen}><Icon name="chevron" size={14} /></span></span>
+                  <span class="ln mid sum">
+                    {#if s.uah != null}<strong>≈ {money(s.uah)}</strong>{/if}
+                    <span class="chips">{#each s.byCurrency as c}<em>{cash(c.balance, 0, c.currency)}</em>{/each}</span>
+                  </span>
+                </button>
+                <div class="more" class:o={savOpen} inert={!savOpen}><div>
+                  {#each s.list as a}
+                    <div class="ln acc"><span>{a.name}<small>{CUR[a.currency] ?? a.currency}</small></span><b>{cash(a.balance, 0, a.currency)}<small>{a.uah != null ? '≈ ' + money(a.uah) : 'нет курса'}</small></b></div>
+                  {/each}
+                  <p>По курсу Monobank на сегодня. В доходы и расходы не входит</p>
+                </div></div>
+              </div>
+              {#if s.all != null}
+                <div class="card">
+                  <div class="ln"><span>Всего с валютой</span><b class="gold">≈ {money(s.all)}</b></div>
+                  {#if s.share != null}<div class="split"><i style="width:{100 - s.share}%"></i><i style="width:{s.share}%"></i></div>{/if}
+                  <div class="ln"><small>Гривна {money(r.accounts.homeTotal)}</small>{#if s.share != null}<small>Валюта {s.share}%</small>{/if}</div>
+                  {#if r.accounts.debts.length}<small>Долги из этой суммы не вычтены</small>{/if}
+                </div>
+              {/if}
+            {/if}
             {#if r.health.score != null}
               <div class="card">
                 <button class="h tap" onclick={() => (help = !help)}><span>Финансовое здоровье</span><b class="gold">{r.health.score} из 100</b></button>
@@ -365,6 +392,19 @@
   .xl span { position: relative; display: flex; align-items: center; justify-content: center; gap: 8px; }
   .xl i { position: absolute; inset: 0; background: rgba(255,255,255,.45); transform: scaleX(0); transform-origin: left; }
   .xl.busy i { animation: fillx .5s ease-in-out forwards; }
+  .sav { position: relative; overflow: hidden; box-shadow: inset 0 0 0 1px var(--gold-soft), var(--shadow); }
+  .sav::after { content: ""; position: absolute; top: 0; bottom: 0; left: -90px; width: 70px; pointer-events: none; background: var(--gold-soft); opacity: .35; transform: skewX(-20deg); animation: sheen 4.5s ease-in-out infinite; }
+  @keyframes sheen { 0%, 40% { left: -90px; } 100% { left: 130%; } }
+  .sv { display: block; width: 100%; text-align: left; }
+  .sv > span { display: flex; } .mid { align-items: center; }
+  .lbl { display: flex; align-items: center; gap: 8px; color: var(--gold); }
+  .ar { display: grid; color: var(--gold); transition: transform .35s; } .ar.up { transform: rotate(180deg); }
+  .sum { margin-top: 8px; flex-wrap: wrap; } .sum strong { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; } .chips em { font-size: 12px; font-weight: 600; color: var(--gold); background: var(--gold-soft); border-radius: 99px; padding: 3px 10px; white-space: nowrap; }
+  .more { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .45s cubic-bezier(.32,.72,0,1); } .more.o { grid-template-rows: 1fr; } .more > div { overflow: hidden; min-height: 0; }
+  .acc { align-items: center; padding: 9px 0; border-top: .5px solid var(--line); } .acc:first-child { margin-top: 10px; } .acc b { text-align: right; } .acc small { display: block; color: var(--muted); font-size: 12px; font-weight: 400; }
+  .more p { margin: 0; padding-top: 9px; border-top: .5px solid var(--line); color: var(--muted); font-size: 12px; }
+  .split { display: flex; height: 7px; border-radius: 99px; overflow: hidden; margin: 10px 0 0; animation: grow .9s cubic-bezier(.2,.8,.2,1) .2s both; transform-origin: left; } .split i:first-child { background: #8A6212; } .split i:last-child { background: #F0CB82; }
   @keyframes fillx { to { transform: scaleX(1); } }
-  @media (prefers-reduced-motion: reduce) { .card, .b i, .donut circle, .ops { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .card, .b i, .donut circle, .ops, .sav::after, .split { animation: none; } .more { transition: none; } }
 </style>

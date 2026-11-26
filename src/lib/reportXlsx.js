@@ -47,6 +47,13 @@ export function reportSheets(r) {
   ]);
   const flow = s1.table('Доходы и расходы', ['Показатель', 'Сумма'], [['Доходы', r.inc], ['Расходы', r.exp]]);
   s1.chart(flow, { type: 'column', title: 'Доходы и расходы периода', cat: 0, series: [{ name: 'Сумма', col: 1 }] }, 15);
+  const sv = r.savings;
+  if (sv) {
+    const t = s1.table('Сбережения в валюте (на сегодня)', ['Счёт', 'Сумма', 'Валюта', '≈ в гривнах'],
+      sv.list.map((x) => [x.name, { v: x.balance, s: 'text' }, { v: x.currency, s: 'text' }, x.uah ?? { v: 'нет курса', s: 'text' }]));
+    if (sv.uah != null) closeTotal(s1, [{ v: 'Итого в валюте', s: 'bold' }, null, null, total(s1, t, 'D', sv.uah)]);
+    if (sv.all != null) s1.table('Всего с валютой', ['Где деньги', 'Сумма'], [['Гривневые счета', r.accounts.homeTotal], ['Валюта по курсу Monobank', sv.uah], [{ v: 'Всего (долги не вычтены)', s: 'bold' }, { v: sv.all, s: 'moneyBold' }]]);
+  }
   if (r.health.score != null) s1.table(`Финансовое здоровье: ${r.health.score} из 100`, ['Часть', 'Значение', 'Баллы', 'Максимум'],
     r.health.parts.map((p) => [p.name, { v: p.text, s: 'text' }, { v: p.got, s: 'int' }, { v: p.max, s: 'int' }]));
   r.health.parts.forEach((p) => s1.rows.push([{ v: `${p.name}: ${p.rule}`, s: 'muted' }]));
