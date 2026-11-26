@@ -13,6 +13,7 @@
   // окно сразу на весь экран, как остальные большие окна: список листается, закрытие свайпом вниз с верха
   let full = $state(false);
   $effect(() => { if (bg.cats) { const t = setTimeout(() => (full = true), 0); return () => clearTimeout(t); } });
+  let tab = $state(0);             // 0 расходы, 1 доходы
   let view = $state(1);            // 1 список, 2 форма, 3 выбор конверта, 4 удаление
   let draft = $state(null), isNew = $state(false), busy = $state(false), err = $state('');
   let delTo = $state(null), delCount = $state(0);
@@ -84,17 +85,24 @@
 <Sheet open={bg.cats} onclose={closeCats} title="Категории" bind:full>
   <div class="vp" bind:this={vp}>
     <div class="vs" class:act={view === 1} style:transform="translateX({view === 1 ? 0 : -100}%)" class:off={view !== 1}>
-      <div class="bar"><span></span><button class="plus" aria-label="Новая категория" onclick={() => open(null)}><Icon name="plus" size={20} /></button></div>
+      <div class="bar">
+        {@render seg([`Расходы · ${exp.length}`, `Доходы · ${inc.length}`], tab, (i) => (tab = i))}
+        <button class="plus" aria-label="Новая категория" onclick={() => open(null)}><Icon name="plus" size={20} /></button>
+      </div>
       {#if swap}
         <button class="warnb" onclick={fix}><Icon name="care" size={20} /><div><b>Связи нужно проверить</b>{swap.a.name} привязана к конверту {swap.env.name}, а у {swap.b.name} конверта нет. <em>Нажми — поменяю местами.</em></div></button>
       {/if}
       {#if d}
-        <h2>С конвертом<span>{withE.length}</span></h2>
-        <div class="grp">{#each withE as c (c.id)}{@render row(c)}{/each}</div>
-        <h2>Без конверта · платятся из Cash<span>{noE.length}</span></h2>
-        <div class="grp">{#each noE as c (c.id)}{@render row(c)}{/each}</div>
-        <h2>Доходы<span>{inc.length}</span></h2>
-        <div class="grp">{#each inc as c (c.id)}{@render row(c)}{/each}</div>
+        {#if tab === 0}
+          <div class="sum"><div style="--k:0"><small>С конвертом</small><b>{withE.length}</b></div><div style="--k:1"><small>Платятся из Cash</small><b>{noE.length}</b></div></div>
+          <h2>С конвертом<span>{withE.length}</span></h2>
+          <div class="grp">{#each withE as c, k (c.id)}{@render row(c, k)}{/each}</div>
+          <h2>Без конверта · из Cash<span>{noE.length}</span></h2>
+          <div class="grp">{#each noE as c, k (c.id)}{@render row(c, k + withE.length)}{/each}</div>
+        {:else}
+          <h2>Доходы<span>{inc.length}</span></h2>
+          <div class="grp">{#each inc as c, k (c.id)}{@render row(c, k)}{/each}</div>
+        {/if}
         <p class="hint">Конверт показывает, из каких денег платится категория. Суммы и остатки считаются в плане.</p>
       {/if}
     </div>
@@ -143,12 +151,12 @@
   </div>
 </Sheet>
 
-{#snippet row(c)}
+{#snippet row(c, k = 0)}
   {@const e = envOf(c.env)}
-  <button class="r" onclick={() => open(c)}>
+  <button class="r" style="--k:{k}" onclick={() => open(c)}>
     <div class="ic"><Icon name={c.icon} size={17} /></div>
-    <div class="m"><b>{c.name}</b><small>{subtitle(c)}</small></div>
-    <div class="ch">{#if c.income}<span class="pill no">{c.grp}</span>{:else if e}<span class="pill"><Icon name={e.icon} size={14} />{e.name}</span>{:else}<span class="pill no">из Cash</span>{/if}</div>
+    <div class="m"><b>{c.name}</b><small>{c.income ? 'доход' : c.mode.toLowerCase()}</small></div>
+    <div class="ch">{#if c.mand && !c.income}<em class="bdg">обяз.</em>{/if}{#if c.income}<span class="pill no">{c.grp}</span>{:else if e}{#if norm(e.name) !== norm(c.name)}<span class="pill"><Icon name={e.icon} size={14} />{e.name}</span>{/if}{:else}<span class="pill no">Cash</span>{/if}</div>
     <span class="chev"><Icon name="chevron" size={14} /></span>
   </button>
 {/snippet}
@@ -165,7 +173,11 @@
   .vs { position: absolute; top: 0; left: 0; right: 0; background: var(--bg); transition: transform .45s cubic-bezier(.32, .72, 0, 1), opacity .3s; padding: 0 6px 12px; }
   .vs.act { position: relative; }
   .vs.off { pointer-events: none; opacity: .4; }
-  .bar { display: flex; justify-content: flex-end; margin: 0 4px 10px; }
+  .bar { display: flex; align-items: center; gap: 10px; margin: 0 2px 12px; } .bar .seg { flex: 1; } .bar .seg button { padding: 7px 4px; text-align: center; }
+  .sum { display: flex; gap: 8px; margin-bottom: 8px; } .sum div { flex: 1; background: var(--card); border-radius: 14px; padding: 8px 12px; box-shadow: var(--shadow); animation: up .5s calc(var(--k) * 60ms) both; } .sum small { display: block; font-size: 11px; color: var(--muted); } .sum b { font-size: 17px; }
+  @keyframes up { from { opacity: 0; transform: translateY(10px); } }
+  .r { animation: up .45s calc(var(--k, 0) * 30ms + .1s) both; }
+  .bdg { font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--gold); background: var(--gold-soft); border-radius: 99px; padding: 3px 8px; margin-right: 6px; }
   .plus { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; color: #fff; background: linear-gradient(160deg, #EBC77A, #B8862C); box-shadow: 0 6px 14px -6px rgba(184, 134, 44, .8); transition: transform .2s; }
   .plus:active { transform: scale(.9) rotate(90deg); }
   button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
@@ -175,12 +187,12 @@
   h2 span { font-weight: 400; }
   .grp, .card { background: var(--card); border-radius: 16px; margin-bottom: 18px; overflow: hidden; box-shadow: var(--shadow); }
   .card { margin-bottom: 14px; }
-  .r, .opt { display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 12px 9px 14px; text-align: left; position: relative; min-height: 56px; }
+  .r, .opt { display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 12px 9px 14px; text-align: left; position: relative; min-height: 52px; }
   .r:active, .opt:active { background: var(--fill); }
   .r + .r::before, .opt + .opt::before { content: ""; position: absolute; left: 60px; right: 0; top: 0; border-top: .5px solid var(--line); }
   .ic { width: 34px; height: 34px; border-radius: 50%; background: var(--gold-soft); color: var(--gold); display: grid; place-items: center; flex: none; }
   .m { flex: 1; min-width: 0; } .m b { display: block; font-weight: 500; } .m small { display: block; font-size: 11.5px; color: var(--muted); margin-top: 1px; }
-  .ch { flex: none; max-width: 128px; }
+  .ch { flex: none; max-width: 150px; display: flex; align-items: center; }
   .pill { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px 0 7px; border-radius: 99px; background: var(--gold-soft); color: var(--gold); font-size: 12px; font-weight: 600; white-space: nowrap; max-width: 128px; overflow: hidden; text-overflow: ellipsis; }
   .pill.no { background: var(--fill); color: var(--muted); font-weight: 500; padding: 0 10px; }
   .chev { color: var(--muted); opacity: .5; display: flex; transform: rotate(-90deg); }
