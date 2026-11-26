@@ -30,9 +30,11 @@
     if (!oc.open) return;
     pick = false; typePick = false; split = false; parts = []; remember = true; armed = false; err = ''; more = 0; showParts = false; sparts = [];
     refresh('cats', loadCategories).catch(() => {});
-    pair = null; marker = null; mergeOpen = false;
-    const cur = o;
-    if (cur?.mono) { findBankPair(cur).then((r) => { if (oc.open && oc.op?.id === cur.id) pair = r; }).catch(() => {}); findMarker(cur).then((r) => { if (oc.open && oc.op?.id === cur.id) marker = r; }).catch(() => {}); }
+    const cur = untrack(() => o);
+    untrack(() => {
+      pair = null; marker = null; mergeOpen = false;
+      if (cur?.mono) { findBankPair(cur).then((r) => { if (oc.open && oc.op?.id === cur.id) pair = r; }).catch(() => {}); findMarker(cur).then((r) => { if (oc.open && oc.op?.id === cur.id) marker = r; }).catch(() => {}); }
+    });
     const act = oc.act;
     untrack(() => {
       if (o?.splits) loadSplits(o.id).then((r) => { if (oc.open) sparts = r.sort((a, b) => b.amount - a.amount); }).catch(() => {});
