@@ -269,7 +269,7 @@
       <div class="dh"><span>{g.title}</span><b>{g.sum ? (g.sum > 0 ? '+' : '−') + cash(Math.abs(g.sum), 0) : ''}</b></div>
       <div class="cd">
         {#each g.items as t, i (t.id)}
-          <SwipeRow id={t.id} norepeat={t.action === 'TRANSFER'} rlabel="Разделить" rconfirm={false} dlabel={t.paired ? 'Разъединить' : 'Изменить'} dconfirm={!!t.paired} dgold full onrepeat={() => splitOp(t)} ondelete={() => (t.paired ? unpair(t) : editOp(t))}>
+          <SwipeRow id={t.id} norepeat={t.action === 'TRANSFER' && !t.paired} rlabel={t.paired ? 'Разъединить' : 'Разделить'} rconfirm={!!t.paired} dlabel="Изменить" dconfirm={false} dgold full onrepeat={() => (t.paired ? unpair(t) : splitOp(t))} ondelete={() => editOp(t)}>
             <div class="op" class:un={t.uncat} class:top={i > 0} role="button" tabindex="0" use:longpress={(el) => menuOp(el, t)} onclick={() => !sw.id && openOp(t, key)} onkeydown={(e) => e.key === 'Enter' && openOp(t, key)}>
               {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} name={t.splits ? '' : t.name} />{/if}
               <div class="nm"><b>{t.name}</b><small>{t.cat}{t.acc ? ' · ' + t.acc : ''}</small></div>
