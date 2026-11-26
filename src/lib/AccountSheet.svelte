@@ -1,8 +1,9 @@
 <script>
   import { acct, closeAcct } from './acctsheet.svelte.js';
-  import { peek, refresh } from './cache.svelte.js';
+  import { peek, refresh, put } from './cache.svelte.js';
   import { loadAccountOps } from './data.js';
   import { cash } from './format.js';
+  import { openOp } from './opcard.svelte.js';
   import Icon from './Icon.svelte';
   import Sheet from './Sheet.svelte';
   import OpAvatar from './OpAvatar.svelte';
@@ -43,8 +44,19 @@
     }
     return [...m.values()];
   });
-  let avail = $derived(acct.balance + acct.limit);
-  let used = $derived(acct.limit > 0 ? Math.min(1, Math.max(0, -acct.balance / acct.limit)) : 0);
+  // свежий остаток из списка счетов: после изменения операции он меняется прямо в открытом окне
+  let balance = $derived.by(() => {
+    const d = peek('accounts');
+    const all = d ? [...d.cards, ...d.cashes, ...d.envs, ...d.debts, ...d.foreign.flatMap((f) => f.list)] : [];
+    return all.find((a) => a.id === acct.id)?.balance ?? acct.balance;
+  });
+  let avail = $derived(balance + acct.limit);
+  let used = $derived(acct.limit > 0 ? Math.min(1, Math.max(0, -balance / acct.limit)) : 0);
+  function show(o) {
+    if (!o.op) return; // сохранённый список старого вида: через мгновение придёт свежий
+    put('ops.one', { ops: [o.op] });
+    openOp(o.op, 'ops.one');
+  }
   const c = (v) => cash(v, 2, acct.currency);
 </script>
 
@@ -52,7 +64,7 @@
       {#key k}
       <div class="hero">
         <small>Остаток</small>
-        <div class="big" class:neg={acct.balance < 0}>{c(acct.balance)}</div>
+        <div class="big" class:neg={balance < 0}>{c(balance)}</div>
         {#if acct.limit > 0}
           <div class="bar"><i style:width="{Math.max(1.5, used * 100)}%"></i></div>
           <div class="cols">
@@ -72,7 +84,7 @@
           <div class="dh rise" style="--i:{Math.min(3 + gi * 2, 11)}"><span>{g.title}</span><span>{g.sum > 0 ? '+' : ''}{cash(g.sum, 0, acct.currency)}</span></div>
           <div class="cd rise" style="--i:{Math.min(4 + gi * 2, 12)}">
             {#each g.ops as o (o.id)}
-              <div class="r">
+              <div class="r" role="button" tabindex="0" onclick={() => show(o)} onkeydown={(e) => e.key === 'Enter' && show(o)}>
                 <OpAvatar icon={o.icon} size={34} name={o.splits ? '' : o.name} />
                 <div class="m"><div class="n">{o.name}</div><div class="s">{o.cat}</div></div>
                 <span class="ar"><b class:pos={o.amount > 0}>{o.amount > 0 ? '+' : ''}{c(o.amount)}</b>{#if o.net != null}<small class="nt">итого {c(o.net)}</small>{/if}</span>
@@ -113,6 +125,7 @@
   .dh { display: flex; justify-content: space-between; margin: 12px 6px 5px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; font-variant-numeric: tabular-nums; }
   .cd { background: var(--card); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
   .r { position: relative; display: flex; align-items: center; gap: 12px; padding: 9px 14px; min-height: 56px; }
+  .r:active { background: var(--fill); }
   .r + .r::before { content: ""; position: absolute; top: 0; left: 60px; right: 0; height: .5px; background: var(--line); }
   .m { flex: 1; min-width: 0; }
   .n { font-size: 15px; line-height: 20px; overflow-wrap: anywhere; }
