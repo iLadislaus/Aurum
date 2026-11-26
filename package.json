@@ -1,6 +1,6 @@
 {
   "name": "aurum",
-  "version": "0.38.6",
+  "version": "0.39.1",
   "private": true,
   "type": "module",
   "scripts": {
