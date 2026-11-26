@@ -38,23 +38,73 @@ function prevOf(p, today) {
   return q;
 }
 
+// Возвраты: каждый привязываем к списанию, которое он отменяет (тот же счёт и название, до полугода назад).
+// Тратой считается только то, что не вернулось; такая трата остаётся в дне и категориях самого списания
+const shopKey = (s) => (s || '').trim().replace(/^(скасування\.|повернення платежу|возврат\.?|платіж)\s*/i, '').trim().toLowerCase();
+export function linkReturns(ops) {
+  const spent = new Map();
+  for (const o of ops) {
+    if (o.action !== 'EXPENSE' || !shopKey(o.note)) continue;
+    const k = o.account_id + '|' + shopKey(o.note);
+    if (!spent.has(k)) spent.set(k, []);
+    spent.get(k).push(o);
+  }
+  const back = new Map(), linked = new Map();
+  const rets = ops.filter((o) => o.action === 'RETURN').sort((a, b) => new Date(a.date) - new Date(b.date));
+  for (const r of rets) {
+    const t = new Date(r.date).getTime(), amount = Number(r.amount);
+    const left = (e) => Number(e.amount) - (back.get(e.id) ?? 0);
+    // сначала списание ровно на эту сумму, иначе самое позднее, из которого она помещается
+    const fit = (spent.get(r.account_id + '|' + shopKey(r.note)) ?? [])
+      .filter((e) => { const d = t - new Date(e.date).getTime(); return d >= -120000 && d <= 180 * 86400000 && left(e) + 0.005 >= amount; })
+      .sort((a, b) => (Math.abs(left(b) - amount) < 0.005) - (Math.abs(left(a) - amount) < 0.005) || new Date(b.date) - new Date(a.date));
+    if (fit[0]) { back.set(fit[0].id, r2((back.get(fit[0].id) ?? 0) + amount)); linked.set(r.id, fit[0]); }
+  }
+  return { back, linked };
+}
+
+const GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+// «за октябрь», «за 1–26 октября», «за 1 июля – 26 августа»: чтобы было видно, с чем сравниваем
+export function spanLabel(a, b, today) {
+  const va = ymOf(a), vb = ymOf(b), d = (k) => Number(k.slice(8, 10));
+  const ya = Math.floor(va / 12), yb = Math.floor(vb / 12), now = Number(today.slice(0, 4));
+  const yr = (y) => (y === now ? '' : ` ${y}`);
+  const whole = a === ymStart(va) && b === ymEnd(vb);
+  if (whole && va === vb) return `за ${FULL[va % 12].toLowerCase()}${yr(ya)}`;
+  if (whole && va % 12 === 0 && vb === va + 11) return `за ${ya} год`;
+  if (whole && va % 3 === 0 && vb === va + 2) return `за ${(va % 12) / 3 + 1} квартал${yr(ya)}`;
+  if (a === b) return `за ${d(a)} ${GEN[va % 12]}${yr(ya)}`;
+  if (va === vb) return `за ${d(a)}–${d(b)} ${GEN[va % 12]}${yr(ya)}`;
+  return `за ${d(a)} ${GEN[va % 12]}${ya === yb ? '' : ' ' + ya} – ${d(b)} ${GEN[vb % 12]}${yr(yb)}`;
+}
+
 // Строки учёта: по одной на категорию (разделённые операции раскладываются на части)
 function ledger(raw) {
   const cm = new Map(raw.cats.map((c) => [c.id, c]));
   const am = new Map(raw.accounts.map((a) => [a.id, a]));
   const parts = new Map();
   for (const s of raw.splits) { if (!parts.has(s.transaction_id)) parts.set(s.transaction_id, []); parts.get(s.transaction_id).push(s); }
+  const { back, linked } = linkReturns(raw.ops);
   const rows = [];
   for (const o of raw.ops) {
+    if (linked.has(o.id)) continue; // уже вычтен из своего списания
     const day = dayKey(o.date);
     const src = am.get(o.account_id ?? o.from_account_id);
     if (src?.is_foreign) continue; // отчёт в гривнах: валютные счета отдельно, в «Счетах»
-    const list = parts.get(o.id) ?? [{ category_id: o.category_id, amount: o.amount }];
+    let list = parts.get(o.id) ?? [{ category_id: o.category_id, amount: o.amount }];
+    const returned = back.get(o.id) ?? 0;
+    if (returned) {
+      const net = r2(Number(o.amount) - returned);
+      if (net <= 0.005) continue; // вернули всё: траты не было
+      // разделённую операцию уменьшаем по всем частям пропорционально, копейки уходят в последнюю
+      let rest = net;
+      list = list.map((x, i) => { const v = i === list.length - 1 ? rest : r2((Number(x.amount) * net) / Number(o.amount)); rest = r2(rest - v); return { ...x, amount: v }; });
+    }
     for (const x of list) {
       const c = cm.get(x.category_id);
       if (isCorr(c?.name)) continue;
       const amount = Number(x.amount);
-      const base = { op: o, day, cat: x.category_id ?? 0, amount };
+      const base = { op: returned ? { ...o, returned } : o, day, cat: x.category_id ?? 0, amount };
       if (c?.is_debt) {
         // долги не доход и не расход, показываются отдельной строкой
         if (c.type === 'EXPENSE' && (o.action === 'EXPENSE' || o.action === 'TRANSFER')) rows.push({ ...base, type: 'paid' });
@@ -64,7 +114,7 @@ function ledger(raw) {
       else if (o.action === 'INCOME') rows.push({ ...base, type: 'inc' });
     }
   }
-  return { rows, cm, am };
+  return { rows, cm, am, back, linked };
 }
 
 const within = (rows, a, b) => rows.filter((x) => x.day >= a && x.day <= b);
@@ -78,7 +128,7 @@ const group = (rows, f) => { const m = new Map(); for (const x of rows) { const 
 
 export function buildReport(raw, period, now = new Date()) {
   const today = dayKey(now);
-  const { rows, cm, am } = ledger(raw);
+  const { rows, cm, am, back, linked } = ledger(raw);
   const first = raw.ops.reduce((m, o) => { const d = dayKey(o.date); return d < m ? d : m; }, today);
   const cur = within(rows, period.from, period.to);
   const t = totals(cur);
@@ -91,6 +141,7 @@ export function buildReport(raw, period, now = new Date()) {
   const firstDay = period.from > first ? period.from : first;
   const elapsed = lastDay >= firstDay ? daysIn(firstDay, lastDay) : 0;
 
+  const prevLabel = comparable ? spanLabel(pq.from, pq.to, today) : null;
   const saldo = r2(t.inc - t.exp);
   const rate = t.inc > 0 ? Math.round((saldo / t.inc) * 100) : null;
 
@@ -219,11 +270,11 @@ export function buildReport(raw, period, now = new Date()) {
   // выводы
   const money = (v) => Math.round(v).toLocaleString('ru-RU') + ' ₴';
   const notes = [];
-  if (comparable && pt.exp > 0) { const c = change(t.exp, pt.exp); notes.push({ tone: c > 0 ? 'bad' : 'good', text: c === 0 ? 'Расходы как в прошлом периоде' : `Расходы на ${Math.abs(c)}% ${c > 0 ? 'выше' : 'ниже'}, чем в прошлом периоде` }); }
+  if (comparable && pt.exp > 0) { const c = change(t.exp, pt.exp); notes.push({ tone: c > 0 ? 'bad' : 'good', text: c === 0 ? `Расходы как ${prevLabel}` : `Расходы на ${Math.abs(c)}% ${c > 0 ? 'выше' : 'ниже'}, чем ${prevLabel}` }); }
   if (comparable) cats.map((c) => ({ ...c, diff: c.value - c.prev })).filter((c) => c.diff > Math.max(300, t.exp * 0.03)).sort((x, y) => y.diff - x.diff).slice(0, 3)
-    .forEach((c) => notes.push({ tone: 'bad', text: `${c.name}: на ${money(c.diff)} больше, чем раньше` }));
+    .forEach((c) => notes.push({ tone: 'bad', text: `${c.name}: на ${money(c.diff)} больше, чем ${prevLabel}` }));
   if (comparable) cats.map((c) => ({ ...c, diff: c.prev - c.value })).filter((c) => c.diff > Math.max(300, t.exp * 0.03)).sort((x, y) => y.diff - x.diff).slice(0, 2)
-    .forEach((c) => notes.push({ tone: 'good', text: `${c.name}: на ${money(c.diff)} меньше, чем раньше` }));
+    .forEach((c) => notes.push({ tone: 'good', text: `${c.name}: на ${money(c.diff)} меньше, чем ${prevLabel}` }));
   if (plan.over > 0) notes.push({ tone: 'bad', text: `Перерасход плана ${money(plan.over)}: ${planned.filter((p) => p.left < 0).sort((x, y) => x.left - y.left).slice(0, 3).map((p) => p.name).join(', ')}` });
   if (plan.any && plan.off > 0) notes.push({ tone: 'warn', text: `Траты вне плана: ${money(plan.off)}` });
   const un = sum(cats.filter((c) => !c.id || /^uncategorized/i.test(c.name)), (c) => c.value);
@@ -232,11 +283,14 @@ export function buildReport(raw, period, now = new Date()) {
   if (topDay) notes.push({ tone: 'info', text: `Самый дорогой день ${ruDate(topDay.day)}: ${money(topDay.value)}` });
   if (upcoming.length) notes.push({ tone: 'info', text: `Платежи за 30 дней: ${upcoming.length} на ${money(sum(upcoming, (p) => p.amount))}` });
 
-  const ops = raw.ops.filter((o) => { const d = dayKey(o.date); return d >= period.from && d <= period.to; });
+  const ops = raw.ops.filter((o) => { const d = dayKey(o.date); return d >= period.from && d <= period.to; }).map((o) => {
+    const e = linked.get(o.id);
+    return { ...o, memo: e ? `вычтен из списания от ${ruDate(dayKey(e.date))}` : back.has(o.id) ? `возвращено ${back.get(o.id).toLocaleString('ru-RU')} ₴` : '' };
+  });
 
   return {
     period, today, first, partial: period.from < first, empty: !cur.length,
-    ...t, saldo, rate, comparable,
+    ...t, saldo, rate, comparable, prevLabel,
     prev: comparable ? { ...pt, saldo: r2(pt.inc - pt.exp), from: pq.from, to: pq.to } : null,
     expChange: comparable ? change(t.exp, pt.exp) : null, incChange: comparable ? change(t.inc, pt.inc) : null,
     avgDay: elapsed ? r2(t.exp / elapsed) : 0,
