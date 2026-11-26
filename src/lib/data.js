@@ -28,7 +28,7 @@ export async function loadHome() {
   const [bal, cats, ops, accs, rec, todayOps, ...sums] = await Promise.all([
     sb.from('account_balances').select('id,balance,is_foreign'),
     sb.from('categories').select('id,name,icon'),
-    sb.from('transactions').select(OP_COLS).order('date', { ascending: false }).limit(5),
+    sb.from('transactions').select(OP_COLS).order('date', { ascending: false }).limit(12),
     sb.from('accounts').select('id,name,currency,is_foreign,block,is_monobank'),
     sb.from('recurring_payments').select('id,name,amount,period,next_date,category_id').eq('active', true).eq('dismissed', false).order('next_date'),
     sb.from('transactions').select('amount,date,account_id').eq('action', 'EXPENSE').gte('date', new Date(now.getTime() - 36 * 3600e3).toISOString()),
@@ -79,7 +79,7 @@ export async function loadHome() {
   const sc = new Map(), sp = new Map();
   for (const x of spl.data) { sc.set(x.transaction_id, (sc.get(x.transaction_id) ?? 0) + 1); if (!sp.has(x.transaction_id)) sp.set(x.transaction_id, []); sp.get(x.transaction_id).push({ category_id: x.category_id, amount: Number(x.amount) }); }
   const am = new Map(accs.data.map((x) => [x.id, x]));
-  const recent = ops.data.map((t) => mapOp(t, catMap, am, sc, sp));
+  const recent = ops.data.filter((t) => !isMarker(t)).slice(0, 5).map((t) => mapOp(t, catMap, am, sc, sp));
 
   // нераспределённые операции за всё время: без категории или в категории Uncategorized
   const unIds = cats.data.filter((c) => UNCAT.test(c.name || '')).map((c) => c.id);
@@ -173,7 +173,7 @@ function buildAccountOps(id, rows, cm) {
   const now = new Date();
   const mk = now.getFullYear() * 12 + now.getMonth();
   let inc = 0, out = 0;
-  const ops = rows.map((t) => {
+  const ops = rows.filter((t) => !isMarker(t)).map((t) => {
     const c = cm.get(t.category_id);
     let v;
     if (t.action === 'INCOME' || t.action === 'RETURN') v = Number(t.amount);
@@ -245,6 +245,9 @@ export async function createAccount({ type, name, icon, currency, budgetSource, 
 }
 
 // ---- Операции за месяц (экран «Операции»)
+// Пустышка объединённой пары: перевод «со счёта на тот же счёт», в списках не показывается, баланс не меняет
+const isMarker = (t) => t.action === 'TRANSFER' && t.from_account_id != null && t.from_account_id === t.to_account_id;
+
 const OP_COLS = 'id,date,action,amount,to_amount,category_id,note,account_id,from_account_id,to_account_id,currency,rate,mono_op_id';
 
 // Одна операция для списков (Операции и «Последние операции» на Главной)
@@ -287,7 +290,7 @@ export async function loadOpsRange(a, b) {
     if (b) q = q.lt('date', b);
     const r = await q.order('date', { ascending: false }).range(from, from + 999);
     if (r.error) throw r.error;
-    rows.push(...r.data);
+    rows.push(...r.data.filter((t) => !isMarker(t)));
     if (r.data.length < 1000) break;
   }
   const [cats, accs, spl] = await Promise.all([
@@ -489,4 +492,55 @@ export async function savePlanned({ id, name, amount, categoryId, period, nextDa
 export async function deletePlanned(id) {
   const r = await sb.from('recurring_payments').delete().eq('id', id);
   if (r.error) throw r.error;
+}
+
+// ---- Перевод между своими счетами из двух банковских операций (минус на одном, плюс на другом)
+const PAIR_MS = 10 * 60 * 1000;
+async function accName(ids) {
+  const r = await sb.from('accounts').select('id,name').in('id', ids);
+  if (r.error) throw r.error;
+  return new Map(r.data.map((a) => [a.id, clean(a.name)]));
+}
+
+// Ищет вторую половину: та же сумма, обратное направление, другой банковский счёт, в пределах 10 минут
+export async function findBankPair(o) {
+  if (!o?.mono || !['EXPENSE', 'INCOME'].includes(o.action) || o.account_id == null) return null;
+  const t = new Date(o.date).getTime();
+  const r = await sb.from('transactions').select('id,date,note,account_id,action,amount').not('mono_op_id', 'is', null)
+    .eq('action', o.action === 'EXPENSE' ? 'INCOME' : 'EXPENSE').eq('amount', o.amount)
+    .gte('date', new Date(t - PAIR_MS).toISOString()).lte('date', new Date(t + PAIR_MS).toISOString());
+  if (r.error) throw r.error;
+  const c = r.data.filter((x) => x.account_id != null && x.account_id !== o.account_id).sort((a, b) => Math.abs(new Date(a.date) - t) - Math.abs(new Date(b.date) - t))[0];
+  if (!c) return null;
+  const n = await accName([o.account_id, c.account_id]);
+  const exp = o.action === 'EXPENSE';
+  return { id: c.id, note: c.note || '', date: c.date, accId: c.account_id, acc: n.get(c.account_id) || '?', mine: n.get(o.account_id) || '?', from: exp ? o.account_id : c.account_id, to: exp ? c.account_id : o.account_id };
+}
+
+export async function mergeBankPair(o, pair) {
+  const expId = o.action === 'EXPENSE' ? o.id : pair.id, incId = o.action === 'EXPENSE' ? pair.id : o.id;
+  const cl = await sb.from('transaction_splits').delete().eq('transaction_id', expId);
+  if (cl.error) throw cl.error;
+  const a = await sb.from('transactions').update({ action: 'TRANSFER', account_id: null, category_id: null, from_account_id: pair.from, to_account_id: pair.to }).eq('id', expId);
+  if (a.error) throw a.error;
+  const b = await sb.from('transactions').update({ action: 'TRANSFER', account_id: null, category_id: null, from_account_id: pair.to, to_account_id: pair.to }).eq('id', incId);
+  if (b.error) throw b.error;
+}
+
+// Пустышка этого перевода (если он собран из пары), иначе null: тогда разъединять нечего
+export async function findMarker(o) {
+  if (!o?.mono || o.action !== 'TRANSFER' || o.from_account_id == null || o.from_account_id === o.to_account_id) return null;
+  const t = new Date(o.date).getTime();
+  const r = await sb.from('transactions').select('id,date').not('mono_op_id', 'is', null).eq('action', 'TRANSFER')
+    .eq('from_account_id', o.to_account_id).eq('to_account_id', o.to_account_id).eq('amount', o.amount)
+    .gte('date', new Date(t - PAIR_MS).toISOString()).lte('date', new Date(t + PAIR_MS).toISOString());
+  if (r.error) throw r.error;
+  return r.data[0] ?? null;
+}
+
+export async function splitBankPair(o, marker) {
+  const a = await sb.from('transactions').update({ action: 'EXPENSE', account_id: o.from_account_id, from_account_id: null, to_account_id: null, category_id: null }).eq('id', o.id);
+  if (a.error) throw a.error;
+  const b = await sb.from('transactions').update({ action: 'INCOME', account_id: o.to_account_id, from_account_id: null, to_account_id: null, category_id: null }).eq('id', marker.id);
+  if (b.error) throw b.error;
 }
