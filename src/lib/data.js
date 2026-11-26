@@ -170,11 +170,14 @@ export async function deleteAccount(id, to) {
 
 // Операции одного счёта: со знаком для этого счёта, по дням, плюс итоги текущего месяца
 // Операции счёта из уже загруженных строк: со знаком для этого счёта, плюс итоги месяца
-function buildAccountOps(id, rows, cm) {
+function buildAccountOps(id, rows, { cm, am, sc, sp }) {
   const now = new Date();
   const mk = now.getFullYear() * 12 + now.getMonth();
   let inc = 0, out = 0;
-  const ops = rows.filter((t) => !isMarker(t)).map((t) => {
+  // op — та же операция в общем виде: по тапу открывается обычная карточка операции
+  const full = rows.filter((t) => !isMarker(t)).map((t) => mapOp(t, cm, am, sc, sp));
+  pairRefunds(full);
+  const ops = rows.filter((t) => !isMarker(t)).map((t, i) => {
     const c = cm.get(t.category_id);
     let v;
     if (t.action === 'INCOME' || t.action === 'RETURN') v = Number(t.amount);
@@ -186,42 +189,53 @@ function buildAccountOps(id, rows, cm) {
       id: t.id, date: t.date, amount: v, raw: Number(t.amount), action: t.action, note: t.note || '', account_id: t.account_id,
       name: clean(t.note) || clean(c?.name) || (t.action === 'TRANSFER' ? 'Перевод' : 'Операция'),
       cat: t.action === 'TRANSFER' ? 'Перевод' : clean(c?.name) || 'Без категории',
-      icon: t.action === 'TRANSFER' ? 'swap' : c?.icon || 'tag'
+      icon: t.action === 'TRANSFER' ? 'swap' : c?.icon || 'tag',
+      op: full[i]
     };
   });
   pairRefunds(ops);
   return { ops, inc, out };
 }
 
-const TX_COLS = 'id,date,action,amount,to_amount,category_id,note,account_id,from_account_id,to_account_id';
+// справочники для списков операций: категории, счета и разделения
+async function loadRefs() {
+  const [cats, accs, spl] = await Promise.all([
+    sb.from('categories').select('id,name,icon,type,is_debt'),
+    sb.from('accounts').select('id,name,currency,is_foreign'),
+    sb.from('transaction_splits').select('transaction_id,category_id,amount')
+  ]);
+  for (const r of [cats, accs, spl]) if (r.error) throw r.error;
+  const sc = new Map();
+  const sp = new Map();
+  for (const x of spl.data) { sc.set(x.transaction_id, (sc.get(x.transaction_id) ?? 0) + 1); if (!sp.has(x.transaction_id)) sp.set(x.transaction_id, []); sp.get(x.transaction_id).push({ category_id: x.category_id, amount: Number(x.amount) }); }
+  return { cm: new Map(cats.data.map((c) => [c.id, c])), am: new Map(accs.data.map((x) => [x.id, x])), sc, sp };
+}
 
 export async function loadAccountOps(id) {
-  const [tx, cats] = await Promise.all([
-    sb.from('transactions').select(TX_COLS)
+  const [tx, refs] = await Promise.all([
+    sb.from('transactions').select(OP_COLS)
       .or(`account_id.eq.${id},from_account_id.eq.${id},to_account_id.eq.${id}`)
       .order('date', { ascending: false }).limit(300),
-    sb.from('categories').select('id,name,icon')
+    loadRefs()
   ]);
-  for (const r of [tx, cats]) if (r.error) throw r.error;
-  return buildAccountOps(id, tx.data, new Map(cats.data.map((c) => [c.id, c])));
+  if (tx.error) throw tx.error;
+  return buildAccountOps(id, tx.data, refs);
 }
 
 // Все операции одним заходом и раскладка по счетам: окно любого счёта открывается сразу с готовым списком
 export async function loadOpsForAll(ids) {
   const pages = [];
   for (let from = 0; ; from += 1000) {
-    const r = await sb.from('transactions').select(TX_COLS).order('date', { ascending: false }).range(from, from + 999);
+    const r = await sb.from('transactions').select(OP_COLS).order('date', { ascending: false }).range(from, from + 999);
     if (r.error) throw r.error;
     pages.push(...r.data);
     if (r.data.length < 1000) break;
   }
-  const cats = await sb.from('categories').select('id,name,icon,type,is_debt');
-  if (cats.error) throw cats.error;
-  const cm = new Map(cats.data.map((c) => [c.id, c]));
+  const refs = await loadRefs();
   const out = new Map();
   for (const id of ids) {
     const rows = pages.filter((t) => t.account_id === id || t.from_account_id === id || t.to_account_id === id).slice(0, 300);
-    out.set(id, buildAccountOps(id, rows, cm));
+    out.set(id, buildAccountOps(id, rows, refs));
   }
   return out;
 }
@@ -305,17 +319,7 @@ export async function loadOpsRange(a, b) {
     rows.push(...r.data);
     if (r.data.length < 1000) break;
   }
-  const [cats, accs, spl] = await Promise.all([
-    sb.from('categories').select('id,name,icon,type,is_debt'),
-    sb.from('accounts').select('id,name,currency,is_foreign'),
-    sb.from('transaction_splits').select('transaction_id,category_id,amount')
-  ]);
-  for (const r of [cats, accs, spl]) if (r.error) throw r.error;
-  const sc = new Map();
-  const sp = new Map();
-  for (const x of spl.data) { sc.set(x.transaction_id, (sc.get(x.transaction_id) ?? 0) + 1); if (!sp.has(x.transaction_id)) sp.set(x.transaction_id, []); sp.get(x.transaction_id).push({ category_id: x.category_id, amount: Number(x.amount) }); }
-  const cm = new Map(cats.data.map((c) => [c.id, c]));
-  const am = new Map(accs.data.map((x) => [x.id, x]));
+  const { cm, am, sc, sp } = await loadRefs();
   const ops = rows.filter((t) => !isMarker(t)).map((t) => mapOp(t, cm, am, sc, sp));
   flagPaired(rows, ops);
   pairRefunds(ops);
