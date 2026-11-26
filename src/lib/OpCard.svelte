@@ -143,7 +143,7 @@
       <CardFace {theme} kind={kind[o.action].toUpperCase()}>
         {#snippet amount()}<div class="big"><span class="v">{amt}</span><u>{o.sym}</u></div>{/snippet}
         {#snippet chip()}
-          {#if tr}{#if theme}<div class="ct"><OpAvatar icon="swap" size={34} /><span class="cn" class:lg={o.name.length > 22}>{o.name}</span></div>{/if}
+          {#if tr}<div class="ct"><OpAvatar icon="swap" size={34} /><span class="cn" class:lg={o.name.length > 22}>{o.name}</span></div>
           {:else}<div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} name={o.splits ? '' : o.name} />{/if}<span class="cn" class:lg={o.name.length > 22}>{o.name}</span></div>{/if}
         {/snippet}
         {#snippet acct()}
@@ -152,10 +152,6 @@
           {/if}
         {/snippet}
       </CardFace>
-      {#if tr && !theme}
-        <div class="mct"><div class="ct"><OpAvatar icon="swap" size={38} /><span class="cn">{o.name}</span></div></div>
-      {/if}
-
       <div class="grp">
         <div class="lst">
           {#if !o.mono && !tr}
