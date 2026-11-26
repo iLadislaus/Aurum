@@ -86,7 +86,7 @@
   const mm = (s) => `0:${String(s).padStart(2, '0')}`;
 </script>
 
-<Sheet open={bg.dist} ceil={69} onclose={() => { clearInterval(timer); closeDist(); }} title="Разложить деньги" sub="{label} · из Cash в конверты" bind:full>
+<Sheet open={bg.dist} ceil={67} onclose={() => { clearInterval(timer); closeDist(); }} title="Разложить деньги" sub="{label} · из Cash в конверты" bind:full>
   <div class="vp">
     <div class="vs" class:act={view === 1} style:transform="translateX({view === 1 ? 0 : -100}%)" class:off={view !== 1}>
       <div class="cd hz">
