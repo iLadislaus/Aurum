@@ -1,4 +1,5 @@
 import { sb } from './supabase.js';
+import { loadMonthSpend } from './spend.js';
 
 const first = (y, m) => new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
 const MON = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
@@ -25,16 +26,18 @@ export async function loadHome() {
   const y = now.getFullYear(), m = now.getMonth();
   // три месяца: два прошлых и текущий
   const mons = [m - 5, m - 4, m - 3, m - 2, m - 1, m].map((k) => new Date(Date.UTC(y, k, 1)));
-  const [bal, cats, ops, accs, rec, todayOps, ...sums] = await Promise.all([
+  const [bal, cats, ops, accs, rec, todayOps, plans, ...sums] = await Promise.all([
     sb.from('account_balances').select('id,balance,is_foreign'),
-    sb.from('categories').select('id,name,icon'),
+    sb.from('categories').select('id,name,icon,type,is_debt'),
     sb.from('transactions').select(OP_COLS).order('date', { ascending: false }).limit(12),
     sb.from('accounts').select('id,name,currency,is_foreign,block,is_monobank'),
     sb.from('recurring_payments').select('id,name,amount,period,next_date,category_id').eq('active', true).eq('dismissed', false).order('next_date'),
     sb.from('transactions').select('amount,date,account_id').eq('action', 'EXPENSE').gte('date', new Date(now.getTime() - 36 * 3600e3).toISOString()),
+    sb.from('budgets').select('category_id,amount').eq('month', first(y, m)),
     ...mons.map((d) => sb.rpc('month_summary', { p_month: first(d.getUTCFullYear(), d.getUTCMonth()) }))
   ]);
-  for (const r of [bal, cats, ops, accs, rec, todayOps, ...sums]) if (r.error) throw r.error;
+  for (const r of [bal, cats, ops, accs, rec, todayOps, plans, ...sums]) if (r.error) throw r.error;
+  const spend = await loadMonthSpend(y, m);
 
   const catMap = new Map(cats.data.map((c) => [c.id, c]));
   const total = bal.data.filter((a) => !a.is_foreign).reduce((s, a) => s + Number(a.balance), 0);
@@ -91,9 +94,20 @@ export async function loadHome() {
 
   return {
     total, delta, pct, cardsCash, envs, today,
-    budget: { plan: Number(cur.budget), spent: Number(cur.expense) - Number(cur.returns) },
+    budget: planTotals(plans.data, catMap, spend),
     months, horizon, recent, uncat
   };
+}
+
+// «Бюджет на месяц» на Главной: только категории с планом, как на экране «Бюджет»
+function planTotals(rows, cm, spend) {
+  let plan = 0, spent = 0;
+  for (const r of rows) {
+    const c = cm.get(r.category_id), v = Number(r.amount);
+    if (!c || c.type === 'INCOME' || c.is_debt || !(v > 0)) continue;
+    plan += v; spent += Math.max(0, spend.get(r.category_id) || 0);
+  }
+  return { plan, spent };
 }
 
 const nz = (x) => Number(x || 0);

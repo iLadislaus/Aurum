@@ -3,7 +3,7 @@
   import Screen from '../lib/Screen.svelte';
   import Skeleton from '../lib/Skeleton.svelte';
   import Icon from '../lib/Icon.svelte';
-  import { bg, bd, openCats, openPlan, openDist, openCatOps } from '../lib/budget.svelte.js';
+  import { bg, bd, co, openCats, openPlan, openDist, openCatOps } from '../lib/budget.svelte.js';
   import { loadBudgetMonth, monthKey } from '../lib/budget.js';
   import { fmt } from '../lib/format.js';
 
@@ -23,13 +23,14 @@
   $effect(() => { month; if (!bd[month]) load(month); else load(month); });
   // после закрытия любого окна бюджета цифры на экране обновляются
   let was = false;
-  $effect(() => { const open = bg.cats || bg.plan || bg.dist; if (was && !open) load(); was = open; });
+  $effect(() => { const open = bg.cats || bg.plan || bg.dist || !!co.cat; if (was && !open) load(); was = open; });
 
   // доля месяца, которая уже прошла
   const days = $derived(new Date(Math.floor(ym / 12), ym % 12 + 1, 0).getDate());
   const day = $derived(ym < cur ? days : ym > cur ? 0 : now.getDate());
   const T = $derived(day / days);
-  const left = $derived(Math.max(0, days - day));
+  // дни до конца месяца вместе с сегодняшним, как на Главной
+  const left = $derived(ym < cur ? 0 : ym > cur ? days : days - day + 1);
   const pace = (c) => (c.mode === 'spread' ? c.plan * T : c.mode === 'chunks' ? c.plan / c.parts * Math.min(c.parts, Math.max(1, Math.ceil(T * c.parts - 1e-9))) : 0);
 
   function info(c) {
@@ -58,7 +59,7 @@
   const sum = (l, k) => l.reduce((s, x) => s + x[k], 0);
   const planned = $derived(sum([...mand, ...opt], 'plan'));
   const spent = $derived(sum([...mand, ...opt], 'fact'));
-  const perDay = $derived(left ? [...mand, ...opt].filter((c) => c.mode === 'spread' && c.plan > c.fact).reduce((s, c) => s + c.plan - c.fact, 0) / left : 0);
+  const perDay = $derived(left ? Math.max(0, planned - spent) / left : 0);
   const badge = $derived(ym === cur ? Math.round((d?.free ?? []).reduce((s, v) => s + v, 0)) : 0);
   const incGroups = $derived(['Аванс', 'Зарплата', 'Другое'].map((g, i) => { const l = inc.filter((c) => c.grp === g); return { g, l, plan: sum(l, 'plan'), got: sum(l, 'fact'), free: d?.free[i] ?? 0 }; }).filter((x) => x.l.length));
 </script>
