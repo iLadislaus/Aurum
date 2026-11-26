@@ -148,7 +148,7 @@
         {#snippet acct()}
           {#if tr}
             <!-- перевод: на карте только сумма, счета ниже в списке -->
-          {:else}
+          {:else if !theme}
             <span class="dd ro"><small>{o.action === 'EXPENSE' ? 'Со счёта' : 'На счёт'}</small><span>{o.acc || '—'}</span></span>
           {/if}
         {/snippet}
@@ -173,6 +173,7 @@
           {/if}
           {#if tr}<div class="lr"><span>Откуда</span><b>{ends[0] ?? '—'}</b></div>{/if}
           {#if tr}<div class="lr"><span>Куда</span><b>{ends[1] ?? '—'}</b></div>{/if}
+          {#if theme && !tr}<div class="lr"><span>{o.action === 'EXPENSE' ? 'Со счёта' : 'На счёт'}</span><b>{o.acc || '—'}</b></div>{/if}
           <div class="lr"><span>Дата</span><b>{when}</b></div>
           {#if o.net != null}
             <div class="lr"><span>Списано</span><b>{fmt(o.amount, o.amount % 1 ? 2 : 0)} {o.sym}</b></div>
@@ -185,7 +186,7 @@
 
         {#if typePick}
           <div class="seg">
-            {#each ['EXPENSE', 'INCOME', 'RETURN'] as a}<button class:on={o.action === a} onclick={() => chooseType(a)}>{kind[a]}</button>{/each}
+            {#each ['EXPENSE', 'INCOME', 'RETURN'] as a}<button class:on={o.action === a} disabled={busy} onclick={() => chooseType(a)}>{kind[a]}</button>{/each}
           </div>
         {/if}
 
