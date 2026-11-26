@@ -185,7 +185,7 @@
 
         {#if typePick}
           <div class="seg">
-            {#each ['EXPENSE', 'INCOME', 'RETURN'] as a}<button class:on={o.action === a} onclick={() => chooseType(a)}>{kind[a]}</button>{/each}
+            {#each ['EXPENSE', 'INCOME', 'RETURN'] as a}<button class:on={o.action === a} disabled={busy} onclick={() => chooseType(a)}>{kind[a]}</button>{/each}
           </div>
         {/if}
 

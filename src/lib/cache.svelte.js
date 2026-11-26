@@ -21,12 +21,16 @@ export const cachedKeys = (prefix) => Object.keys(boxes).filter((k) => k.startsW
 
 // один и тот же запрос не летит дважды: экран подхватывает уже идущую загрузку
 const inflight = {};
+// версия данных ключа: любая ручная правка (put) увеличивает её, а загрузка, начатая до правки, устарела и результат не применяет
+const ver = {};
 // force: идущая загрузка могла начаться до изменения данных, поэтому после неё грузим заново
 export function refresh(key, loader, force = false) {
   if (inflight[key]) return force ? inflight[key].catch(() => {}).then(() => refresh(key, loader)) : inflight[key];
   inflight[key] = (async () => {
     try {
+      const started = ver[key] ?? 0;
       const v = await loader();
+      if ((ver[key] ?? 0) !== started) return box(key).v ?? v; // за время загрузки данные поправили руками: ответ старый
       box(key).v = v;
       try { localStorage.setItem(PFX + key, JSON.stringify(v)); } catch { /* хранилище недоступно */ }
       return v;
@@ -43,6 +47,7 @@ export function dropCache() {
 
 // положить готовые данные в кэш без запроса
 export function put(key, v) {
+  ver[key] = (ver[key] ?? 0) + 1;
   box(key).v = v;
   try { localStorage.setItem(PFX + key, JSON.stringify(v)); } catch { /* хранилище недоступно */ }
 }
