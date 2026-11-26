@@ -21,8 +21,9 @@
   const kind = { EXPENSE: 'Расход', INCOME: 'Доход', RETURN: 'Возврат', TRANSFER: 'Перевод' };
   const tr = $derived(o?.action === 'TRANSFER');
   const amt = $derived(o ? fmt(Math.abs(tr ? o.amount : o.v), o.foreign || Math.abs(o.amount) % 1 ? 2 : 0) : '');
-  const theme = $derived(o && !tr ? cardTheme(o.acc) : null);
   const ends = $derived(tr ? (o?.acc ?? '').split(' → ') : []);
+  // карта окна: у обычной операции — её счёт, у банковского перевода — счёт, откуда он ушёл
+  const theme = $derived(o ? (tr ? (o.mono ? cardTheme(ends[0]) : null) : cardTheme(o.acc)) : null);
   const when = $derived(o ? new Date(o.date).toLocaleString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Kyiv' }) : '');
   const list = $derived(cats.filter((c) => (o?.action === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE')));
 
@@ -145,7 +146,9 @@
           {#if !tr && !theme}<div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} name={o.splits ? '' : o.name} />{/if}<span class="cn">{o.name}{#if o.splits}<small>{sparts.length > 1 ? '+ ' + sparts.slice(1).map((x) => catOf(x.category_id)?.name ?? '').filter(Boolean).join(', ') : o.cat}</small>{:else if o.cat !== o.name}<small>{o.cat}</small>{/if}</span></div>{/if}
         {/snippet}
         {#snippet acct()}
-          {#if tr}
+          {#if tr && theme}
+            <span class="dd ro"><small>Откуда</small><span>{ends[0] ?? '—'}</span></span>
+          {:else if tr}
             <span class="dd ro"><small>Откуда</small><span>{ends[0] ?? '—'}</span></span>
             <span class="sw"><Icon name="swap" size={22} /></span>
             <span class="dd ro"><small>Куда</small><span>{ends[1] ?? '—'}</span></span>
@@ -154,7 +157,9 @@
           {/if}
         {/snippet}
       </CardFace>
-      {#if theme && !tr}
+      {#if theme && tr}
+        <div class="mct"><div class="ct"><OpAvatar icon="swap" size={38} /><span class="cn">{o.name}<small>Перевод</small></span></div></div>
+      {:else if theme}
         <div class="mct"><div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={38} name={o.splits ? '' : o.name} />{/if}<span class="cn">{o.name}{#if o.splits}<small>{sparts.length > 1 ? '+ ' + sparts.slice(1).map((x) => catOf(x.category_id)?.name ?? '').filter(Boolean).join(', ') : o.cat}</small>{:else if o.cat !== o.name}<small>{o.cat}</small>{/if}</span></div></div>
       {/if}
 
@@ -170,6 +175,7 @@
               <Icon name="chevron" size={14} />
             </button>
           {/if}
+          {#if tr && theme}<div class="lr"><span>Куда</span><b>{ends[1] ?? '—'}</b></div>{/if}
           <div class="lr"><span>Дата</span><b>{when}</b></div>
           {#if o.net != null}
             <div class="lr"><span>Списано</span><b>{fmt(o.amount, o.amount % 1 ? 2 : 0)} {o.sym}</b></div>
