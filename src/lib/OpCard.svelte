@@ -235,17 +235,18 @@
 
       {#if pair && !tr}
         {#if !mergeOpen}
-          <div class="hint"><span class="hi">🔁</span><div><b>Похоже на перевод между счетами</b>{o.action === 'EXPENSE' ? '+' : '−'}{pMoney} {o.sym} на {pair.acc} в то же время</div></div>
-          <button class="ap" onclick={() => (mergeOpen = true)}>Сделать переводом</button>
+          <div class="hint"><span class="hi">🔁</span><div class="ht"><b>Похоже на перевод</b>{o.action === 'EXPENSE' ? '+' : '−'}{pMoney} {o.sym} на {pair.acc}</div><button class="go" onclick={() => (mergeOpen = true)}>Объединить</button></div>
         {:else}
           <div class="pair">
-            <div class="p"><div>{o.action === 'EXPENSE' ? o.name : pair.note}<small>{o.action === 'EXPENSE' ? pair.mine : pair.acc}</small></div><b>−{pMoney}</b></div>
-            <div class="arr">↓</div>
-            <div class="p"><div>{o.action === 'EXPENSE' ? pair.note : o.name}<small>{o.action === 'EXPENSE' ? pair.acc : pair.mine}</small></div><b class="gr">+{pMoney}</b></div>
+            <div class="s"><b>−{pMoney} {o.sym}</b><small>{o.action === 'EXPENSE' ? pair.mine : pair.acc}</small></div>
+            <div class="ar">→</div>
+            <div class="s r"><b class="gr">+{pMoney} {o.sym}</b><small>{o.action === 'EXPENSE' ? pair.acc : pair.mine}</small></div>
           </div>
-          <p class="pn">Две банковские операции станут одним переводом: в расходах и доходах он не считается.</p>
-          <button class="ap" disabled={busy} onclick={doMerge}>Объединить</button>
-          <button class="ap sc" onclick={() => (mergeOpen = false)}>Отмена</button>
+          <p class="pn">Две операции станут одним переводом, в расходах и доходах его не будет</p>
+          <div class="btns">
+            <button class="rb ok" disabled={busy} onclick={doMerge}><span>✓</span>Объединить</button>
+            <button class="rb no" onclick={() => (mergeOpen = false)}><span>✕</span>Отмена</button>
+          </div>
         {/if}
       {/if}
 
@@ -269,9 +270,19 @@
   .lr span { color: var(--muted); flex: none; }
   .lr b { font-weight: 500; text-align: right; margin-left: auto; overflow-wrap: anywhere; }
   .lr b.red { color: #E5584D; }
-  .hint { display: flex; gap: 10px; align-items: center; background: rgba(217, 180, 91, .12); border: 1px solid rgba(217, 180, 91, .4); border-radius: 14px; padding: 12px; font-size: 13px; color: var(--muted); } .hint b { display: block; font-size: 14px; color: var(--text, #fff); margin-bottom: 2px; } .hi { font-size: 22px; }
-  .pair { background: var(--fill); border-radius: 14px; } .pair .p { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; font-size: 14px; } .pair .p small { display: block; color: var(--muted); font-size: 12px; } .pair .gr { color: #30d158; } .pair .arr { text-align: center; color: #d9b45b; padding: 0; }
-  .pn { font-size: 12px; color: var(--muted); } .ap.sc { background: var(--fill); color: inherit; }
+  .hint { display: flex; align-items: center; gap: 10px; padding: 9px 10px 9px 12px; border-radius: 16px; background: rgba(217, 180, 91, .14); border: 1px solid rgba(217, 180, 91, .45); animation: rise .5s cubic-bezier(.2, .9, .3, 1) both; }
+  .hint .hi { font-size: 20px; } .hint .ht { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.25; color: var(--muted); } .hint .ht b { display: block; font-size: 13.5px; color: inherit; }
+  .go { border-radius: 99px; padding: 9px 14px; background: linear-gradient(160deg, #EBC77A, #B8862C); color: #fff; font-weight: 700; font-size: 13px; box-shadow: 0 4px 12px rgba(184, 134, 44, .4); transition: transform .15s; flex: none; } .go:active { transform: scale(.92); }
+  .pair { display: flex; align-items: center; gap: 8px; background: var(--fill); border-radius: 16px; padding: 10px 12px; animation: rise .5s both; }
+  .pair .s { flex: 1; min-width: 0; font-size: 12.5px; line-height: 1.25; } .pair .s b { display: block; font-size: 14px; } .pair .s small { display: block; color: var(--muted); } .pair .s.r { text-align: right; } .pair .gr { color: #30a14e; }
+  .pair .ar { width: 26px; height: 26px; border-radius: 50%; background: rgba(217, 180, 91, .2); color: #B8862C; display: grid; place-items: center; font-size: 14px; flex: none; animation: nudge 1.4s ease-in-out infinite; }
+  @keyframes nudge { 50% { transform: translateX(3px); } }
+  .pn { font-size: 11.5px; color: var(--muted); text-align: center; margin: -8px 6px 0; }
+  .btns { display: flex; justify-content: center; gap: 34px; }
+  .rb { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--muted); animation: pop .55s cubic-bezier(.2, 1.4, .4, 1) both; } .rb:nth-child(2) { animation-delay: .08s; }
+  .rb span { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; font-size: 24px; transition: transform .15s; } .rb:active span { transform: scale(.88); } .rb:disabled { opacity: .6; }
+  .rb.ok span { background: linear-gradient(160deg, #EBC77A, #B8862C); color: #fff; box-shadow: 0 8px 18px rgba(184, 134, 44, .45); animation: pulse 2.2s ease-in-out infinite; } .rb.no span { background: var(--fill); color: var(--muted); }
+  @keyframes pop { from { opacity: 0; transform: scale(.4); } } @keyframes pulse { 50% { box-shadow: 0 8px 26px rgba(235, 199, 122, .75); } }
   .mct { margin: 14px 4px 2px; } .mct .ct { display: flex; align-items: center; gap: 12px; min-width: 0; } .mct .cn { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; font-size: 17px; font-weight: 600; overflow-wrap: anywhere; } .mct .cn small { font-size: 13px; font-weight: 500; color: var(--muted); margin-top: 1px; } .mct .q { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: rgba(229, 88, 77, .14); color: #E5584D; font-weight: 700; flex: none; }
   .lr b.gold { color: var(--gold); font-weight: 600; }
   .cat :global(svg) { color: var(--muted); flex: none; }
