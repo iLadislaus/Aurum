@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { oc, closeOp } from './opcard.svelte.js';
   import { peek, refresh, put } from './cache.svelte.js';
-  import { loadCategories, setOpCategory, setOpType, loadSplits, saveSplits, clearSplits, rememberRule, countUncat, applyUncat, deleteOp, repeatOp } from './data.js';
+  import { loadCategories, setOpCategory, setOpType, loadSplits, saveSplits, clearSplits, rememberRule, countUncat, applyUncat, deleteOp, repeatOp, findBankPair, mergeBankPair, findMarker, splitBankPair } from './data.js';
   import { prefetchAll } from './prefetch.js';
   import { openNewOp } from './newop.svelte.js';
   import { fmt } from './format.js';
@@ -14,6 +14,7 @@
   import CardFace from './CardFace.svelte';
 
   let split = $state(false), parts = $state([]), typePick = $state(false), pick = $state(false), remember = $state(true), armed = $state(false), busy = $state(false), err = $state(''), more = $state(0), timer, sparts = $state([]), showParts = $state(false);
+  let pair = $state(null), marker = $state(null), mergeOpen = $state(false);
   let cats = $derived(peek('cats')?.list ?? []);
   // всегда берём свежую версию операции из списка (после смены категории и т. п.)
   let o = $derived(oc.op ? (peek(oc.key)?.ops.find((x) => x.id === oc.op.id) ?? oc.op) : null);
@@ -29,6 +30,9 @@
     if (!oc.open) return;
     pick = false; typePick = false; split = false; parts = []; remember = true; armed = false; err = ''; more = 0; showParts = false; sparts = [];
     refresh('cats', loadCategories).catch(() => {});
+    pair = null; marker = null; mergeOpen = false;
+    const cur = o;
+    if (cur?.mono) { findBankPair(cur).then((r) => { if (oc.open && oc.op?.id === cur.id) pair = r; }).catch(() => {}); findMarker(cur).then((r) => { if (oc.open && oc.op?.id === cur.id) marker = r; }).catch(() => {}); }
     const act = oc.act;
     untrack(() => {
       if (o?.splits) loadSplits(o.id).then((r) => { if (oc.open) sparts = r.sort((a, b) => b.amount - a.amount); }).catch(() => {});
@@ -104,6 +108,19 @@
     const cid = o.category_id; busy = true;
     try { await applyUncat(o.action, o.note.trim(), cid); more = 0; prefetchAll(true); }
     catch (e) { err = e.message || 'Не удалось применить'; }
+    busy = false;
+  }
+  const pMoney = $derived(o ? fmt(Math.abs(o.amount), 2) : '');
+  async function doMerge() {
+    busy = true; err = '';
+    try { await mergeBankPair(o, pair); mergeOpen = false; closeOp(); prefetchAll(true); }
+    catch (e) { err = e.message || 'Не удалось объединить'; }
+    busy = false;
+  }
+  async function doUnmerge() {
+    busy = true; err = '';
+    try { await splitBankPair(o, marker); closeOp(); prefetchAll(true); }
+    catch (e) { err = e.message || 'Не удалось разъединить'; }
     busy = false;
   }
   async function del() {
@@ -220,6 +237,23 @@
         </div>
       {/if}
 
+      {#if pair && !tr}
+        {#if !mergeOpen}
+          <div class="hint"><span class="hi">🔁</span><div><b>Похоже на перевод между счетами</b>{o.action === 'EXPENSE' ? '+' : '−'}{pMoney} {o.sym} на {pair.acc} в то же время</div></div>
+          <button class="ap" onclick={() => (mergeOpen = true)}>Сделать переводом</button>
+        {:else}
+          <div class="pair">
+            <div class="p"><div>{o.action === 'EXPENSE' ? o.name : pair.note}<small>{o.action === 'EXPENSE' ? pair.mine : pair.acc}</small></div><b>−{pMoney}</b></div>
+            <div class="arr">↓</div>
+            <div class="p"><div>{o.action === 'EXPENSE' ? pair.note : o.name}<small>{o.action === 'EXPENSE' ? pair.acc : pair.mine}</small></div><b class="gr">+{pMoney}</b></div>
+          </div>
+          <p class="pn">Две банковские операции станут одним переводом: в расходах и доходах он не считается.</p>
+          <button class="ap" disabled={busy} onclick={doMerge}>Объединить</button>
+          <button class="ap sc" onclick={() => (mergeOpen = false)}>Отмена</button>
+        {/if}
+      {/if}
+      {#if marker && tr}<button class="ap sc" disabled={busy} onclick={doUnmerge}>Разъединить</button>{/if}
+
       {#if more > 0}<button class="ap" onclick={applyMore}>Применить ещё к {more} операциям без категории</button>{/if}
       {#if err}<p class="er">{err}</p>{/if}
 
@@ -240,6 +274,9 @@
   .lr span { color: var(--muted); flex: none; }
   .lr b { font-weight: 500; text-align: right; margin-left: auto; overflow-wrap: anywhere; }
   .lr b.red { color: #E5584D; }
+  .hint { display: flex; gap: 10px; align-items: center; background: rgba(217, 180, 91, .12); border: 1px solid rgba(217, 180, 91, .4); border-radius: 14px; padding: 12px; font-size: 13px; color: var(--muted); } .hint b { display: block; font-size: 14px; color: var(--text, #fff); margin-bottom: 2px; } .hi { font-size: 22px; }
+  .pair { background: var(--fill); border-radius: 14px; } .pair .p { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; font-size: 14px; } .pair .p small { display: block; color: var(--muted); font-size: 12px; } .pair .gr { color: #30d158; } .pair .arr { text-align: center; color: #d9b45b; padding: 0; }
+  .pn { font-size: 12px; color: var(--muted); } .ap.sc { background: var(--fill); color: inherit; }
   .mct { margin: 14px 4px 2px; } .mct .ct { display: flex; align-items: center; gap: 12px; min-width: 0; } .mct .cn { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; font-size: 17px; font-weight: 600; overflow-wrap: anywhere; } .mct .cn small { font-size: 13px; font-weight: 500; color: var(--muted); margin-top: 1px; } .mct .q { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: rgba(229, 88, 77, .14); color: #E5584D; font-weight: 700; flex: none; }
   .lr b.gold { color: var(--gold); font-weight: 600; }
   .cat :global(svg) { color: var(--muted); flex: none; }
