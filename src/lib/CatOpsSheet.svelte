@@ -43,7 +43,7 @@
   const amt = (o) => (o.v > 0 ? '+' : '−') + fmt(Math.abs(o.v), Math.abs(o.amount) % 1 ? 2 : 0) + ' ' + o.sym;
 </script>
 
-<Sheet open={!!co.cat} onclose={closeCatOps} title={c?.name ?? ''} sub={c ? `${MON[c.ym % 12]} ${Math.floor(c.ym / 12)} · потрачено ${fmt(Math.max(0, total))} ₴ · ${list.length} оп.` : ''} z={55} bind:full>
+<Sheet open={!!co.cat} ceil={69} onclose={closeCatOps} title={c?.name ?? ''} sub={c ? `${MON[c.ym % 12]} ${Math.floor(c.ym / 12)} · потрачено ${fmt(Math.max(0, total))} ₴ · ${list.length} оп.` : ''} z={55} bind:full>
   <div class="bd">
     {#each groups as g (g.k)}
       <div class="dh"><span>{g.title}</span><b>{g.sum ? (g.sum > 0 ? '+' : '−') + cash(Math.abs(g.sum), 0) : ''}</b></div>
