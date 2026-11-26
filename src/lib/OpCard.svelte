@@ -146,10 +146,8 @@
           {#if !tr && !theme}<div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} name={o.splits ? '' : o.name} />{/if}<span class="cn">{o.name}{#if o.splits}<small>{sparts.length > 1 ? '+ ' + sparts.slice(1).map((x) => catOf(x.category_id)?.name ?? '').filter(Boolean).join(', ') : o.cat}</small>{:else if o.cat !== o.name}<small>{o.cat}</small>{/if}</span></div>{/if}
         {/snippet}
         {#snippet acct()}
-          {#if tr && theme}
-            <span class="dd ro"><small>Откуда</small><span>{ends[0] ?? '—'}</span></span>
-          {:else if tr}
-            <!-- ручной перевод: золотая карта чистая, счета ниже в списке -->
+          {#if tr}
+            <!-- перевод: на карте только сумма, счета ниже в списке -->
           {:else}
             <span class="dd ro"><small>{o.action === 'EXPENSE' ? 'Со счёта' : 'На счёт'}</small><span>{o.acc || '—'}</span></span>
           {/if}
@@ -173,7 +171,7 @@
               <Icon name="chevron" size={14} />
             </button>
           {/if}
-          {#if tr && !theme}<div class="lr"><span>Откуда</span><b>{ends[0] ?? '—'}</b></div>{/if}
+          {#if tr}<div class="lr"><span>Откуда</span><b>{ends[0] ?? '—'}</b></div>{/if}
           {#if tr}<div class="lr"><span>Куда</span><b>{ends[1] ?? '—'}</b></div>{/if}
           <div class="lr"><span>Дата</span><b>{when}</b></div>
           {#if o.net != null}
