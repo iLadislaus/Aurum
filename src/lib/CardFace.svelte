@@ -10,7 +10,6 @@
     <img class="bgi" src="{import.meta.env.BASE_URL}cards/mono-{theme}.jpg" alt="" draggable="false" />
     <span class="kd">{kind}</span>
     <div class="ab">{@render amount()}</div>
-    <div class="mch">{@render chip?.()}</div>
     <div class="mac">{@render acct()}</div>
   {:else}
     <div class="art" aria-hidden="true">
@@ -31,7 +30,7 @@
 
 <style>
   .cf { --fg: #F4DDA6; --sub: #8a7857; --pill: rgba(232, 194, 119, .11); position: relative; z-index: 3; border-radius: 24px; padding: 18px 20px; color: #F4EEDD; background: linear-gradient(135deg, #25201a 0%, #14110d 55%, #0a0807 100%); box-shadow: inset 0 0 0 .6px rgba(232, 194, 119, .32), 0 12px 24px -16px rgba(0, 0, 0, .8); }
-  .cf.mono { --fg: #fff; --sub: rgba(255, 255, 255, .62); --pill: rgba(255, 255, 255, .12); padding: 0; aspect-ratio: 16 / 10.6; border-radius: 22px; background: #1a1a1a; box-shadow: 0 0 0 .6px rgba(255, 255, 255, .14), 0 14px 28px -16px rgba(0, 0, 0, .9); }
+  .cf.mono { --fg: #fff; --sub: rgba(255, 255, 255, .62); --pill: rgba(255, 255, 255, .12); padding: 0; aspect-ratio: 16 / 9; border-radius: 22px; background: #1a1a1a; box-shadow: 0 0 0 .6px rgba(255, 255, 255, .14), 0 14px 28px -16px rgba(0, 0, 0, .9); }
   .cf.mono.white { --fg: #0d0d10; --sub: rgba(0, 0, 0, .5); --pill: rgba(0, 0, 0, .07); background: #f2f2f5; box-shadow: 0 0 0 .6px rgba(255, 255, 255, .5), 0 14px 28px -16px rgba(0, 0, 0, .9); }
   .bgi { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; pointer-events: none; -webkit-user-drag: none; }
   .art { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }

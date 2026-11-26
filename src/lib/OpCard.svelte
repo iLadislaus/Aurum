@@ -129,7 +129,7 @@
       <CardFace {theme} kind={kind[o.action].toUpperCase()}>
         {#snippet amount()}<div class="big"><span class="v">{amt}</span><u>{o.sym}</u></div>{/snippet}
         {#snippet chip()}
-          {#if !tr}<div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} name={o.splits ? '' : o.name} />{/if}<span class="cn">{o.name}{#if o.splits}<small>{sparts.length > 1 ? '+ ' + sparts.slice(1).map((x) => catOf(x.category_id)?.name ?? '').filter(Boolean).join(', ') : o.cat}</small>{:else if o.cat !== o.name}<small>{o.cat}</small>{/if}</span></div>{/if}
+          {#if !tr && !theme}<div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} name={o.splits ? '' : o.name} />{/if}<span class="cn">{o.name}{#if o.splits}<small>{sparts.length > 1 ? '+ ' + sparts.slice(1).map((x) => catOf(x.category_id)?.name ?? '').filter(Boolean).join(', ') : o.cat}</small>{:else if o.cat !== o.name}<small>{o.cat}</small>{/if}</span></div>{/if}
         {/snippet}
         {#snippet acct()}
           {#if tr}
@@ -141,6 +141,9 @@
           {/if}
         {/snippet}
       </CardFace>
+      {#if theme && !tr}
+        <div class="mct"><div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={38} name={o.splits ? '' : o.name} />{/if}<span class="cn">{o.name}{#if o.splits}<small>{sparts.length > 1 ? '+ ' + sparts.slice(1).map((x) => catOf(x.category_id)?.name ?? '').filter(Boolean).join(', ') : o.cat}</small>{:else if o.cat !== o.name}<small>{o.cat}</small>{/if}</span></div></div>
+      {/if}
 
       <div class="grp">
         <div class="lst">
@@ -237,6 +240,7 @@
   .lr span { color: var(--muted); flex: none; }
   .lr b { font-weight: 500; text-align: right; margin-left: auto; overflow-wrap: anywhere; }
   .lr b.red { color: #E5584D; }
+  .mct { margin: 14px 4px 2px; } .mct .ct { display: flex; align-items: center; gap: 12px; min-width: 0; } .mct .cn { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; font-size: 17px; font-weight: 600; overflow-wrap: anywhere; } .mct .cn small { font-size: 13px; font-weight: 500; color: var(--muted); margin-top: 1px; } .mct .q { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: rgba(229, 88, 77, .14); color: #E5584D; font-weight: 700; flex: none; }
   .lr b.gold { color: var(--gold); font-weight: 600; }
   .cat :global(svg) { color: var(--muted); flex: none; }
   .seg { display: flex; gap: 4px; padding: 3px; border-radius: 12px; background: var(--fill); animation: rise2 .3s cubic-bezier(.2, .8, .2, 1) both; }
