@@ -80,6 +80,7 @@ export async function loadHome() {
   for (const x of spl.data) { sc.set(x.transaction_id, (sc.get(x.transaction_id) ?? 0) + 1); if (!sp.has(x.transaction_id)) sp.set(x.transaction_id, []); sp.get(x.transaction_id).push({ category_id: x.category_id, amount: Number(x.amount) }); }
   const am = new Map(accs.data.map((x) => [x.id, x]));
   const recent = ops.data.filter((t) => !isMarker(t)).slice(0, 5).map((t) => mapOp(t, catMap, am, sc, sp));
+  flagPaired(ops.data, recent);
 
   // нераспределённые операции за всё время: без категории или в категории Uncategorized
   const unIds = cats.data.filter((c) => UNCAT.test(c.name || '')).map((c) => c.id);
@@ -248,6 +249,17 @@ export async function createAccount({ type, name, icon, currency, budgetSource, 
 // Пустышка объединённой пары: перевод «со счёта на тот же счёт», в списках не показывается, баланс не меняет
 const isMarker = (t) => t.action === 'TRANSFER' && t.from_account_id != null && t.from_account_id === t.to_account_id;
 
+// Помечает переводы, собранные из пары банковских операций (у них есть скрытая пустышка): их можно разъединить свайпом
+function flagPaired(raw, ops) {
+  const ms = raw.filter(isMarker);
+  if (!ms.length) return;
+  for (const o of ops) {
+    if (!o.mono || o.action !== 'TRANSFER' || o.from_account_id == null || o.from_account_id === o.to_account_id) continue;
+    const t = new Date(o.date).getTime();
+    o.paired = ms.some((m) => m.to_account_id === o.to_account_id && Number(m.amount) === o.amount && Math.abs(new Date(m.date) - t) <= 10 * 60 * 1000);
+  }
+}
+
 const OP_COLS = 'id,date,action,amount,to_amount,category_id,note,account_id,from_account_id,to_account_id,currency,rate,mono_op_id';
 
 // Одна операция для списков (Операции и «Последние операции» на Главной)
@@ -290,7 +302,7 @@ export async function loadOpsRange(a, b) {
     if (b) q = q.lt('date', b);
     const r = await q.order('date', { ascending: false }).range(from, from + 999);
     if (r.error) throw r.error;
-    rows.push(...r.data.filter((t) => !isMarker(t)));
+    rows.push(...r.data);
     if (r.data.length < 1000) break;
   }
   const [cats, accs, spl] = await Promise.all([
@@ -304,7 +316,8 @@ export async function loadOpsRange(a, b) {
   for (const x of spl.data) { sc.set(x.transaction_id, (sc.get(x.transaction_id) ?? 0) + 1); if (!sp.has(x.transaction_id)) sp.set(x.transaction_id, []); sp.get(x.transaction_id).push({ category_id: x.category_id, amount: Number(x.amount) }); }
   const cm = new Map(cats.data.map((c) => [c.id, c]));
   const am = new Map(accs.data.map((x) => [x.id, x]));
-  const ops = rows.map((t) => mapOp(t, cm, am, sc, sp));
+  const ops = rows.filter((t) => !isMarker(t)).map((t) => mapOp(t, cm, am, sc, sp));
+  flagPaired(rows, ops);
   pairRefunds(ops);
   return { ops };
 }
@@ -543,4 +556,11 @@ export async function splitBankPair(o, marker) {
   if (a.error) throw a.error;
   const b = await sb.from('transactions').update({ action: 'INCOME', account_id: o.to_account_id, from_account_id: null, to_account_id: null, category_id: null }).eq('id', marker.id);
   if (b.error) throw b.error;
+}
+
+// Разъединение прямо из списка (свайп): находит пустышку и возвращает расход и доход
+export async function unmergeOp(o) {
+  const m = await findMarker(o);
+  if (!m) throw new Error('Пара не найдена');
+  await splitBankPair(o, m);
 }

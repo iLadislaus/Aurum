@@ -2,7 +2,7 @@
   import { untrack } from 'svelte';
   import { oc, closeOp } from './opcard.svelte.js';
   import { peek, refresh, put } from './cache.svelte.js';
-  import { loadCategories, setOpCategory, setOpType, loadSplits, saveSplits, clearSplits, rememberRule, countUncat, applyUncat, deleteOp, repeatOp, findBankPair, mergeBankPair, findMarker, splitBankPair } from './data.js';
+  import { loadCategories, setOpCategory, setOpType, loadSplits, saveSplits, clearSplits, rememberRule, countUncat, applyUncat, deleteOp, repeatOp, findBankPair, mergeBankPair } from './data.js';
   import { prefetchAll } from './prefetch.js';
   import { openNewOp } from './newop.svelte.js';
   import { fmt } from './format.js';
@@ -14,7 +14,7 @@
   import CardFace from './CardFace.svelte';
 
   let split = $state(false), parts = $state([]), typePick = $state(false), pick = $state(false), remember = $state(true), armed = $state(false), busy = $state(false), err = $state(''), more = $state(0), timer, sparts = $state([]), showParts = $state(false);
-  let pair = $state(null), marker = $state(null), mergeOpen = $state(false);
+  let pair = $state(null), mergeOpen = $state(false);
   let cats = $derived(peek('cats')?.list ?? []);
   // всегда берём свежую версию операции из списка (после смены категории и т. п.)
   let o = $derived(oc.op ? (peek(oc.key)?.ops.find((x) => x.id === oc.op.id) ?? oc.op) : null);
@@ -32,8 +32,8 @@
     refresh('cats', loadCategories).catch(() => {});
     const cur = untrack(() => o);
     untrack(() => {
-      pair = null; marker = null; mergeOpen = false;
-      if (cur?.mono) { findBankPair(cur).then((r) => { if (oc.open && oc.op?.id === cur.id) pair = r; }).catch(() => {}); findMarker(cur).then((r) => { if (oc.open && oc.op?.id === cur.id) marker = r; }).catch(() => {}); }
+      pair = null; mergeOpen = false;
+      if (cur?.mono) { findBankPair(cur).then((r) => { if (oc.open && oc.op?.id === cur.id) pair = r; }).catch(() => {}); }
     });
     const act = oc.act;
     untrack(() => {
@@ -117,12 +117,6 @@
     busy = true; err = '';
     try { await mergeBankPair(o, pair); mergeOpen = false; closeOp(); prefetchAll(true); }
     catch (e) { err = e.message || 'Не удалось объединить'; }
-    busy = false;
-  }
-  async function doUnmerge() {
-    busy = true; err = '';
-    try { await splitBankPair(o, marker); closeOp(); prefetchAll(true); }
-    catch (e) { err = e.message || 'Не удалось разъединить'; }
     busy = false;
   }
   async function del() {
@@ -254,7 +248,6 @@
           <button class="ap sc" onclick={() => (mergeOpen = false)}>Отмена</button>
         {/if}
       {/if}
-      {#if marker && tr}<button class="ap sc" disabled={busy} onclick={doUnmerge}>Разъединить</button>{/if}
 
       {#if more > 0}<button class="ap" onclick={applyMore}>Применить ещё к {more} операциям без категории</button>{/if}
       {#if err}<p class="er">{err}</p>{/if}

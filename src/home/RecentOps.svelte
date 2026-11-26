@@ -7,7 +7,7 @@
   import { sw } from '../lib/swipe.svelte.js';
   import { longpress } from '../lib/longpress.js';
   import { openCtx } from '../lib/ctxmenu.svelte.js';
-  import { deleteOp, repeatOp, clearSplits } from '../lib/data.js';
+  import { deleteOp, repeatOp, clearSplits, unmergeOp } from '../lib/data.js';
   import { openNewOp } from '../lib/newop.svelte.js';
   import ConfirmDel from '../lib/ConfirmDel.svelte';
   import { prefetchAll } from '../lib/prefetch.js';
@@ -36,10 +36,14 @@
     try { await clearSplits(t.id); prefetchAll(true); }
     catch (e) { err = e.message || 'Не удалось убрать разделение'; }
   }
+  async function unpair(t) {
+    try { await unmergeOp(t); prefetchAll(true); } catch (e) { err = e.message || 'Не удалось разъединить'; }
+  }
   const editOp = (t) => (t.mono ? openOp(t, KEY) : openNewOp(t));
   const splitOp = (t) => openOp(t, KEY, 'split');
   const menu = (el, t) => openCtx(el, [
     { t: 'Изменить', icon: 'pen', run: () => editOp(t) },
+    ...(t.paired ? [{ t: 'Разъединить', icon: 'close', run: () => unpair(t) }] : []),
     ...(t.action !== 'TRANSFER' ? [{ t: 'Разделить', icon: 'split', run: () => splitOp(t) }] : []),
     ...(t.splits ? [{ t: 'Убрать разделение', icon: 'close', run: () => unsplit(t) }] : []),
     ...(!t.mono ? [...(!t.splits ? [{ t: 'Повторить', icon: 'copy', run: () => repeat(t) }] : []), { t: 'Удалить', icon: 'trash', danger: true, sep: true, run: () => (askDel = t) }] : [])
@@ -55,7 +59,7 @@
 
 <div class="grp" class:in={shown}>
   {#each rows as t, i (t.id)}
-    <SwipeRow id={t.id} norepeat={t.action === 'TRANSFER'} rlabel="Разделить" rconfirm={false} dlabel="Изменить" dconfirm={false} dgold full onrepeat={() => splitOp(t)} ondelete={() => editOp(t)}>
+    <SwipeRow id={t.id} norepeat={t.action === 'TRANSFER'} rlabel="Разделить" rconfirm={false} dlabel={t.paired ? 'Разъединить' : 'Изменить'} dconfirm={!!t.paired} dgold full onrepeat={() => splitOp(t)} ondelete={() => (t.paired ? unpair(t) : editOp(t))}>
     <div class="op" class:un={t.uncat} class:top={i > 0} role="button" tabindex="0" use:longpress={(el) => menu(el, t)} onclick={() => !sw.id && openOp(t, KEY)} onkeydown={(e) => e.key === 'Enter' && openOp(t, KEY)}>
       {#if t.uncat}<span class="q">?</span>{:else}<OpAvatar icon={t.icon} size={38} name={t.splits ? '' : t.name} />{/if}
       <div class="nm"><b>{t.name}</b><small>{t.cat}{t.acc ? ' · ' + t.acc : ''} · {when(t.date)}</small></div>
