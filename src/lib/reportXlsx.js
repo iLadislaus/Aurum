@@ -34,8 +34,8 @@ export function reportSheets(r) {
   const sub = `${r.period.label} · сформирован ${ruDate(r.today)} · суммы в гривнах${r.partial ? ` · данные с ${ruDate(r.first)}` : ''}`;
   const book = [];
 
-  const s1 = sheet('Сводка', [34, 18, 18, 14], 'Aurum · Финансовый отчёт', sub);
-  s1.table('Итоги периода', ['Показатель', 'Период', 'Прошлый', 'Изменение'], [
+  const s1 = sheet('Сводка', [34, 18, 30, 14], 'Aurum · Финансовый отчёт', sub);
+  s1.table('Итоги периода', ['Показатель', 'Период', r.prevLabel ? `Было ${r.prevLabel}` : 'Прошлый', 'Изменение'], [
     ['Доходы', r.inc, r.prev?.inc ?? { v: '—', s: 'text' }, pct(r.incChange)],
     ['Расходы', r.exp, r.prev?.exp ?? { v: '—', s: 'text' }, pct(r.expChange)],
     ['Остаток (доходы − расходы)', r.saldo, r.prev?.saldo ?? { v: '—', s: 'text' }],
@@ -61,8 +61,8 @@ export function reportSheets(r) {
   if (r.upcoming.length) s1.table('Платежи на 30 дней', ['Платёж', 'Сумма', 'Дата'], r.upcoming.map((p) => [p.name, p.amount, { v: serial(p.date), s: 'date' }]));
   book.push(s1);
 
-  const s2 = sheet('Расходы', [34, 18, 12, 18, 12], 'Расходы', sub);
-  const cats = s2.table('По категориям', ['Категория', 'Сумма', 'Доля', 'Прошлый период', 'Изменение'],
+  const s2 = sheet('Расходы', [34, 18, 12, 30, 12], 'Расходы', sub);
+  const cats = s2.table('По категориям', ['Категория', 'Сумма', 'Доля', r.prevLabel ? `Было ${r.prevLabel}` : 'Прошлый период', 'Изменение'],
     r.cats.map((c) => [c.name, c.value, pct(c.share), c.prev ?? { v: '—', s: 'text' }, pct(c.change)]));
   closeTotal(s2, [{ v: 'Итого', s: 'bold' }, total(s2, cats, 'B', addUp(r.cats, (c) => c.value))]);
   // для круговой: шесть крупнейших и «Остальное», иначе кольцо не читается
@@ -116,9 +116,9 @@ export function reportSheets(r) {
 
   const rows = r.ops.map((o) => [
     { v: serial(dayKey(o.date)), s: 'date' }, TYPE[o.action] ?? o.action, { v: o.note || o.cat, s: 'text' }, o.cat, o.acc ?? '',
-    o.sym === '₴' ? o.v : { v: o.v, s: 'text' }, o.sym
+    o.sym === '₴' ? o.v : { v: o.v, s: 'text' }, o.sym, o.memo ?? ''
   ]);
-  book.push({ name: 'Операции', cols: [13, 11, 44, 28, 30, 18, 9], rows: [head('Дата', 'Тип', 'Название', 'Категория', 'Счёт', 'Сумма', 'Валюта'), ...rows], freeze: 1, filter: `A1:G${rows.length + 1}` });
+  book.push({ name: 'Операции', cols: [13, 11, 44, 28, 30, 18, 9, 36], rows: [head('Дата', 'Тип', 'Название', 'Категория', 'Счёт', 'Сумма', 'Валюта', 'Возврат'), ...rows], freeze: 1, filter: `A1:H${rows.length + 1}` });
   return book;
 }
 

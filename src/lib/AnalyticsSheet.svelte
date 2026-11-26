@@ -113,7 +113,7 @@
 {/snippet}
 {#snippet opRow(o)}
   <button class="op" onclick={() => showOp(o)}>
-    <span class="d">{opDate(o)}</span><span class="n">{o.note || o.cat}</span><b>{cash(-o.part, 0)}</b>
+    <span class="d">{opDate(o)}</span><span class="n">{o.note || o.cat}{#if o.returned}<small>возвращено {cash(o.returned, 0)}</small>{/if}</span><b>{cash(-o.part, 0)}</b>
   </button>
 {/snippet}
 
@@ -150,7 +150,7 @@
               {#if r.rate != null}{@render line('Откладываешь', r.rate + '%')}{/if}
               {#if r.paid}{@render line('Погашено долгов', money(r.paid))}{/if}
               {#if r.taken}{@render line('Взято в долг', money(r.taken))}{/if}
-              {#if r.expChange != null}<small>Расходы {r.expChange === 0 ? 'как' : `на ${Math.abs(r.expChange)}% ${r.expChange > 0 ? 'выше' : 'ниже'}, чем`} в прошлом периоде</small>{:else}<small>Сравнить не с чем: учёт ведётся с {ruDate(r.first)}</small>{/if}
+              {#if r.expChange != null}<small>Расходы {r.expChange === 0 ? 'как' : `на ${Math.abs(r.expChange)}% ${r.expChange > 0 ? 'выше' : 'ниже'}, чем`} {r.prevLabel}</small>{:else}<small>Сравнить не с чем: учёт ведётся с {ruDate(r.first)}</small>{/if}
             </div>
             {#if r.health.score != null}
               <div class="card">
@@ -195,6 +195,7 @@
               </div>
               <div class="card">
                 <div class="h">Все категории</div>
+                {#if r.prevLabel}<small class="rule">Стрелки показывают изменение: сравнение {r.prevLabel.replace(/^за /, 'с тратами за ')}</small>{/if}
                 {#each r.cats as c (c.id)}
                   <button class="cat" onclick={() => (openCat = openCat === c.id ? null : c.id)} aria-expanded={openCat === c.id}>
                     <OpAvatar icon={c.icon} size={30} />
@@ -354,7 +355,7 @@
   .cat .m { flex: 1; min-width: 0; display: block; } .cat small { display: block; color: var(--muted); font-size: 12px; margin-top: 4px; }
   .ops { padding-left: 41px; animation: rise .3s both; }
   .op { display: flex; align-items: baseline; gap: 10px; width: 100%; min-height: 44px; padding: 8px 0; text-align: left; border-top: .5px solid var(--line); }
-  .op .d { color: var(--muted); font-size: 12px; flex: none; } .op .n { flex: 1; min-width: 0; overflow-wrap: anywhere; } .op b { font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .op .d { color: var(--muted); font-size: 12px; flex: none; } .op .n { flex: 1; min-width: 0; overflow-wrap: anywhere; } .op small { display: block; color: var(--muted); font-size: 12px; } .op b { font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .msg { text-align: center; color: var(--muted); padding: 28px 0; font-size: 14px; }
   .again { display: block; margin: 0 auto; color: var(--gold); font-weight: 600; min-height: 44px; }
   .ft { flex: none; padding: 10px 14px calc(12px + var(--safe-b)); border-top: .5px solid var(--line); }
