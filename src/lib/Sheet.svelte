@@ -1,19 +1,17 @@
 <script>
-  // Единое окно снизу: размер, анимация и жесты одни для всех. Открывается на половину, тянется на весь экран.
+  // Единое окно снизу: размер, анимация и жесты одни для всех. Открывается сразу на максимум, свайп вниз закрывает целиком.
   // fit: окно по высоте содержимого (до 88%), без половины и «на весь экран»; закрывается свайпом вниз
   let { open = false, onclose, title = '', sub = '', z = 55, fit = false, minh = '', snap = 0.46, full = $bindable(false), lead, footer, children } = $props();
 
   let dy = $state(0), y0 = null, dragging = $state(false);
   let H = $state(700), shEl, scEl, vel = 0, ly = 0, lt = 0;
-  // snap: какая часть высоты окна уходит вниз при открытии (0.46 — видна чуть больше половины, 0.30 — видно 70%)
-  const half = $derived(Math.round(H * snap));
-  const base = $derived(fit || full ? 0 : half);
+  const base = 0;
   const pos = $derived(Math.max(0, base + dy));
 
-  // при открытии всегда начинаем с половины и верха списка
+  // при открытии сразу на максимум и с верха списка
   $effect(() => {
     if (!open) return;
-    full = false; dy = 0;
+    full = true; dy = 0;
     if (scEl) scEl.scrollTop = 0;
     if (shEl) H = shEl.offsetHeight;
   });
@@ -33,13 +31,8 @@
     if (y0 == null) return;
     if (raf) { cancelAnimationFrame(raf); raf = 0; dy = want; }
     const p = pos; y0 = null; dragging = false; dy = 0;
-    if (fit) { if (vel > 0.5 || p > H * 0.3) onclose?.(); return; }
-    if (vel < -0.5) full = true;
-    else if (vel > 0.5) { if (full) full = false; else onclose?.(); }
-    else {
-      const d = [[0, 'f'], [half, 'h'], [H, 'c']].sort((m, n) => Math.abs(m[0] - p) - Math.abs(n[0] - p))[0][1];
-      if (d === 'c') onclose?.(); else full = d === 'f';
-    }
+    // закрывается целиком: быстрый свайп или оттянули достаточно; иначе возвращается на место
+    if (vel > 0.5 || p > H * (fit ? 0.3 : 0.25)) onclose?.();
   }
 
   // содержимое: на половине тянется само окно; на весь экран — только когда список в самом верху и тянут вниз (как в iOS)
@@ -54,8 +47,7 @@
       if (!axis) { const ax = Math.abs(e.touches[0].clientX - x), ay = Math.abs(c - y); if (Math.max(ax, ay) > 6) axis = ax > ay ? 'h' : 'v'; }
       if (axis !== 'v' && !on) return;
       if (!on) {
-        if (!full && !fit) { down({ clientY: y }); on = true; }
-        else if (top0 && node.scrollTop <= 0 && c - y > 4) { down({ clientY: c }); on = true; }
+        if (top0 && node.scrollTop <= 0 && c - y > 4) { down({ clientY: c }); on = true; }
         else return;
       }
       e.preventDefault(); move({ clientY: c });
@@ -69,7 +61,7 @@
 </script>
 
 <div class="as" class:open style:z-index={z} aria-hidden={!open}>
-  <button class="ov" aria-label="Закрыть" style:opacity={open ? (fit ? Math.max(0, 1 - pos / H) : Math.max(0, Math.min(1, 1 - (pos - half) / (H - half)))) : 0} onclick={() => onclose?.()}></button>
+  <button class="ov" aria-label="Закрыть" style:opacity={open ? Math.max(0, 1 - pos / H) : 0} onclick={() => onclose?.()}></button>
   <div class="sh" class:dragging class:fit class:tall={fit && minh} bind:this={shEl} role="dialog" aria-modal="true" aria-label={title} style:min-height={fit && minh ? minh : undefined} style:transform={open ? `translateY(${pos}px)` : undefined}>
     <div class="top" onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up}>
       <div class="gr"></div>
@@ -77,7 +69,7 @@
       <h3>{title}</h3>
       {#if sub}<p class="st">{sub}</p>{/if}
     </div>
-    <div class="sc" class:lock={!full && !fit} bind:this={scEl} use:grab>{@render children?.()}</div>
+    <div class="sc" bind:this={scEl} use:grab>{@render children?.()}</div>
     {@render footer?.()}
   </div>
 </div>
@@ -105,7 +97,6 @@
   h3 { margin: 0; text-align: center; font-size: 16px; font-weight: 700; }
   .st { margin: 1px 0 0; text-align: center; font-size: 11.5px; color: var(--muted); }
   .sc { position: relative; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 4px 8px calc(30px + var(--safe-b)); }
-  .sc.lock { overflow: hidden; touch-action: none; }
   @media (prefers-color-scheme: dark) {
     .sh { box-shadow: inset 0 1px 0 rgba(255, 232, 160, .3), inset 0 0 0 .5px rgba(232, 194, 119, .26), 0 -3px 14px rgba(240, 190, 90, .09); }
     .sh::before { background: radial-gradient(70% 100% at 50% 0, rgba(240, 200, 110, .05), transparent); }
