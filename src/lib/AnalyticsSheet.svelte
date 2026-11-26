@@ -171,11 +171,20 @@
                 </div></div>
               </div>
               {#if s.all != null}
-                <div class="card">
-                  <div class="ln"><span>Всего с валютой</span><b class="gold">≈ {money(s.all)}</b></div>
-                  {#if s.share != null}<div class="split"><i style="width:{100 - s.share}%"></i><i style="width:{s.share}%"></i></div>{/if}
-                  <div class="ln"><small>Гривна {money(r.accounts.homeTotal)}</small>{#if s.share != null}<small>Валюта {s.share}%</small>{/if}</div>
-                  {#if r.accounts.debts.length}<small>Долги из этой суммы не вычтены</small>{/if}
+                <div class="card all">
+                  <div class="info">
+                    <small>Всего с валютой</small>
+                    <strong>≈ {money(s.all)}</strong>
+                    <span><i></i>Валюта <b>{money(s.uah)}</b></span>
+                    <span><i class="uah"></i>Гривна <b>{money(r.accounts.homeTotal)}</b></span>
+                  </div>
+                  {#if s.share != null}
+                    <svg viewBox="0 0 36 36" role="img" aria-label="Валюта {s.share}%">
+                      <circle class="base" cx="18" cy="18" r="15" />
+                      {#if s.share}<circle class="arc" cx="18" cy="18" r="15" pathLength="100" style="--d:{s.share}" transform="rotate(-90 18 18)" />{/if}
+                      <text x="18" y="20.7">{s.share}%</text>
+                    </svg>
+                  {/if}
                 </div>
               {/if}
             {/if}
@@ -404,7 +413,15 @@
   .more { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .45s cubic-bezier(.32,.72,0,1); } .more.o { grid-template-rows: 1fr; } .more > div { overflow: hidden; min-height: 0; }
   .acc { align-items: center; padding: 9px 0; border-top: .5px solid var(--line); } .acc:first-child { margin-top: 10px; } .acc b { text-align: right; } .acc small { display: block; color: var(--muted); font-size: 12px; font-weight: 400; }
   .more p { margin: 0; padding-top: 9px; border-top: .5px solid var(--line); color: var(--muted); font-size: 12px; }
-  .split { display: flex; height: 7px; border-radius: 99px; overflow: hidden; margin: 10px 0 0; animation: grow .9s cubic-bezier(.2,.8,.2,1) .2s both; transform-origin: left; } .split i:first-child { background: #8A6212; } .split i:last-child { background: #F0CB82; }
+  .all { flex-direction: row; align-items: center; justify-content: space-between; gap: 12px; }
+  .info { display: flex; flex-direction: column; min-width: 0; font-variant-numeric: tabular-nums; }
+  .info small { color: var(--muted); font-size: 12px; } .info strong { font-size: 28px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 8px; white-space: nowrap; }
+  .info span { display: flex; align-items: center; gap: 7px; padding: 1px 0; } .info b { font-weight: 600; }
+  .info i { width: 8px; height: 8px; border-radius: 3px; background: #E0B552; flex: none; } .info i.uah { background: #7A560C; }
+  .all svg { width: 86px; flex: none; }
+  .all circle { fill: none; stroke-width: 4; } .all .base { stroke: #7A560C; }
+  .all .arc { stroke: #E8C36A; stroke-width: 4.4; stroke-dasharray: var(--d) 100; animation: ds 1.3s cubic-bezier(.3,.7,.2,1) .2s both; }
+  .all text { text-anchor: middle; font-size: 7.5px; font-weight: 700; fill: var(--text); }
   @keyframes fillx { to { transform: scaleX(1); } }
-  @media (prefers-reduced-motion: reduce) { .card, .b i, .donut circle, .ops, .sav::after, .split { animation: none; } .more { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { .card, .b i, .donut circle, .ops, .sav::after, .all .arc { animation: none; } .more { transition: none; } }
 </style>
