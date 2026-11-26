@@ -143,8 +143,8 @@
       <CardFace {theme} kind={kind[o.action].toUpperCase()}>
         {#snippet amount()}<div class="big"><span class="v">{amt}</span><u>{o.sym}</u></div>{/snippet}
         {#snippet chip()}
-          {#if tr}{#if theme}<div class="ct"><OpAvatar icon="swap" size={34} /><span class="cn">{o.name}<small>Перевод</small></span></div>{/if}
-          {:else}<div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} name={o.splits ? '' : o.name} />{/if}<span class="cn">{o.name}{#if o.splits}<small>{sparts.length > 1 ? '+ ' + sparts.slice(1).map((x) => catOf(x.category_id)?.name ?? '').filter(Boolean).join(', ') : o.cat}</small>{:else if o.cat !== o.name}<small>{o.cat}</small>{/if}</span></div>{/if}
+          {#if tr}{#if theme}<div class="ct"><OpAvatar icon="swap" size={34} /><span class="cn" class:lg={o.name.length > 22}>{o.name}</span></div>{/if}
+          {:else}<div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} name={o.splits ? '' : o.name} />{/if}<span class="cn" class:lg={o.name.length > 22}>{o.name}</span></div>{/if}
         {/snippet}
         {#snippet acct()}
           {#if tr}
@@ -153,7 +153,7 @@
         {/snippet}
       </CardFace>
       {#if tr && !theme}
-        <div class="mct"><div class="ct"><OpAvatar icon="swap" size={38} /><span class="cn">{o.name}<small>Перевод</small></span></div></div>
+        <div class="mct"><div class="ct"><OpAvatar icon="swap" size={38} /><span class="cn">{o.name}</span></div></div>
       {/if}
 
       <div class="grp">
@@ -284,6 +284,7 @@
   .rb span { width: 58px; height: 58px; border-radius: 50%; display: grid; place-items: center; font-size: 24px; transition: transform .15s; } .rb:active span { transform: scale(.88); } .rb:disabled { opacity: .6; }
   .rb.ok span { background: linear-gradient(160deg, #EBC77A, #B8862C); color: #fff; box-shadow: 0 8px 18px rgba(184, 134, 44, .45); animation: pulse 2.2s ease-in-out infinite; } .rb.no span { background: var(--fill); color: var(--muted); }
   @keyframes pop { from { opacity: 0; transform: scale(.4); } } @keyframes pulse { 50% { box-shadow: 0 8px 26px rgba(235, 199, 122, .75); } }
+  .cf :global(.cn.lg), .cn.lg { font-size: 13px; }
   .mct { margin: 14px 4px 2px; } .mct .ct { display: flex; align-items: center; gap: 12px; min-width: 0; } .mct .cn { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; font-size: 17px; font-weight: 600; overflow-wrap: anywhere; } .mct .cn small { font-size: 13px; font-weight: 500; color: var(--muted); margin-top: 1px; } .mct .q { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: rgba(229, 88, 77, .14); color: #E5584D; font-weight: 700; flex: none; }
   .lr b.gold { color: var(--gold); font-weight: 600; }
   .cat :global(svg) { color: var(--muted); flex: none; }

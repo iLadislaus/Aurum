@@ -60,8 +60,10 @@
   .cf.mono :global(.big u) { font-size: 22px; }
   .cf.mono .ab { white-space: nowrap; }
   .cf :global(.ct) { display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 16px; font-weight: 600; color: var(--fg); }
-  .cf.mono :global(.ct) { font-size: 14px; gap: 8px; }
+  .cf.mono :global(.ct) { gap: 10px; }
   .cf :global(.ct span) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cf :global(.ct .cn) { white-space: normal; overflow: visible; text-overflow: clip; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.2; max-width: 80%; overflow-wrap: anywhere; }
+  .cf :global(.ct .cn.lg) { font-size: 13px; }
   .cf :global(.cn) { display: flex; flex-direction: column; line-height: 1.15; }
   .cf :global(.cn small) { font-size: 12px; color: var(--sub); font-weight: 500; margin-top: 2px; }
   .cf :global(.dw) { position: relative; min-width: 0; }
