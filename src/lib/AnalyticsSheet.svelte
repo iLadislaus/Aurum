@@ -293,13 +293,11 @@
             {/if}
           {:else if tab === 4}
             {#if !r.plan.any}<p class="msg">На этот период план не заполнен</p>{:else}
-              <div class="card">
-                <div class="h">Итог</div>
-                {@render line('По плану', money(r.plan.total))}
-                {@render line('Потрачено по этим категориям', money(r.plan.fact))}
-                {@render line('Не израсходовано', money(r.plan.saved), 'pos')}
-                {@render line('Перерасход', money(r.plan.over), r.plan.over ? 'neg' : '')}
-                {#if r.plan.off}{@render line('Вне плана', money(r.plan.off), 'neg')}{/if}
+              {@const rest = r.plan.total - r.plan.fact}
+              <div class="card hero">
+                <small>{rest < 0 ? 'Перерасход' : 'Осталось'}</small>
+                <div class="left"><span class="big" class:neg={rest < 0}>{money(Math.abs(rest))}</span><em>из {money(r.plan.total)}</em></div>
+                <div class="b"><i class={rest < 0 ? 'bad' : ''} style="--w:{share(r.plan.fact, r.plan.total)}%"></i></div>
                 {#if period.kind === 'r'}<small>План берётся за целые месяцы, которые задевает период</small>{/if}
               </div>
               <div class="card">
@@ -365,6 +363,7 @@
   .card > small { color: var(--muted); font-size: 12px; margin-top: 6px; }
   .hero > small:first-child { margin-top: 0; }
   .big { font-size: 32px; font-weight: 700; letter-spacing: -.02em; color: var(--gold); font-variant-numeric: tabular-nums; margin-bottom: 4px; }
+  .left { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; } .left em { color: var(--muted); font-size: 14px; }
   .h { font-weight: 700; margin-bottom: 8px; display: flex; justify-content: space-between; gap: 8px; width: 100%; }
   .tap { text-align: left; }
   .ln { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
