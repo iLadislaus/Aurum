@@ -80,7 +80,7 @@
   .as.open .ov { will-change: opacity; }
   .as.open .sh { will-change: transform; }
   .ov { position: absolute; inset: 0; width: 100%; background: rgba(0, 0, 0, .4); opacity: 0; transition: opacity .55s cubic-bezier(.3, .6, .25, 1); }
-  .sh { position: absolute; left: 14px; right: 14px; bottom: 0; top: calc(env(safe-area-inset-top, 0px) + 24px); display: flex; flex-direction: column;
+  .sh { position: absolute; left: 14px; right: 14px; bottom: 0; top: calc(env(safe-area-inset-top, 0px) + 90px); display: flex; flex-direction: column;
     background: var(--bg); border-radius: 26px 26px 0 0; overflow: hidden; transform: translateY(105%); transition: transform .62s cubic-bezier(.3, .6, .25, 1);
     box-shadow: inset 0 1px 0 rgba(255, 236, 170, .55), inset 0 0 0 .5px rgba(214, 164, 62, .28), 0 -3px 14px rgba(226, 172, 62, .1); }
   .as.open .sh { transition: transform .5s cubic-bezier(.32, .72, 0, 1); }
