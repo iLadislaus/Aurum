@@ -143,7 +143,8 @@
       <CardFace {theme} kind={kind[o.action].toUpperCase()}>
         {#snippet amount()}<div class="big"><span class="v">{amt}</span><u>{o.sym}</u></div>{/snippet}
         {#snippet chip()}
-          {#if !tr && !theme}<div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} name={o.splits ? '' : o.name} />{/if}<span class="cn">{o.name}{#if o.splits}<small>{sparts.length > 1 ? '+ ' + sparts.slice(1).map((x) => catOf(x.category_id)?.name ?? '').filter(Boolean).join(', ') : o.cat}</small>{:else if o.cat !== o.name}<small>{o.cat}</small>{/if}</span></div>{/if}
+          {#if tr}{#if theme}<div class="ct"><OpAvatar icon="swap" size={34} /><span class="cn">{o.name}<small>Перевод</small></span></div>{/if}
+          {:else}<div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} name={o.splits ? '' : o.name} />{/if}<span class="cn">{o.name}{#if o.splits}<small>{sparts.length > 1 ? '+ ' + sparts.slice(1).map((x) => catOf(x.category_id)?.name ?? '').filter(Boolean).join(', ') : o.cat}</small>{:else if o.cat !== o.name}<small>{o.cat}</small>{/if}</span></div>{/if}
         {/snippet}
         {#snippet acct()}
           {#if tr}
@@ -153,10 +154,8 @@
           {/if}
         {/snippet}
       </CardFace>
-      {#if tr}
+      {#if tr && !theme}
         <div class="mct"><div class="ct"><OpAvatar icon="swap" size={38} /><span class="cn">{o.name}<small>Перевод</small></span></div></div>
-      {:else if theme}
-        <div class="mct"><div class="ct">{#if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={38} name={o.splits ? '' : o.name} />{/if}<span class="cn">{o.name}{#if o.splits}<small>{sparts.length > 1 ? '+ ' + sparts.slice(1).map((x) => catOf(x.category_id)?.name ?? '').filter(Boolean).join(', ') : o.cat}</small>{:else if o.cat !== o.name}<small>{o.cat}</small>{/if}</span></div></div>
       {/if}
 
       <div class="grp">
