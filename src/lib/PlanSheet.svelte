@@ -57,7 +57,7 @@
   const blur = (c) => { txt[c.id] = pl(c) ? fmt(pl(c)) : ''; };
 </script>
 
-<Sheet open={bg.plan} ceil={69} onclose={closePlan} title="План на месяц" sub={title} bind:full>
+<Sheet open={bg.plan} ceil={66} onclose={closePlan} title="План на месяц" sub={title} bind:full>
   <div class="hd">
     <div class="cd">
       <i class="au"></i>

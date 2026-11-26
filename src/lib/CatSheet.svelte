@@ -82,7 +82,7 @@
   const idx = (arr, v) => Math.max(0, arr.indexOf(v));
 </script>
 
-<Sheet open={bg.cats} ceil={69} onclose={closeCats} title="Категории" bind:full>
+<Sheet open={bg.cats} ceil={66} onclose={closeCats} title="Категории" bind:full>
   <div class="vp" bind:this={vp}>
     <div class="vs" class:act={view === 1} style:transform="translateX({view === 1 ? 0 : -100}%)" class:off={view !== 1}>
       <div class="bar">
