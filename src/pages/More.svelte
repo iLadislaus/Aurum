@@ -28,7 +28,7 @@
   <div class="grp rise" style="--i:1">
     <button class="it" onclick={() => openAnalytics(bg.ym)}>
       <span class="ic"><Icon name="chart" size={17} /></span>
-      <span class="m"><b>Аналитика</b><small>куда уходят деньги, динамика по месяцам</small></span>
+      <span class="m"><b>Аналитика</b><small>финансовый отчёт и выгрузка в Excel</small></span>
       <span class="ch"><Icon name="chevron" size={14} /></span>
     </button>
     <button class="it" onclick={() => tap('ru')}>
