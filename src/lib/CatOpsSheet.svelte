@@ -1,8 +1,9 @@
 <script>
   import Sheet from './Sheet.svelte';
   import OpAvatar from './OpAvatar.svelte';
-  import { co, closeCatOps } from './budget.svelte.js';
+  import { co, bd, closeCatOps } from './budget.svelte.js';
   import { opsLoader } from './data.js';
+  import { monthKey } from './budget.js';
   import { peek, refresh } from './cache.svelte.js';
   import { openOp } from './opcard.svelte.js';
   import { fmt, cash } from './format.js';
@@ -39,7 +40,9 @@
     }
     return out;
   })());
-  const total = $derived(-list.reduce((s, o) => s + o.v, 0));
+  // «потрачено» — та же цифра, что у категории в «Бюджете»: возврат за давнюю покупку этот месяц не меняет
+  const fact = $derived(c ? bd[monthKey(Math.floor(c.ym / 12), c.ym % 12)]?.cats.find((x) => x.id === c.id)?.fact : undefined);
+  const total = $derived(fact ?? -list.reduce((s, o) => s + o.v, 0));
   const amt = (o) => (o.v > 0 ? '+' : '−') + fmt(Math.abs(o.v), Math.abs(o.amount) % 1 ? 2 : 0) + ' ' + o.sym;
 </script>
 

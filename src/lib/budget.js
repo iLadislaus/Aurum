@@ -1,5 +1,6 @@
 // Данные «Бюджета»: категории, конверты, связка категория → конверт
 import { sb } from './supabase.js';
+import { loadMonthSpend } from './spend.js';
 
 const clean = (s) => (s || '').replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}️‍]/gu, '').replace(/\s+/g, ' ').trim();
 export const MODE = { spread: 'Плавно', lump: 'Разово', chunks: 'Частями' };
@@ -148,12 +149,15 @@ export async function loadBudgetMonth(month) {
   if (c.error) throw c.error;
   const t = await sb.rpc('month_category_totals', { p_month: month });
   if (t.error) throw t.error;
-  const spent = {};
-  for (const r of t.data) { if (r.action === 'EXPENSE') spent[r.category_id] = (spent[r.category_id] || 0) + Number(r.total); else if (r.action === 'RETURN') spent[r.category_id] = (spent[r.category_id] || 0) - Number(r.total); }
+  // долги берём из базы (там и переводы по долгу), остальные траты — по правилам отчёта
+  const debts = {};
+  for (const r of t.data) { if (r.action === 'EXPENSE') debts[r.category_id] = (debts[r.category_id] || 0) + Number(r.total); else if (r.action === 'RETURN') debts[r.category_id] = (debts[r.category_id] || 0) - Number(r.total); }
+  const [yy, mm] = month.split('-').map(Number);
+  const spent = await loadMonthSpend(yy, mm - 1);
   const cats = c.data.map((x) => ({
     id: x.id, name: clean(x.name), income: x.type === 'INCOME', icon: x.icon || 'tag', mand: !!x.is_mandatory, debt: !!x.is_debt,
     mode: x.spend_mode || 'spread', parts: x.spend_parts || 4, grp: x.type === 'INCOME' ? incomeGroup(x.name) : null,
-    plan: p.plan[x.id] || 0, fact: x.type === 'INCOME' ? p.got[x.id] || 0 : Math.max(0, spent[x.id] || 0)
+    plan: p.plan[x.id] || 0, fact: x.type === 'INCOME' ? p.got[x.id] || 0 : Math.max(0, (x.is_debt ? debts[x.id] : spent.get(x.id)) || 0)
   }));
   // свободно для раскладки — только то, что физически лежит на Cash (как в окне «Разложить»)
   const gk = { 'Аванс': 0, 'Зарплата': 1, 'Другое': 2 };
