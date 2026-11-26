@@ -1,7 +1,7 @@
 <script>
   // Единое окно снизу: размер, анимация и жесты одни для всех. Открывается сразу на максимум, свайп вниз закрывает целиком.
   // fit: окно по высоте содержимого (до 88%), без половины и «на весь экран»; закрывается свайпом вниз
-  let { open = false, onclose, title = '', sub = '', z = 55, fit = false, minh = '', snap = 0.46, full = $bindable(false), lead, footer, children } = $props();
+  let { open = false, onclose, title = '', sub = '', z = 55, fit = false, minh = '', ceil = 90, full = $bindable(false), lead, footer, children } = $props();
 
   let dy = $state(0), y0 = null, dragging = $state(false);
   let H = $state(700), shEl, scEl, vel = 0, ly = 0, lt = 0;
@@ -62,7 +62,7 @@
 
 <div class="as" class:open style:z-index={z} aria-hidden={!open}>
   <button class="ov" aria-label="Закрыть" style:opacity={open ? Math.max(0, 1 - pos / H) : 0} onclick={() => onclose?.()}></button>
-  <div class="sh" class:dragging class:fit class:tall={fit && minh} bind:this={shEl} role="dialog" aria-modal="true" aria-label={title} style:min-height={fit && minh ? minh : undefined} style:transform={open ? `translateY(${pos}px)` : undefined}>
+  <div class="sh" class:dragging class:fit class:tall={fit && minh} bind:this={shEl} role="dialog" aria-modal="true" aria-label={title} style:min-height={fit && minh ? minh : undefined} style:top={fit ? undefined : `calc(env(safe-area-inset-top, 0px) + ${ceil}px)`} style:transform={open ? `translateY(${pos}px)` : undefined}>
     <div class="top" onpointerdown={down} onpointermove={move} onpointerup={up} onpointercancel={up}>
       <div class="gr"></div>
       {@render lead?.()}
