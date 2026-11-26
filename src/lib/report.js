@@ -117,6 +117,13 @@ function ledger(raw) {
   return { rows, cm, am, back, linked };
 }
 
+// Траты месяца по категориям, как в отчёте: Map категория → сумма. Их же берут «Бюджет» и Главная
+export function monthSpend(raw, ym) {
+  const m = new Map();
+  for (const x of ledger(raw).rows) if (x.type === 'exp' && ymOf(x.day) === ym) m.set(x.cat, r2((m.get(x.cat) ?? 0) + x.amount));
+  return m;
+}
+
 const within = (rows, a, b) => rows.filter((x) => x.day >= a && x.day <= b);
 const totals = (rows) => ({
   inc: sum(rows.filter((x) => x.type === 'inc'), (x) => x.amount),
