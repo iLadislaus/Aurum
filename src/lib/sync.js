@@ -55,9 +55,10 @@ export function createOpsSync({ sb, store, columns, now = Date.now, changes = ()
 
   async function once() {
     const gen = generation;
+    // отметку ставим до чтения копии: экраны уже шлют запросы, пока она читается. Запись во время сверки сделает её устаревшей
+    const at = now(), version = changes();
     const old = await (memory ?? store.read().catch(() => null)); // await всегда: вызовы того же такта успевают присоединиться
     started = true; // дальше идут запросы: вызовам после этой точки нужен ещё один проход
-    const at = now(), version = changes(); // запоминаем до запросов: запись во время сверки сделает её устаревшей
     if (old && checked && checked.version === version && at >= checked.at && at - checked.at < FRESH) {
       return { mode: 'fresh', count: Object.keys(old.rows).length, rows: old.rows };
     }
