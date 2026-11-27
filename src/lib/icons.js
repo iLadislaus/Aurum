@@ -44,6 +44,8 @@ export const ICONS = {
   arrowup: 'M7 17L17 7M9 7h8v8',
   arrowdown: 'M17 7L7 17M15 17H7V9',
   back: 'M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3',
+  sync: 'M20 12a8 8 0 0 1-14 5.3M4 12a8 8 0 0 1 14-5.3M18 3v4h-4M6 21v-4h4',
+  gear: 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M18.4 5.6l-1.8 1.8M7.4 16.6l-1.8 1.8',
   tag: 'M4 12V5a1 1 0 0 1 1-1h7l8 8-8 8zM8.5 8.5h.01'
 };
 export const iconPath = (k) => ICONS[k] ?? ICONS.tag;
