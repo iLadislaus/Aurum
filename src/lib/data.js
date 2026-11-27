@@ -1,5 +1,6 @@
 import { sb } from './supabase.js';
 import { loadMonthSpend } from './spend.js';
+import { OP_COLS } from './opcols.js';
 
 const first = (y, m) => new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
 const MON = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
@@ -288,7 +289,6 @@ function flagPaired(raw, ops) {
   }
 }
 
-const OP_COLS = 'id,date,action,amount,to_amount,category_id,note,account_id,from_account_id,to_account_id,currency,rate,mono_op_id';
 
 // Одна операция для списков (Операции и «Последние операции» на Главной)
 export const UNCAT = /^uncategorized/i;

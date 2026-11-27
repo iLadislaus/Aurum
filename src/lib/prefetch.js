@@ -3,6 +3,7 @@ import { refresh, put, cachedKeys } from './cache.svelte.js';
 import { loadHome, loadAccounts, loadOpsForAll, loadMonthOps, opsLoader } from './data.js';
 import { loadRates } from './rate.js';
 import { loadBrands } from './brands.svelte.js';
+import { syncOps } from './opsstore.js';
 
 let last = 0;
 export function prefetchAll(force = false) {
@@ -21,4 +22,6 @@ export function prefetchAll(force = false) {
   if (force) for (const k of [...cachedKeys('ops.y.'), ...cachedKeys('ops.r.'), ...cachedKeys('ops.all')]) refresh(k, opsLoader(k), true).catch(() => {});
   loadRates().catch(() => {});
   loadBrands().catch(() => {});
+  // копия операций на устройстве: экраны перейдут на неё следующим шагом
+  syncOps().catch((e) => console.warn('Синхронизация операций не удалась', e));
 }
