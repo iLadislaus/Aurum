@@ -1,6 +1,7 @@
 import { sb } from './supabase.js';
 import { loadMonthSpend } from './spend.js';
 import { OP_COLS } from './opcols.js';
+import { opsRows } from './opsstore.js';
 
 const first = (y, m) => new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
 const MON = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
@@ -212,8 +213,18 @@ function buildAccountOps(id, rows, { cm, am, sc, sp }) {
   return { ops, inc, out };
 }
 
-// справочники для списков операций: категории, счета и разделения
-async function loadRefs() {
+// Операции для списков берутся из копии на устройстве (перед выдачей она сверяется с базой), новые сверху
+const allOps = async () => (await opsRows()).sort((a, b) => Date.parse(b.date) - Date.parse(a.date) || (a.id < b.id ? -1 : 1));
+
+// справочники для списков операций: категории, счета и разделения.
+// Загрузчики, стартующие одновременно, делят один запрос справочников; более поздний вызов запрашивает заново
+let refsNow = null;
+function loadRefs() {
+  if (!refsNow) { refsNow = fetchRefs(); setTimeout(() => { refsNow = null; }, 0); }
+  return refsNow;
+}
+
+async function fetchRefs() {
   const [cats, accs, spl] = await Promise.all([
     sb.from('categories').select('id,name,icon,type,is_debt'),
     sb.from('accounts').select('id,name,currency,is_foreign'),
@@ -226,32 +237,19 @@ async function loadRefs() {
   return { cm: new Map(cats.data.map((c) => [c.id, c])), am: new Map(accs.data.map((x) => [x.id, x])), sc, sp };
 }
 
+const ofAccount = (rows, id) => rows.filter((t) => t.account_id === id || t.from_account_id === id || t.to_account_id === id).slice(0, 300);
+
 export async function loadAccountOps(id) {
-  const [tx, refs] = await Promise.all([
-    sb.from('transactions').select(OP_COLS)
-      .or(`account_id.eq.${id},from_account_id.eq.${id},to_account_id.eq.${id}`)
-      .order('date', { ascending: false }).limit(300),
-    loadRefs()
-  ]);
-  if (tx.error) throw tx.error;
-  return buildAccountOps(id, tx.data, refs);
+  const [all, refs] = await Promise.all([allOps(), loadRefs()]);
+  return buildAccountOps(id, ofAccount(all, id), refs);
 }
 
 // Все операции одним заходом и раскладка по счетам: окно любого счёта открывается сразу с готовым списком
 export async function loadOpsForAll(ids) {
-  const pages = [];
-  for (let from = 0; ; from += 1000) {
-    const r = await sb.from('transactions').select(OP_COLS).order('date', { ascending: false }).range(from, from + 999);
-    if (r.error) throw r.error;
-    pages.push(...r.data);
-    if (r.data.length < 1000) break;
-  }
+  const all = await allOps();
   const refs = await loadRefs();
   const out = new Map();
-  for (const id of ids) {
-    const rows = pages.filter((t) => t.account_id === id || t.from_account_id === id || t.to_account_id === id).slice(0, 300);
-    out.set(id, buildAccountOps(id, rows, refs));
-  }
+  for (const id of ids) out.set(id, buildAccountOps(id, ofAccount(all, id), refs));
   return out;
 }
 
@@ -323,16 +321,8 @@ function mapOp(t, cm, am, sc, sp) {
 
 // Операции за любой период: a и b — границы (ISO), без границы — до края; страницами по 1000
 export async function loadOpsRange(a, b) {
-  const rows = [];
-  for (let from = 0; ; from += 1000) {
-    let q = sb.from('transactions').select(OP_COLS);
-    if (a) q = q.gte('date', a);
-    if (b) q = q.lt('date', b);
-    const r = await q.order('date', { ascending: false }).range(from, from + 999);
-    if (r.error) throw r.error;
-    rows.push(...r.data);
-    if (r.data.length < 1000) break;
-  }
+  const from = a ? Date.parse(a) : -Infinity, to = b ? Date.parse(b) : Infinity;
+  const rows = (await allOps()).filter((t) => { const d = Date.parse(t.date); return d >= from && d < to; });
   const { cm, am, sc, sp } = await loadRefs();
   const ops = rows.filter((t) => !isMarker(t)).map((t) => mapOp(t, cm, am, sc, sp));
   flagPaired(rows, ops);
@@ -377,12 +367,7 @@ export function opsLoader(key) {
 // Месяцы, в которых есть операции: «2026-10» → сколько операций (для выпадающих списков периода)
 export async function loadOpsMonths() {
   const out = {};
-  for (let from = 0; ; from += 1000) {
-    const r = await sb.from('transactions').select('date').order('date', { ascending: false }).range(from, from + 999);
-    if (r.error) throw r.error;
-    for (const t of r.data) { const d = new Date(t.date); const k = d.getFullYear() + '-' + d.getMonth(); out[k] = (out[k] ?? 0) + 1; }
-    if (r.data.length < 1000) break;
-  }
+  for (const t of await opsRows()) { const d = new Date(t.date); const k = d.getFullYear() + '-' + d.getMonth(); out[k] = (out[k] ?? 0) + 1; }
   return out;
 }
 
