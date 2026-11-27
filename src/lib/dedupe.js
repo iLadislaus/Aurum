@@ -1,4 +1,5 @@
 // Одинаковые запросы справочников и итогов, идущие почти одновременно, отправляются в базу один раз.
+// Пока сверка операций свежая, повторно берётся и ответ, запрошенный после её начала: балансы не отстают от списка операций.
 // Любой другой запрос, кроме чтения, сразу забывает всё запомненное: после изменения данные запрашиваются заново.
 // Операции здесь не участвуют: их сверяет своя синхронизация, а проверки перед записью должны быть свежими.
 
@@ -8,8 +9,8 @@ const TOTALS = /\/rest\/v1\/rpc\/(month_summary|month_category_totals)$/;
 // запись в эти таблицы операции не меняет (удаление считаем изменением всегда)
 const NOT_OPS = /\/rest\/v1\/(budgets|budget_distribution|budget_distribution_month|rules|recurring_payments)$/;
 
-export function createDedupeFetch(send, { ttl = 2000, onOpsChange = () => {} } = {}) {
-  const saved = new Map(); // ключ запроса → обещание ответа
+export function createDedupeFetch(send, { ttl = 2000, onOpsChange = () => {}, freshSince = () => null, now = Date.now } = {}) {
+  const saved = new Map(); // ключ запроса → ответ, когда запрошен и когда получен
 
   return async function dedupeFetch(input, init = {}) {
     const url = String(input?.url ?? input);
@@ -29,17 +30,23 @@ export function createDedupeFetch(send, { ttl = 2000, onOpsChange = () => {} } =
 
     const key = [method, url, init.body ?? '', ...[...new Headers(init.headers)].map((h) => h.join(':'))].join('\n');
     let hit = saved.get(key);
+    if (hit && hit.done !== null) {
+      const since = freshSince();
+      if (!(now() - hit.done < ttl || (since !== null && hit.sent >= since))) hit = null;
+    }
     if (!hit) {
-      hit = (async () => {
+      const entry = { sent: now(), done: null };
+      entry.answer = (async () => {
         const r = await send(input, init);
         const empty = method === 'HEAD' || r.status === 204 || r.status === 304;
         return { ok: r.ok, body: empty ? null : await r.text(), init: { status: r.status, statusText: r.statusText, headers: [...r.headers] } };
       })();
-      saved.set(key, hit);
-      const drop = () => { if (saved.get(key) === hit) saved.delete(key); };
-      hit.then((x) => (x.ok ? setTimeout(drop, ttl) : drop()), drop);
+      saved.set(key, entry);
+      const drop = () => { if (saved.get(key) === entry) saved.delete(key); };
+      entry.answer.then((x) => (x.ok ? (entry.done = now()) : drop()), drop); // ошибки не запоминаем
+      hit = entry;
     }
-    const x = await hit;
+    const x = await hit.answer;
     return new Response(x.body, x.init); // каждому свой ответ: тело читается один раз
   };
 }
