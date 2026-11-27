@@ -1,5 +1,6 @@
 // Эмблемы магазинов: шаблоны названий лежат в Supabase (merchant_brands), картинки — в public/logos.
-// Шаблон «=название» — выбор владельца: действует на платежи ровно с этим названием; пустая картинка значит «без логотипа»
+// Шаблон «=название» — выбор владельца: действует на платежи ровно с этим названием; пустая картинка значит «без логотипа».
+// Шаблон «+файл» — свой загруженный логотип (лежит в ветке «logos» на GitHub): он только в списке выбора
 import { sb } from './supabase.js';
 
 const KEY = 'aurum.brands';
@@ -10,11 +11,12 @@ let started = false, version = 0;
 
 const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 export const brandKey = (name) => (name || '').toLowerCase().replace(/\s+/g, ' ').trim();
-const fileOf = (r) => (r?.logo_url ? r.logo_url.split('/').pop() : null);
+// у готовых логотипов — имя файла, у загруженных — полный адрес
+const fileOf = (r) => (!r?.logo_url ? null : r.logo_url.startsWith('http') ? r.logo_url : r.logo_url.split('/').pop());
 const build = (rows) => ({
   exact: new Map(rows.filter((r) => r.pattern?.startsWith('=')).map((r) => [r.pattern.slice(1), fileOf(r)])),
   list: rows
-    .filter((r) => r.logo_url && r.pattern && !r.pattern.startsWith('='))
+    .filter((r) => r.logo_url && r.pattern && !/^[=+]/.test(r.pattern))
     .map((r) => ({ file: fileOf(r), re: new RegExp(`(^|[^\\p{L}\\p{N}])${esc(r.pattern.toLowerCase())}`, 'u'), n: r.pattern.length }))
     .sort((a, b) => b.n - a.n)
 });
@@ -36,7 +38,7 @@ export async function loadBrands() {
   if (v === version) apply(data); // пока грузили, выбор могли поменять: старый ответ не применяем
 }
 
-export const logoSrc = (file) => `${import.meta.env.BASE_URL}logos/${file}?v=${__APP_VERSION__}`;
+export const logoSrc = (file) => (file.startsWith('http') ? file : `${import.meta.env.BASE_URL}logos/${file}?v=${__APP_VERSION__}`);
 const standard = (key) => rules.list.find((x) => x.re.test(key))?.file ?? null;
 
 // файл картинки для названия операции или null
@@ -58,10 +60,12 @@ export function logoList() {
   for (const r of st.list) {
     const f = fileOf(r);
     if (!f) continue;
-    const words = [f.replace(/\.\w+$/, ''), r.domain ?? '', r.pattern.replace(/^=/, '')].join(' ').toLowerCase();
+    const words = [f.replace(/^.*\//, '').replace(/\.\w+$/, ''), r.domain ?? '', r.pattern.replace(/^[=+]/, '')].join(' ').toLowerCase();
     all.set(f, all.has(f) ? all.get(f) + ' ' + words : words);
   }
-  return [...all].map(([file, words]) => ({ file, words })).sort((a, b) => a.file.localeCompare(b.file));
+  // свои загрузки первыми, новые раньше старых
+  const own = (f) => f.startsWith('http');
+  return [...all].map(([file, words]) => ({ file, words })).sort((a, b) => own(b.file) - own(a.file) || (own(a.file) ? b.file.localeCompare(a.file) : a.file.localeCompare(b.file)));
 }
 
 // сохранить выбор для названия; file = null — убрать логотип
@@ -71,7 +75,7 @@ export async function setLogo(name, file) {
   const pattern = '=' + key;
   // обычный значок и так без логотипа: тогда запись не нужна
   const drop = file === standard(key);
-  const row = { pattern, logo_url: file ? `${import.meta.env.BASE_URL}logos/${file}` : null };
+  const row = { pattern, logo_url: !file ? null : file.startsWith('http') ? file : `${import.meta.env.BASE_URL}logos/${file}` };
   const r = drop
     ? await sb.from('merchant_brands').delete().eq('pattern', pattern)
     : await sb.from('merchant_brands').upsert(row, { onConflict: 'pattern' });
@@ -79,4 +83,17 @@ export async function setLogo(name, file) {
   version++;
   const rest = st.list.filter((x) => x.pattern !== pattern);
   apply(drop ? rest : [...rest, row]);
+}
+
+// отправить свою картинку (JPEG в base64); возвращает адрес, по которому она появится
+export async function uploadLogo(name, image) {
+  const r = await sb.functions.invoke('logo', { body: { name, image } });
+  if (r.error) {
+    let body = null;
+    try { body = await r.error.context.json(); } catch { /* ответа нет */ }
+    throw new Error(body?.message || 'Нет связи, логотип не загружен');
+  }
+  version++;
+  apply([...st.list, r.data.row]);
+  return r.data.row.logo_url;
 }
