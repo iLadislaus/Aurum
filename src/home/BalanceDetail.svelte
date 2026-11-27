@@ -1,8 +1,8 @@
 <script>
-  import { fmt, signed, cash } from '../lib/format.js';
+  import { fmt, signed, cash, actualLabel } from '../lib/format.js';
   // Подробный баланс для вкладки «Счета»: сумма, прирост и распределение денег
-  let { total, delta, pct, cardCash, envs, debt = 0 } = $props();
-  const stamp = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  let { total, delta, pct, cardCash, envs, debt = 0, at = 0 } = $props();
+  let stamp = $derived(actualLabel(at));
   const parts = (v) => { const s = fmt(Math.abs(v), 2), i = s.lastIndexOf(','); return [s.slice(0, i), s.slice(i)]; };
   let sp = $derived(parts(total));
   let all = $derived(Math.max(0, cardCash) + Math.max(0, envs) + Math.abs(debt));
@@ -17,7 +17,7 @@
 
 <div class="bd">
   <div class="au"></div>
-  <div class="top"><span class="dot"></span>Общий баланс <i>· {stamp}</i></div>
+  <div class="top"><span class="dot"></span>Общий баланс {#if stamp}<i>· {stamp}</i>{/if}</div>
   <div class="sum">{#each [...sp[0]] as ch, i}{#if /\d/.test(ch)}<span class="dw"><span class="dg" style="--i:{i}">{ch}</span></span>{:else}{ch}{/if}{/each}<small><span class="dw"><span class="dg" style="--i:{sp[0].length}">{sp[1]}</span></span>&nbsp;₴</small></div>
   <div class="dl" class:dn={delta < 0}>{delta >= 0 ? '▲' : '▼'} {signed(delta)} ₴ за месяц · {pct >= 0 ? '+' : '−'}{Math.abs(pct).toFixed(1).replace('.', ',')}%</div>
   <div class="bar">{#each segs as s (s.k)}<i class={s.k} style:flex={Math.max(s.p, 0.012)}></i>{/each}</div>

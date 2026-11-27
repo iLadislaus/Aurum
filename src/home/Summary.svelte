@@ -3,11 +3,11 @@
   import OpAvatar from '../lib/OpAvatar.svelte';
   import { openNewPay } from '../lib/newpay.svelte.js';
   import { hz, inRange, RANGE_NAME } from '../lib/horizon.svelte.js';
-  import { fmt, money, plural } from '../lib/format.js';
+  import { fmt, money, plural, actualLabel } from '../lib/format.js';
   let { d, shown, month, onaccounts, onbudget, onhorizon } = $props();
 
   const parts = (v) => { const s = fmt(Math.abs(v), 2), i = s.lastIndexOf(','); return [s.slice(0, i), s.slice(i)]; };
-  const stamp = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  let stamp = $derived(actualLabel(d.at));
   let sp = $derived(parts(d.total));
   // шрифт суммы подбирается по факту: самый крупный, при котором она целиком помещается рядом с колонкой «Карты/Конверты/Сегодня»
   let lfEl = $state(), sumEl = $state();
@@ -36,7 +36,7 @@
 <div class="cd" id="hz-anchor" class:in={shown}>
   <i class="au" aria-hidden="true"></i>
   <div class="s top" role="button" tabindex="0" aria-label="Открыть счета" onclick={onaccounts} onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onaccounts?.())}>
-    <div class="cap"><span class="dot"></span>Общий баланс <i>· {stamp}</i></div>
+    <div class="cap"><span class="dot"></span>Общий баланс {#if stamp}<i>· {stamp}</i>{/if}</div>
     <div class="lf" bind:this={lfEl}>
       <div class="sum" class:in={shown} bind:this={sumEl}><span class="num">{#each [...sp[0]] as ch, i}{#if /\d/.test(ch)}<span class="dw"><span class="dg" style="--i:{i}">{ch}</span></span>{:else}{ch}{/if}{/each}</span><small><span class="dw"><span class="dg" style="--i:{sp[0].length}">{sp[1]}</span></span>&nbsp;₴</small></div>
     </div>

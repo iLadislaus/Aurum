@@ -28,5 +28,6 @@ export const idbStore = {
 const ops = createOpsSync({ sb, store: idbStore, columns: OP_COLS, changes: opsChanges });
 setFreshSince(ops.freshSince);
 export const syncOps = ops.sync;
+export const opsFreshSince = ops.freshSince;
 export const opsRows = ops.rows;
 export const clearOps = ops.clear;
