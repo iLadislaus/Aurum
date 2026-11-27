@@ -10,7 +10,8 @@ const FULL_EVERY = 3 * 86400000;
 
 export function createOpsSync({ sb, store, columns, now = Date.now }) {
   const cols = columns + ',updated_at';
-  let running = null, again = false, generation = 0;
+  let running = null, again = false, started = false, generation = 0;
+  let memory = null; // последняя копия: работает, даже если хранилище устройства недоступно
 
   async function pages(query) {
     const rows = [];
@@ -50,7 +51,8 @@ export function createOpsSync({ sb, store, columns, now = Date.now }) {
 
   async function once() {
     const gen = generation;
-    const old = await store.read().catch(() => null);
+    const old = await (memory ?? store.read().catch(() => null)); // await всегда: вызовы того же такта успевают присоединиться
+    started = true; // дальше идут запросы: вызовам после этой точки нужен ещё один проход
     const usable = old && old.format === FORMAT && old.cursor && now() - old.fullAt < FULL_EVERY;
     let next = usable ? await delta(old) : await full();
     let mode = usable ? 'delta' : 'full';
@@ -61,25 +63,33 @@ export function createOpsSync({ sb, store, columns, now = Date.now }) {
       if (c.count !== Object.keys(next.rows).length) { next = await full(); mode = 'repair'; }
     }
     if (gen !== generation) return null; // пока грузили, вышли из аккаунта
-    await store.write(next);
-    if (gen !== generation) { await store.clear(); return null; }
-    return { mode, count: Object.keys(next.rows).length };
+    memory = next;
+    await store.write(next).catch(() => {});
+    if (gen !== generation) { await store.clear().catch(() => {}); return null; }
+    return { mode, count: Object.keys(next.rows).length, rows: next.rows };
   }
 
   // одновременно идёт только одна синхронизация; запрос во время неё запускает ещё один проход после
   function sync() {
-    if (running) { again = true; return running; }
+    if (running) { if (started) again = true; return running; }
     running = (async () => {
       try {
         let res;
-        do { again = false; res = await once(); } while (again);
+        do { again = false; started = false; res = await once(); } while (again);
         return res;
-      } finally { running = null; again = false; }
+      } finally { running = null; again = false; started = false; }
     })();
     return running;
   }
 
-  async function clear() { generation += 1; await store.clear(); }
+  async function clear() { generation += 1; memory = null; await store.clear(); }
 
-  return { sync, clear };
+  // все операции, не старее момента вызова
+  async function rows() {
+    const r = await sync();
+    if (!r) throw new Error('Выполнен выход из аккаунта');
+    return Object.values(r.rows);
+  }
+
+  return { sync, rows, clear };
 }
