@@ -1,9 +1,10 @@
 <script>
-  import { onMount } from 'svelte';
+  import { untrack } from 'svelte';
   import Screen from '../lib/Screen.svelte';
   import Skeleton from '../lib/Skeleton.svelte';
   import Icon from '../lib/Icon.svelte';
   import { bg, bd, co, openCats, openPlan, openDist, openCatOps } from '../lib/budget.svelte.js';
+  import { peek } from '../lib/cache.svelte.js';
   import { loadBudgetMonth, monthKey } from '../lib/budget.js';
   import { fmt } from '../lib/format.js';
 
@@ -19,8 +20,9 @@
   async function load(m = month) {
     try { bd[m] = await loadBudgetMonth(m); err = ''; } catch (e) { if (!bd[m]) err = e.message || 'Не удалось загрузить'; }
   }
-  onMount(() => { load(); });
-  $effect(() => { month; if (!bd[month]) load(month); else load(month); });
+  // грузим при открытии, смене месяца и когда обновились общие данные (новая операция, возврат в приложение).
+  // untrack обязателен: load читает и перезаписывает bd — без него эффект запускал бы сам себя без остановки
+  $effect(() => { peek('home'); const m = month; untrack(() => load(m)); });
   // после закрытия любого окна бюджета цифры на экране обновляются
   let was = false;
   $effect(() => { const open = bg.cats || bg.plan || bg.dist || !!co.cat; if (was && !open) load(); was = open; });
