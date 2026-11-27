@@ -26,7 +26,7 @@
   import { cal } from './lib/opsfilter.svelte.js';
   import { prefetchAll } from './lib/prefetch.js';
   import { startUpdateWatch } from './lib/update.svelte.js';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import { auth, startAuth } from './lib/auth.svelte.js';
   import Login from './pages/Login.svelte';
   import Home from './pages/Home.svelte';
@@ -38,7 +38,8 @@
   onMount(() => { startUpdateWatch(); startAuth(); });
 
   // после входа и при возвращении в приложение подтягиваем данные всех экранов
-  $effect(() => { if (auth.session) prefetchAll(true); });
+  // untrack обязателен: prefetchAll читает кэш и сам же его перезаписывает — без него эффект запускал бы себя без остановки
+  $effect(() => { if (auth.session) untrack(() => prefetchAll(true)); });
   onMount(() => {
     const vis = () => { if (document.visibilityState === 'visible' && auth.session) prefetchAll(); };
     document.addEventListener('visibilitychange', vis);
