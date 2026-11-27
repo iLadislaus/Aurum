@@ -7,7 +7,7 @@ const TABLES = /\/rest\/v1\/(categories|accounts|account_balances|budgets|transa
 const TOTALS = /\/rest\/v1\/rpc\/(month_summary|month_category_totals)$/;
 
 // запись в эти таблицы операции не меняет (удаление считаем изменением всегда)
-const NOT_OPS = /\/rest\/v1\/(budgets|budget_distribution|budget_distribution_month|rules|recurring_payments)$/;
+const NOT_OPS = /\/rest\/v1\/(budgets|budget_distribution|budget_distribution_month|rules|recurring_payments|merchant_brands)$/;
 
 export function createDedupeFetch(send, { ttl = 2000, onOpsChange = () => {}, freshSince = () => null, now = Date.now } = {}) {
   const saved = new Map(); // ключ запроса → ответ, когда запрошен и когда получен
