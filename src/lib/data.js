@@ -245,8 +245,8 @@ export async function loadAccountOps(id) {
 }
 
 // Все операции одним заходом и раскладка по счетам: окно любого счёта открывается сразу с готовым списком
-export async function loadOpsForAll(ids) {
-  const all = await allOps();
+export async function loadOpsForAll(ids, rows = opsRows()) {
+  const all = newestFirst(await rows);
   const refs = await loadRefs();
   const out = new Map();
   for (const id of ids) out.set(id, buildAccountOps(id, ofAccount(all, id), refs));

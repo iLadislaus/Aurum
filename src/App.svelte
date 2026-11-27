@@ -39,7 +39,9 @@
 
   // после входа и при возвращении в приложение подтягиваем данные всех экранов
   // untrack обязателен: prefetchAll читает кэш и сам же его перезаписывает — без него эффект запускал бы себя без остановки
-  $effect(() => { if (auth.session) untrack(() => prefetchAll(true)); });
+  // следим за пользователем, а не за сессией: обновление токена при возврате в приложение не должно перезагружать всё
+  const uid = $derived(auth.session?.user?.id);
+  $effect(() => { if (uid) untrack(() => prefetchAll(true)); });
   onMount(() => {
     const vis = () => { if (document.visibilityState === 'visible' && auth.session) prefetchAll(); };
     document.addEventListener('visibilitychange', vis);
