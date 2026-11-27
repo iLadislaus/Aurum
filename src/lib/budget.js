@@ -1,6 +1,7 @@
 // Данные «Бюджета»: категории, конверты, связка категория → конверт
 import { sb } from './supabase.js';
 import { loadMonthSpend } from './spend.js';
+import { opsRows } from './opsstore.js';
 
 const clean = (s) => (s || '').replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}️‍]/gu, '').replace(/\s+/g, ' ').trim();
 export const MODE = { spread: 'Плавно', lump: 'Разово', chunks: 'Частями' };
@@ -61,7 +62,7 @@ export async function loadPlan(month) {
   const plan = {}, ids = {}, got = {};
   for (const r of b.data) { plan[r.category_id] = Number(r.amount); ids[r.category_id] = r.id; }
   for (const r of t.data) if (r.action === 'INCOME') got[r.category_id] = (got[r.category_id] || 0) + Number(r.total);
-  return { plan, ids, got };
+  return { plan, ids, got, totals: t.data };
 }
 // сохраняем только изменённое: есть строка — обновляем, нет и сумма больше нуля — добавляем
 export async function savePlan(month, vals, ids, prev) {
@@ -78,19 +79,16 @@ const INC_KEYS = ['advance', 'salary', 'other'];
 // корректировки баланса — не доход, в «Получено» не считаются
 export const isCorr = (name) => /balanc|corect|correct|корректир/i.test(name || '');
 // Что реально лежит на Cash и его можно разложить: доходы, пришедшие на Cash, и переводы на Cash с карт (сняли деньги)
-export async function loadCashIn(month, cash) {
+export async function loadCashIn(month, cash, rows) {
   if (!cash) return { got: {}, xfer: 0 };
   const [y, m] = month.split('-').map(Number);
   const a = new Date(y, m - 1, 1).toISOString(), z = new Date(y, m, 1).toISOString();
-  const [inc, xf, env] = await Promise.all([
-    sb.from('transactions').select('category_id,amount').eq('action', 'INCOME').eq('account_id', cash).gte('date', a).lt('date', z),
-    sb.from('transactions').select('amount,from_account_id').eq('action', 'TRANSFER').eq('to_account_id', cash).gte('date', a).lt('date', z),
-    sb.from('accounts').select('id').eq('block', 'env')
-  ]);
-  for (const r of [inc, xf, env]) if (r.error) throw r.error;
-  const got = {}; for (const r of inc.data) got[r.category_id] = (got[r.category_id] || 0) + Number(r.amount);
+  const [list, env] = await Promise.all([rows ?? opsRows(), sb.from('accounts').select('id').eq('block', 'env')]);
+  if (env.error) throw env.error;
+  const inMonth = list.filter((t) => { const d = Date.parse(t.date); return d >= Date.parse(a) && d < Date.parse(z); });
+  const got = {}; for (const r of inMonth) if (r.action === 'INCOME' && r.account_id === cash) got[r.category_id] = (got[r.category_id] || 0) + Number(r.amount);
   const envIds = new Set(env.data.map((e) => e.id));
-  const xfer = xf.data.filter((r) => !envIds.has(r.from_account_id)).reduce((s, r) => s + Number(r.amount), 0);
+  const xfer = inMonth.filter((r) => r.action === 'TRANSFER' && r.to_account_id === cash && !envIds.has(r.from_account_id)).reduce((s, r) => s + Number(r.amount), 0);
   return { got, xfer };
 }
 export async function loadDist(month) {
@@ -141,19 +139,19 @@ export async function undoDist(month, batch) {
 
 // ── Экран «Бюджет» ──
 export async function loadBudgetMonth(month) {
-  const [c, p, ds] = await Promise.all([
+  const rows = opsRows(); // одна копия операций на весь экран
+  rows.catch(() => {}); // ошибку увидят те, кто ждёт ниже
+  const [yy, mm] = month.split('-').map(Number);
+  const [c, p, ds, spent] = await Promise.all([
     sb.from('categories').select('id,name,type,icon,is_mandatory,spend_mode,spend_parts,is_debt,sort_order').order('sort_order'),
     loadPlan(month),
-    loadDist(month)
+    loadDist(month),
+    loadMonthSpend(yy, mm - 1, rows)
   ]);
   if (c.error) throw c.error;
-  const t = await sb.rpc('month_category_totals', { p_month: month });
-  if (t.error) throw t.error;
   // долги берём из базы (там и переводы по долгу), остальные траты — по правилам отчёта
   const debts = {};
-  for (const r of t.data) { if (r.action === 'EXPENSE') debts[r.category_id] = (debts[r.category_id] || 0) + Number(r.total); else if (r.action === 'RETURN') debts[r.category_id] = (debts[r.category_id] || 0) - Number(r.total); }
-  const [yy, mm] = month.split('-').map(Number);
-  const spent = await loadMonthSpend(yy, mm - 1);
+  for (const r of p.totals) { if (r.action === 'EXPENSE') debts[r.category_id] = (debts[r.category_id] || 0) + Number(r.total); else if (r.action === 'RETURN') debts[r.category_id] = (debts[r.category_id] || 0) - Number(r.total); }
   const cats = c.data.map((x) => ({
     id: x.id, name: clean(x.name), income: x.type === 'INCOME', icon: x.icon || 'tag', mand: !!x.is_mandatory, debt: !!x.is_debt,
     mode: x.spend_mode || 'spread', parts: x.spend_parts || 4, grp: x.type === 'INCOME' ? incomeGroup(x.name) : null,
@@ -161,7 +159,7 @@ export async function loadBudgetMonth(month) {
   }));
   // свободно для раскладки — только то, что физически лежит на Cash (как в окне «Разложить»)
   const gk = { 'Аванс': 0, 'Зарплата': 1, 'Другое': 2 };
-  const ci = await loadCashIn(month, ds.cash);
+  const ci = await loadCashIn(month, ds.cash, rows);
   const got = [0, 0, 0]; for (const x of cats) if (x.income && !isCorr(x.name)) got[gk[x.grp]] += ci.got[x.id] || 0;
   got[2] += ci.xfer;
   const free = got.map((g, i) => Math.max(0, g - ds.done[i]));
