@@ -428,6 +428,26 @@ export async function rememberRule(action, note, categoryId) {
   if (r.error) throw r.error;
 }
 
+// Окно «Правила»: список вместе с названиями счетов для переводов, новые сверху
+export async function loadRules() {
+  const [r, a] = await Promise.all([
+    sb.from('rules').select('id,action,note,category_id,from_account_id,to_account_id').order('id', { ascending: false }),
+    sb.from('accounts').select('id,name')
+  ]);
+  if (r.error) throw r.error;
+  if (a.error) throw a.error;
+  const acc = new Map(a.data.map((x) => [x.id, clean(x.name)]));
+  return { list: r.data.map((x) => ({ id: x.id, action: x.action, note: x.note || '', catId: x.category_id, from: acc.get(x.from_account_id) ?? '', to: acc.get(x.to_account_id) ?? '' })) };
+}
+export async function setRuleCategory(id, categoryId) {
+  const r = await sb.from('rules').update({ category_id: categoryId }).eq('id', id);
+  if (r.error) throw r.error;
+}
+export async function deleteRule(id) {
+  const r = await sb.from('rules').delete().eq('id', id);
+  if (r.error) throw r.error;
+}
+
 // Сколько прошлых операций без категории с таким же названием
 const uncatFilter = async () => {
   const c = await sb.from('categories').select('id,name');

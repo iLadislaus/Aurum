@@ -23,6 +23,8 @@
   import DistSheet from './lib/DistSheet.svelte';
   import CatOpsSheet from './lib/CatOpsSheet.svelte';
   import AnalyticsSheet from './lib/AnalyticsSheet.svelte';
+  import RulesSheet from './lib/RulesSheet.svelte';
+  import NewRule from './lib/NewRule.svelte';
   import { cal } from './lib/opsfilter.svelte.js';
   import { prefetchAll } from './lib/prefetch.js';
   import { startUpdateWatch } from './lib/update.svelte.js';
@@ -72,7 +74,7 @@
   {/if}
 </main>
 <UpdateBanner />
-{#if auth.session}<AccountSheet /><HomeBlocks /><HorizonSheet /><NewPay /><PeriodSheet /><CatSheet /><PlanSheet /><DistSheet /><AnalyticsSheet /><CatOpsSheet /><NewAccount /><EditAccount /><DeleteAccount /><OpCard /><NewOp /><CtxMenu />{/if}
+{#if auth.session}<AccountSheet /><HomeBlocks /><HorizonSheet /><NewPay /><PeriodSheet /><CatSheet /><PlanSheet /><DistSheet /><AnalyticsSheet /><RulesSheet /><NewRule /><CatOpsSheet /><NewAccount /><EditAccount /><DeleteAccount /><OpCard /><NewOp /><CtxMenu />{/if}
 {#if auth.session}<TabBar />{/if}
 
 <style>

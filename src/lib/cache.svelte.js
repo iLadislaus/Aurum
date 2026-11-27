@@ -13,7 +13,7 @@ function box(key) {
 }
 
 // коробки создаём заранее: создание при первом чтении внутри $derived ломает подписку
-for (const k of ['home', 'accounts', 'cats', 'bcats']) box(k);
+for (const k of ['home', 'accounts', 'cats', 'bcats', 'rules']) box(k);
 try { Object.keys(localStorage).filter((k) => k.startsWith(PFX)).forEach((k) => box(k.slice(PFX.length))); } catch { /* пусто */ }
 
 export const peek = (key) => box(key).v;

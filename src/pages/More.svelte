@@ -4,6 +4,8 @@
   import { sb } from '../lib/supabase.js';
   import { openAnalytics } from '../lib/analytics.svelte.js';
   import { bg } from '../lib/budget.svelte.js';
+  import { openRules } from '../lib/rules.svelte.js';
+  import { peek } from '../lib/cache.svelte.js';
 
   let rules = $state(null), rec = $state(null), mono = $state('');
 
@@ -19,6 +21,9 @@
       .then((r) => { if (r.data?.[0]) mono = 'последняя операция ' + ago(r.data[0].date); });
   });
 
+  // после правок в окне «Правила» счётчик берётся из свежего списка
+  const ruleCount = $derived(peek('rules')?.list.length ?? rules);
+
   const soon = $state({ on: '' });
   let timer;
   const tap = (k) => { soon.on = k; clearTimeout(timer); timer = setTimeout(() => (soon.on = ''), 1600); };
@@ -31,10 +36,10 @@
       <span class="m"><b>Аналитика</b><small>финансовый отчёт и выгрузка в Excel</small></span>
       <span class="ch"><Icon name="chevron" size={14} /></span>
     </button>
-    <button class="it" onclick={() => tap('ru')}>
+    <button class="it" onclick={openRules}>
       <span class="ic"><Icon name="sliders" size={17} /></span>
       <span class="m"><b>Правила</b><small>автокатегории для операций</small></span>
-      {#if soon.on === 'ru'}<span class="pill">скоро</span>{:else}{#if rules != null}<span class="pill">{rules}</span>{/if}<span class="ch"><Icon name="chevron" size={14} /></span>{/if}
+      {#if ruleCount != null}<span class="pill">{ruleCount}</span>{/if}<span class="ch"><Icon name="chevron" size={14} /></span>
     </button>
     <button class="it" onclick={() => tap('rc')}>
       <span class="ic"><Icon name="calendar" size={17} /></span>
