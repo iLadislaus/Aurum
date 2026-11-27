@@ -410,6 +410,29 @@ export async function loadCategories() {
   return { list: r.data.map((c) => ({ id: c.id, name: clean(c.name), type: c.type, icon: c.icon || 'tag', debt: !!c.is_debt })) };
 }
 
+// Названия платежей для окна «Логотипы»: каждое один раз, частые первыми; категория — самая частая у названия
+export async function loadPayNames(categories) {
+  const [ops, cats] = await Promise.all([opsRows(), categories]);
+  const byId = new Map(cats.list.map((c) => [c.id, c]));
+  const all = new Map();
+  for (const t of ops) {
+    if (t.action === 'TRANSFER') continue;
+    const name = clean(t.note);
+    const key = name.toLowerCase().replace(/\s+/g, ' ').trim();
+    if (!key) continue;
+    let x = all.get(key);
+    if (!x) all.set(key, (x = { key, name, n: 0, cats: new Map() }));
+    x.n++;
+    if (t.category_id) x.cats.set(t.category_id, (x.cats.get(t.category_id) ?? 0) + 1);
+  }
+  return [...all.values()]
+    .map(({ cats: used, ...x }) => {
+      const c = byId.get([...used].sort((a, b) => b[1] - a[1])[0]?.[0]);
+      return { ...x, cat: c?.name ?? 'без категории', icon: c?.icon ?? 'tag' };
+    })
+    .sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+}
+
 // Смена категории у операции
 export async function setOpCategory(id, categoryId) {
   const r = await sb.from('transactions').update({ category_id: categoryId }).eq('id', id);
