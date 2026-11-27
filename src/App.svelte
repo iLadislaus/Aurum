@@ -26,6 +26,7 @@
   import RulesSheet from './lib/RulesSheet.svelte';
   import NewRule from './lib/NewRule.svelte';
   import MonoSheet from './lib/MonoSheet.svelte';
+  import LogosSheet from './lib/LogosSheet.svelte';
   import MonoConn from './lib/MonoConn.svelte';
   import MonoConnect from './lib/MonoConnect.svelte';
   import LogoPick from './lib/LogoPick.svelte';
@@ -78,7 +79,7 @@
   {/if}
 </main>
 <UpdateBanner />
-{#if auth.session}<AccountSheet /><HomeBlocks /><HorizonSheet /><NewPay /><PeriodSheet /><CatSheet /><PlanSheet /><DistSheet /><AnalyticsSheet /><RulesSheet /><NewRule /><MonoSheet /><MonoConn /><MonoConnect /><LogoPick /><CatOpsSheet /><NewAccount /><EditAccount /><DeleteAccount /><OpCard /><NewOp /><CtxMenu />{/if}
+{#if auth.session}<AccountSheet /><HomeBlocks /><HorizonSheet /><NewPay /><PeriodSheet /><CatSheet /><PlanSheet /><DistSheet /><AnalyticsSheet /><RulesSheet /><NewRule /><MonoSheet /><MonoConn /><MonoConnect /><LogosSheet /><LogoPick /><CatOpsSheet /><NewAccount /><EditAccount /><DeleteAccount /><OpCard /><NewOp /><CtxMenu />{/if}
 {#if auth.session}<TabBar />{/if}
 
 <style>

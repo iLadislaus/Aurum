@@ -13,7 +13,6 @@
   import SwipeRow from './SwipeRow.svelte';
   import CardFace from './CardFace.svelte';
   import { logoFor } from './brands.svelte.js';
-  import { openLogo } from './logopick.svelte.js';
 
   let split = $state(false), parts = $state([]), typePick = $state(false), pick = $state(false), remember = $state(true), armed = $state(false), busy = $state(false), err = $state(''), more = $state(0), timer, sparts = $state([]), showParts = $state(false);
   let pair = $state(null), mergeOpen = $state(false);
@@ -146,7 +145,7 @@
         {#snippet amount()}<div class="big"><span class="v">{amt}</span><u>{o.sym}</u></div>{/snippet}
         {#snippet chip()}
           {#if tr}<div class="ct"><OpAvatar icon="swap" size={34} /><span class="cn" class:lg={o.name.length > 22}>{o.name}</span></div>
-          {:else}<div class="ct">{#if !o.splits && o.note.trim()}<button class="logo-btn" aria-label="Выбрать логотип" onclick={() => openLogo(o.name, o.icon)}>{#if o.uncat && !logoFor(o.name)}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} name={o.name} />{/if}<i><Icon name="pen" size={10} /></i></button>{:else if o.uncat}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} name={o.splits ? '' : o.name} />{/if}<span class="cn" class:lg={o.name.length > 22}>{o.name}</span></div>{/if}
+          {:else}<div class="ct">{#if o.uncat && (o.splits || !o.note.trim() || !logoFor(o.name))}<span class="q">?</span>{:else}<OpAvatar icon={o.icon} size={34} name={o.splits ? '' : o.name} />{/if}<span class="cn" class:lg={o.name.length > 22}>{o.name}</span></div>{/if}
         {/snippet}
         {#snippet acct()}
           {#if tr}
@@ -261,8 +260,6 @@
   .bd.in > :global(.cf), .bd.in .grp, .bd.in .act { animation: rise .55s cubic-bezier(.2, .9, .3, 1) both; }
   .bd.in .grp { animation-delay: .1s; } .bd.in .act { animation-delay: .16s; }
   @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
-  .logo-btn { position: relative; flex: none; display: grid; place-items: center; width: 44px; height: 44px; margin: -5px; }
-  .logo-btn i { position: absolute; right: 0; bottom: 0; width: 19px; height: 19px; border-radius: 50%; display: grid; place-items: center; background: #1C1C1E; color: #F0CB82; box-shadow: 0 0 0 1px #F0CB82; }
   .q { width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--fill); color: #E5584D; font-size: 16px; font-weight: 700; flex: none; }
   .grp > * + * { margin-top: 10px; }
   .lst { background: var(--card); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }

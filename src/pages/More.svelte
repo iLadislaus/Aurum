@@ -6,6 +6,7 @@
   import { bg } from '../lib/budget.svelte.js';
   import { openMono } from '../lib/monowin.svelte.js';
   import { openRules } from '../lib/rules.svelte.js';
+  import { openLogos } from '../lib/logoswin.svelte.js';
   import { peek } from '../lib/cache.svelte.js';
 
   let rules = $state(null), rec = $state(null), mono = $state('');
@@ -41,6 +42,11 @@
       <span class="ic"><Icon name="sliders" size={17} /></span>
       <span class="m"><b>Правила</b><small>автокатегории для операций</small></span>
       {#if ruleCount != null}<span class="pill">{ruleCount}</span>{/if}<span class="ch"><Icon name="chevron" size={14} /></span>
+    </button>
+    <button class="it" onclick={openLogos}>
+      <span class="ic"><Icon name="tag" size={17} /></span>
+      <span class="m"><b>Логотипы</b><small>значки платежей</small></span>
+      <span class="ch"><Icon name="chevron" size={14} /></span>
     </button>
     <button class="it" onclick={() => tap('rc')}>
       <span class="ic"><Icon name="calendar" size={17} /></span>
