@@ -1,5 +1,5 @@
 // Операции на устройстве (IndexedDB) и их синхронизация с базой
-import { sb } from './supabase.js';
+import { sb, opsChanges } from './supabase.js';
 import { createOpsSync } from './sync.js';
 import { OP_COLS } from './opcols.js';
 
@@ -25,7 +25,7 @@ export const idbStore = {
   clear: () => run('readwrite', (s) => s.delete(KEY))
 };
 
-const ops = createOpsSync({ sb, store: idbStore, columns: OP_COLS });
+const ops = createOpsSync({ sb, store: idbStore, columns: OP_COLS, changes: opsChanges });
 export const syncOps = ops.sync;
 export const opsRows = ops.rows;
 export const clearOps = ops.clear;

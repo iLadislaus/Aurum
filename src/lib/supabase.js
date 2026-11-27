@@ -5,7 +5,11 @@ import { createDedupeFetch } from './dedupe.js';
 const URL = 'https://ozgorwowudjhyvdncilu.supabase.co';
 const KEY = 'sb_publishable__m_20U0l39X58kjoO9RjFw_fTEIu36-';
 
+// счётчик изменений из приложения: по нему сверка операций понимает, что ждать минуту нельзя
+let changed = 0;
+export const opsChanges = () => changed;
+
 export const sb = createClient(URL, KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
-  global: { fetch: createDedupeFetch((input, init) => fetch(input, init)) }
+  global: { fetch: createDedupeFetch((input, init) => fetch(input, init), { onOpsChange: () => { changed += 1; } }) }
 });
