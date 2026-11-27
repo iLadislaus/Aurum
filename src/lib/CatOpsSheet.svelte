@@ -1,4 +1,5 @@
 <script>
+  import { untrack } from 'svelte';
   import Sheet from './Sheet.svelte';
   import OpAvatar from './OpAvatar.svelte';
   import { co, bd, closeCatOps } from './budget.svelte.js';
@@ -9,18 +10,25 @@
   import { fmt, cash } from './format.js';
 
   const MON = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
-  let full = $state(false), data = $state(null), err = $state('');
+  let full = $state(false), err = $state('');
   // оставляем последнюю открытую категорию, пока окно закрывается
   let last = $state(null);
   $effect(() => { if (co.cat) last = co.cat; });
   const c = $derived(co.cat ?? last);
   const key = $derived(c ? `ops.m.${Math.floor(c.ym / 12)}-${c.ym % 12}` : '');
 
+  // список всегда берётся из кэша: правки операций видны сразу
+  const data = $derived(key ? peek(key) : null);
+
   $effect(() => { if (co.cat) { const t = setTimeout(() => (full = true), 0); return () => clearTimeout(t); } });
   $effect(() => {
     if (!co.cat) return;
-    const k = key; err = ''; data = peek(k);
-    refresh(k, opsLoader(k)).then((d) => { if (key === k) data = d; }).catch((e) => { if (!data) err = e.message || 'Не удалось загрузить операции'; });
+    const k = key;
+    // untrack: refresh перезаписывает кэш этого месяца, и без него эффект запускал бы сам себя без остановки
+    untrack(() => {
+      err = '';
+      refresh(k, opsLoader(k)).catch((e) => { if (!peek(k)) err = e.message || 'Не удалось загрузить операции'; });
+    });
   });
 
   const dayFmt = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Kyiv' });
