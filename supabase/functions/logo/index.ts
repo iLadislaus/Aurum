@@ -22,7 +22,8 @@ Deno.serve(async (req: Request) => {
     // только владелец: запрос идёт под его входом, а RLS чужим не отдаёт ни одной строки
     const auth = req.headers.get("authorization") ?? "";
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, {
-      global: { headers: { authorization: auth } },
+      // имя заголовка именно «Authorization»: с маленькой буквы он склеивается с ключом приложения и вход не принимается
+      global: { headers: { Authorization: auth } },
       auth: { persistSession: false, autoRefreshToken: false },
     });
     const who = await db.auth.getUser(auth.replace(/^bearer\s+/i, ""));
