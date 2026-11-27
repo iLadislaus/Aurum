@@ -1,11 +1,14 @@
 import { sb } from './supabase.js';
 import { loadMonthSpend } from './spend.js';
 import { OP_COLS } from './opcols.js';
-import { opsRows } from './opsstore.js';
+import { opsRows, opsFreshSince } from './opsstore.js';
 
 const first = (y, m) => new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
 const MON = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
 const MON_FULL = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'];
+
+// на какой момент верны загруженные данные: ответы могли прийти из памяти с последней сверки
+const asOf = (started) => Math.min(started, opsFreshSince() ?? started);
 
 // Убираем эмодзи из названий («Groceries 🥦» → «Groceries»)
 const clean = (s) => (s || '').replace(/[\p{Extended_Pictographic}\p{Emoji_Modifier}️‍]/gu, '').replace(/\s+/g, ' ').trim();
@@ -94,6 +97,7 @@ export async function loadHome() {
   const uncat = { n: un.length, first: un[0] ? mapOp(un[0], catMap, am, new Map()) : null };
 
   return {
+    at: asOf(now.getTime()),
     total, delta, pct, cardsCash, envs, today,
     budget: planTotals(plans.data, catMap, spend),
     months, horizon, recent, uncat
@@ -152,6 +156,7 @@ export async function loadAccounts() {
 
   const sumOf = (l) => l.reduce((x, a) => x + a.balance, 0);
   return {
+    at: asOf(now.getTime()),
     total, delta, pct: start > 0 ? (delta / start) * 100 : 0,
     cards, cardsTotal: sumOf(cards),
     cashes, cardCashTotal: sumOf(cards) + sumOf(cashes),

@@ -17,3 +17,13 @@ export const cash = (v, d = 2, cur = 'UAH') => (v < 0 ? '−' : '') + fmt(Math.a
 
 // Карта Monobank BLACK / WHITE — для картинки карты в окнах операции
 export const cardTheme = (name = '') => (/mono/i.test(name) ? (/\bblack\b/i.test(name) ? 'black' : /\bwhite\b/i.test(name) ? 'white' : null) : null);
+
+// подпись свежести данных: «актуально на 20:29», а для прошлых дней с датой
+export function actualLabel(at, now = Date.now()) {
+  if (!at) return '';
+  const d = new Date(at), tz = 'Europe/Kyiv';
+  const day = (x) => x.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: tz });
+  const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', timeZone: tz });
+  const date = day(d) === day(new Date(now)) ? '' : d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', timeZone: tz }) + ', ';
+  return 'актуально на ' + date + time;
+}

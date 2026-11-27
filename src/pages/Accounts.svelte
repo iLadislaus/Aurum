@@ -84,7 +84,7 @@
   {:else if !d}
     <p class="msg">Загружаю…</p>
   {:else}
-    <div class="rise" style="--i:1"><BalanceDetail total={d.total} delta={d.delta} pct={d.pct} cardCash={d.cardCashTotal} envs={d.envsTotal} debt={debtSum} /></div>
+    <div class="rise" style="--i:1"><BalanceDetail total={d.total} delta={d.delta} pct={d.pct} cardCash={d.cardCashTotal} envs={d.envsTotal} debt={debtSum} at={d.at} /></div>
 
     <div class="sh rise" style="--i:2"><h2>Карта и наличные</h2><span>{cash(d.cardCashTotal)}</span></div>
     <div class="cd rise" style="--i:2">
