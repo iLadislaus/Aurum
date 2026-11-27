@@ -4,6 +4,7 @@
   import { sb } from '../lib/supabase.js';
   import { openAnalytics } from '../lib/analytics.svelte.js';
   import { bg } from '../lib/budget.svelte.js';
+  import { openMono } from '../lib/monowin.svelte.js';
   import { openRules } from '../lib/rules.svelte.js';
   import { peek } from '../lib/cache.svelte.js';
 
@@ -48,10 +49,10 @@
     </button>
   </div>
   <div class="grp rise" style="--i:2">
-    <button class="it" onclick={() => tap('mo')}>
+    <button class="it" onclick={openMono}>
       <span class="ic"><Icon name="bank" size={17} /></span>
       <span class="m"><b>Monobank</b><small>{mono || 'синхронизация'}</small></span>
-      {#if soon.on === 'mo'}<span class="pill">скоро</span>{:else}<span class="pill ok">онлайн</span><span class="ch"><Icon name="chevron" size={14} /></span>{/if}
+      <span class="pill ok">онлайн</span><span class="ch"><Icon name="chevron" size={14} /></span>
     </button>
   </div>
   <p class="ver rise" style="--i:3">Aurum · версия {__APP_VERSION__}</p>
