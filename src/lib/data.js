@@ -28,18 +28,19 @@ export async function loadHome() {
   const y = now.getFullYear(), m = now.getMonth();
   // три месяца: два прошлых и текущий
   const mons = [m - 5, m - 4, m - 3, m - 2, m - 1, m].map((k) => new Date(Date.UTC(y, k, 1)));
-  const [bal, cats, ops, accs, rec, todayOps, plans, ...sums] = await Promise.all([
+  const rows = opsRows(); // одна копия операций на всю Главную
+  const [list, spend, bal, cats, accs, rec, plans, ...sums] = await Promise.all([
+    rows.then(newestFirst),
+    loadMonthSpend(y, m, rows),
     sb.from('account_balances').select('id,balance,is_foreign'),
     sb.from('categories').select('id,name,icon,type,is_debt'),
-    sb.from('transactions').select(OP_COLS).order('date', { ascending: false }).limit(12),
     sb.from('accounts').select('id,name,currency,is_foreign,block,is_monobank'),
     sb.from('recurring_payments').select('id,name,amount,period,next_date,category_id').eq('active', true).eq('dismissed', false).order('next_date'),
-    sb.from('transactions').select('amount,date,account_id').eq('action', 'EXPENSE').gte('date', new Date(now.getTime() - 36 * 3600e3).toISOString()),
     sb.from('budgets').select('category_id,amount').eq('month', first(y, m)),
     ...mons.map((d) => sb.rpc('month_summary', { p_month: first(d.getUTCFullYear(), d.getUTCMonth()) }))
   ]);
-  for (const r of [bal, cats, ops, accs, rec, todayOps, plans, ...sums]) if (r.error) throw r.error;
-  const spend = await loadMonthSpend(y, m);
+  for (const r of [bal, cats, accs, rec, plans, ...sums]) if (r.error) throw r.error;
+  const latest = list.slice(0, 12);
 
   const catMap = new Map(cats.data.map((c) => [c.id, c]));
   const total = bal.data.filter((a) => !a.is_foreign).reduce((s, a) => s + Number(a.balance), 0);
@@ -49,7 +50,7 @@ export async function loadHome() {
   const cardsCash = homeBal.filter((a) => { const k = kind.get(a.id); return k && (k.is_monobank || k.block === 'card'); }).reduce((s, a) => s + Number(a.balance), 0);
   const envs = homeBal.filter((a) => kind.get(a.id)?.block === 'env').reduce((s, a) => s + Number(a.balance), 0);
   const day0 = ymd(now);
-  const today = todayOps.data.filter((t) => ymd(new Date(t.date)) === day0 && !kind.get(t.account_id)?.is_foreign).reduce((s, t) => s + Number(t.amount), 0);
+  const today = list.filter((t) => t.action === 'EXPENSE' && ymd(new Date(t.date)) === day0 && !kind.get(t.account_id)?.is_foreign).reduce((s, t) => s + Number(t.amount), 0);
 
   const months = sums.map((r, i) => {
     const d = mons[i], s = r.data;
@@ -78,21 +79,19 @@ export async function loadHome() {
     date: p.next_date
   }));
 
-  const ids = ops.data.map((t) => t.id);
+  const ids = latest.map((t) => t.id);
   const spl = ids.length ? await sb.from('transaction_splits').select('transaction_id,category_id,amount').in('transaction_id', ids) : { data: [] };
   if (spl.error) throw spl.error;
   const sc = new Map(), sp = new Map();
   for (const x of spl.data) { sc.set(x.transaction_id, (sc.get(x.transaction_id) ?? 0) + 1); if (!sp.has(x.transaction_id)) sp.set(x.transaction_id, []); sp.get(x.transaction_id).push({ category_id: x.category_id, amount: Number(x.amount) }); }
   const am = new Map(accs.data.map((x) => [x.id, x]));
-  const recent = ops.data.filter((t) => !isMarker(t)).slice(0, 5).map((t) => mapOp(t, catMap, am, sc, sp));
-  flagPaired(ops.data, recent);
+  const recent = latest.filter((t) => !isMarker(t)).slice(0, 5).map((t) => mapOp(t, catMap, am, sc, sp));
+  flagPaired(latest, recent);
 
   // нераспределённые операции за всё время: без категории или в категории Uncategorized
   const unIds = cats.data.filter((c) => UNCAT.test(c.name || '')).map((c) => c.id);
-  const un = await sb.from('transactions').select(OP_COLS, { count: 'exact' }).neq('action', 'TRANSFER')
-    .or(unIds.length ? `category_id.is.null,category_id.in.(${unIds.join(',')})` : 'category_id.is.null').order('date', { ascending: false }).limit(1);
-  if (un.error) throw un.error;
-  const uncat = { n: un.count ?? un.data.length, first: un.data[0] ? mapOp(un.data[0], catMap, am, new Map()) : null };
+  const un = list.filter((t) => t.action !== 'TRANSFER' && (t.category_id == null || unIds.includes(t.category_id)));
+  const uncat = { n: un.length, first: un[0] ? mapOp(un[0], catMap, am, new Map()) : null };
 
   return {
     total, delta, pct, cardsCash, envs, today,
@@ -213,8 +212,9 @@ function buildAccountOps(id, rows, { cm, am, sc, sp }) {
   return { ops, inc, out };
 }
 
-// Операции для списков берутся из копии на устройстве (перед выдачей она сверяется с базой), новые сверху
-const allOps = async () => (await opsRows()).sort((a, b) => Date.parse(b.date) - Date.parse(a.date) || (a.id < b.id ? -1 : 1));
+// Операции для экранов берутся из копии на устройстве (перед выдачей она сверяется с базой), новые сверху
+const newestFirst = (rows) => [...rows].sort((a, b) => Date.parse(b.date) - Date.parse(a.date) || (a.id < b.id ? -1 : 1));
+const allOps = async () => newestFirst(await opsRows());
 
 // справочники для списков операций: категории, счета и разделения.
 // Загрузчики, стартующие одновременно, делят один запрос справочников; более поздний вызов запрашивает заново

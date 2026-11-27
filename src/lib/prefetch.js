@@ -22,6 +22,6 @@ export function prefetchAll(force = false) {
   if (force) for (const k of [...cachedKeys('ops.y.'), ...cachedKeys('ops.r.'), ...cachedKeys('ops.all')]) refresh(k, opsLoader(k), true).catch(() => {});
   loadRates().catch(() => {});
   loadBrands().catch(() => {});
-  // копия операций на устройстве: из неё читаются списки операций и окна счетов
+  // копия операций на устройстве: из неё читаются списки операций, окна счетов, Главная и Бюджет
   syncOps().catch((e) => console.warn('Синхронизация операций не удалась', e));
 }
