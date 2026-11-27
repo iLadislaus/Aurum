@@ -175,7 +175,10 @@ export function buildReport(raw, period, now = new Date()) {
     s.value = r2(s.value + e.value); if (e.value > 0) s.count++; shop.set(n, s);
   }
   const merchants = [...shop.values()].filter((s) => s.value > 0).sort((a, b) => b.value - a.value).slice(0, 10);
-  const big = [...seen.values()].filter((e) => e.value > 0).sort((a, b) => b.value - a.value).slice(0, 5).map((e) => ({ ...e.op, part: e.value }));
+  const top = [...seen.values()].filter((e) => e.value > 0).sort((a, b) => b.value - a.value).slice(0, 10).map((e) => ({ ...e.op, part: e.value }));
+  const big = top.slice(0, 5);
+  // траты прошлого периода, которых в этом нет: чтобы сравнение по категориям сходилось
+  const gone = [...prevCat].filter(([id, v]) => v > 0 && !(byCat.get(id) > 0)).sort((a, b) => b[1] - a[1]).map(([id, v]) => ({ id, name: catName(id), prev: v }));
 
   // доходы
   const inc = cur.filter((x) => x.type === 'inc');
@@ -190,6 +193,12 @@ export function buildReport(raw, period, now = new Date()) {
     const m = totals(within(rows, ymStart(v), ymEnd(v)));
     months.push({ ym: v, label: `${MON[v % 12]} ${String(Math.floor(v / 12)).slice(2)}`, inc: m.inc, exp: m.exp, saldo: r2(m.inc - m.exp) });
   }
+  // доходы по месяцам в разрезе категорий: четыре крупнейшие и «Прочее»
+  const incAll = rows.filter((x) => x.type === 'inc' && months.length && x.day >= ymStart(months[0].ym) && x.day <= ymEnd(months.at(-1).ym));
+  const lead = [...group(incAll, (x) => x.cat)].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([id]) => id);
+  const byMonth = (f) => months.map((m) => sum(incAll.filter((x) => ymOf(x.day) === m.ym && f(x.cat)), (x) => x.amount));
+  const incMonths = [...lead.map((id) => ({ name: catName(id), values: byMonth((c) => c === id) })), { name: 'Прочее', values: byMonth((c) => !lead.includes(c)) }].filter((s) => s.values.some((v) => v));
+  const incOps = inc.map((x) => ({ day: x.day, note: x.op.note || '', cat: catName(x.cat), amount: x.amount })).sort((a, b) => (a.day < b.day ? -1 : 1));
   const dayMap = group(exp, (x) => x.day);
   const days = [];
   if (elapsed) for (let d = firstDay; d <= lastDay; d = addDays(d, 1)) days.push({ day: d, value: dayMap.get(d) ?? 0 });
@@ -303,7 +312,8 @@ export function buildReport(raw, period, now = new Date()) {
 
   const ops = raw.ops.filter((o) => { const d = dayKey(o.date); return d >= period.from && d <= period.to; }).map((o) => {
     const e = linked.get(o.id);
-    return { ...o, memo: e ? `вычтен из списания от ${ruDate(dayKey(e.date))}` : back.has(o.id) ? `возвращено ${back.get(o.id).toLocaleString('ru-RU')} ₴` : '' };
+    const full = back.has(o.id) && back.get(o.id) >= Number(o.amount) - 0.005;
+    return { ...o, full, memo: e ? `вычтен из списания от ${ruDate(dayKey(e.date))}` : back.has(o.id) ? `возвращено ${back.get(o.id).toLocaleString('ru-RU')} ₴` : '' };
   });
 
   return {
@@ -312,7 +322,7 @@ export function buildReport(raw, period, now = new Date()) {
     prev: comparable ? { ...pt, saldo: r2(pt.inc - pt.exp), from: pq.from, to: pq.to } : null,
     expChange: comparable ? change(t.exp, pt.exp) : null, incChange: comparable ? change(t.inc, pt.inc) : null,
     avgDay: elapsed ? r2(t.exp / elapsed) : 0,
-    savings, cats, mand, opt, merchants, big, sources, incCats, months, days, topDay, weekdays, plan,
+    savings, cats, mand, opt, merchants, big, top, gone, sources, incCats, incMonths, incOps, months, days, topDay, weekdays, plan,
     accounts: { homeTotal, cardsCash, envs, list, foreign, debts, debtUah, debtKnown }, capital,
     health, forecast, upcoming, notes, ops
   };
