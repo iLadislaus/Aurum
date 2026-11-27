@@ -93,6 +93,13 @@ export function createOpsSync({ sb, store, columns, now = Date.now, changes = ()
 
   async function clear() { generation += 1; memory = null; checked = null; await store.clear(); }
 
+  // начало последней сверки, пока она считается свежей, иначе null
+  function freshSince() {
+    if (!checked || checked.version !== changes()) return null;
+    const age = now() - checked.at;
+    return age >= 0 && age < FRESH ? checked.at : null;
+  }
+
   // все операции, не старее момента вызова
   async function rows() {
     const r = await sync();
@@ -100,5 +107,5 @@ export function createOpsSync({ sb, store, columns, now = Date.now, changes = ()
     return Object.values(r.rows);
   }
 
-  return { sync, rows, clear };
+  return { sync, rows, clear, freshSince };
 }

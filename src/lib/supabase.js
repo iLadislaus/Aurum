@@ -8,8 +8,11 @@ const KEY = 'sb_publishable__m_20U0l39X58kjoO9RjFw_fTEIu36-';
 // счётчик изменений из приложения: по нему сверка операций понимает, что ждать минуту нельзя
 let changed = 0;
 export const opsChanges = () => changed;
+// сверка операций сообщает сюда, свежая ли она (подключается из opsstore.js)
+let freshSince = () => null;
+export const setFreshSince = (f) => { freshSince = f; };
 
 export const sb = createClient(URL, KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'pkce' },
-  global: { fetch: createDedupeFetch((input, init) => fetch(input, init), { onOpsChange: () => { changed += 1; } }) }
+  global: { fetch: createDedupeFetch((input, init) => fetch(input, init), { onOpsChange: () => { changed += 1; }, freshSince: () => freshSince() }) }
 });
