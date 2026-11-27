@@ -21,7 +21,8 @@ export function createDedupeFetch(send, { ttl = 2000, onOpsChange = () => {}, fr
 
     // состояние Monobank и список карт в базе операции не меняют
     const monoRead = method === 'POST' && /\/functions\/v1\/mono$/.test(path) && /"action":"(status|accounts)"/.test(String(init.body ?? ''));
-    if (monoRead) return send(input, init);
+    // загрузка логотипа операции тоже не меняет
+    if (monoRead || (method === 'POST' && /\/functions\/v1\/logo$/.test(path))) return send(input, init);
 
     if (!read && !totals) {
       // вход и обновление токена данные не меняют
