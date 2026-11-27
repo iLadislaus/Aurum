@@ -8,10 +8,14 @@ const OVERLAP = 5 * 60 * 1000;
 // раз в несколько дней сверяемся полной загрузкой, чтобы расхождения не копились
 const FULL_EVERY = 3 * 86400000;
 
-export function createOpsSync({ sb, store, columns, now = Date.now }) {
+// чаще раза в минуту базу не спрашиваем, если приложение само не меняло операции
+const FRESH = 60000;
+
+export function createOpsSync({ sb, store, columns, now = Date.now, changes = () => 0 }) {
   const cols = columns + ',updated_at';
   let running = null, again = false, started = false, generation = 0;
   let memory = null; // последняя копия: работает, даже если хранилище устройства недоступно
+  let checked = null; // когда в последний раз сверились и какой тогда был счётчик изменений
 
   async function pages(query) {
     const rows = [];
@@ -53,6 +57,10 @@ export function createOpsSync({ sb, store, columns, now = Date.now }) {
     const gen = generation;
     const old = await (memory ?? store.read().catch(() => null)); // await всегда: вызовы того же такта успевают присоединиться
     started = true; // дальше идут запросы: вызовам после этой точки нужен ещё один проход
+    const at = now(), version = changes(); // запоминаем до запросов: запись во время сверки сделает её устаревшей
+    if (old && checked && checked.version === version && at >= checked.at && at - checked.at < FRESH) {
+      return { mode: 'fresh', count: Object.keys(old.rows).length, rows: old.rows };
+    }
     const usable = old && old.format === FORMAT && old.cursor && now() - old.fullAt < FULL_EVERY;
     let next = usable ? await delta(old) : await full();
     let mode = usable ? 'delta' : 'full';
@@ -64,6 +72,7 @@ export function createOpsSync({ sb, store, columns, now = Date.now }) {
     }
     if (gen !== generation) return null; // пока грузили, вышли из аккаунта
     memory = next;
+    checked = { at, version };
     await store.write(next).catch(() => {});
     if (gen !== generation) { await store.clear().catch(() => {}); return null; }
     return { mode, count: Object.keys(next.rows).length, rows: next.rows };
@@ -82,7 +91,7 @@ export function createOpsSync({ sb, store, columns, now = Date.now }) {
     return running;
   }
 
-  async function clear() { generation += 1; memory = null; await store.clear(); }
+  async function clear() { generation += 1; memory = null; checked = null; await store.clear(); }
 
   // все операции, не старее момента вызова
   async function rows() {

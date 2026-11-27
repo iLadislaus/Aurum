@@ -5,7 +5,10 @@
 const TABLES = /\/rest\/v1\/(categories|accounts|account_balances|budgets|transaction_splits|recurring_payments|budget_distribution|budget_distribution_month)$/;
 const TOTALS = /\/rest\/v1\/rpc\/(month_summary|month_category_totals)$/;
 
-export function createDedupeFetch(send, { ttl = 2000 } = {}) {
+// запись в эти таблицы операции не меняет (удаление считаем изменением всегда)
+const NOT_OPS = /\/rest\/v1\/(budgets|budget_distribution|budget_distribution_month|rules|recurring_payments)$/;
+
+export function createDedupeFetch(send, { ttl = 2000, onOpsChange = () => {} } = {}) {
   const saved = new Map(); // ключ запроса → обещание ответа
 
   return async function dedupeFetch(input, init = {}) {
@@ -16,8 +19,11 @@ export function createDedupeFetch(send, { ttl = 2000 } = {}) {
     const totals = method === 'POST' && TOTALS.test(path);
 
     if (!read && !totals) {
-      saved.clear(); // до отправки: чтения, начатые раньше, больше не раздаём
-      try { return await send(input, init); } finally { saved.clear(); } // и после: начатые во время записи тоже
+      // вход и обновление токена данные не меняют
+      const ops = !path.includes('/auth/v1/') && !((method === 'POST' || method === 'PATCH') && NOT_OPS.test(path));
+      const changed = () => { saved.clear(); if (ops) onOpsChange(); };
+      changed(); // до отправки: чтения, начатые раньше, больше не раздаём
+      try { return await send(input, init); } finally { changed(); } // и после: начатые во время записи тоже
     }
     if (!(totals || TABLES.test(path)) || init.signal) return send(input, init);
 
