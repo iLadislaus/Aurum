@@ -9,7 +9,7 @@
   import { openLogos } from '../lib/logoswin.svelte.js';
   import { peek } from '../lib/cache.svelte.js';
 
-  let rules = $state(null), rec = $state(null), mono = $state('');
+  let rules = $state(null), mono = $state('');
 
   const ago = (iso) => {
     const d = Math.round((Date.now() - new Date(iso)) / 3600000);
@@ -18,17 +18,12 @@
 
   $effect(() => {
     sb.from('rules').select('id', { count: 'exact', head: true }).then((r) => { if (r.count != null) rules = r.count; });
-    sb.from('recurring_payments').select('id', { count: 'exact', head: true }).eq('active', true).eq('dismissed', false).then((r) => { if (r.count != null) rec = r.count; });
     sb.from('transactions').select('date').not('mono_op_id', 'is', null).order('date', { ascending: false }).limit(1)
       .then((r) => { if (r.data?.[0]) mono = 'последняя операция ' + ago(r.data[0].date); });
   });
 
   // после правок в окне «Правила» счётчик берётся из свежего списка
   const ruleCount = $derived(peek('rules')?.list.length ?? rules);
-
-  const soon = $state({ on: '' });
-  let timer;
-  const tap = (k) => { soon.on = k; clearTimeout(timer); timer = setTimeout(() => (soon.on = ''), 1600); };
 </script>
 
 <Screen title="Ещё">
@@ -47,11 +42,6 @@
       <span class="ic"><Icon name="tag" size={17} /></span>
       <span class="m"><b>Логотипы</b><small>значки платежей</small></span>
       <span class="ch"><Icon name="chevron" size={14} /></span>
-    </button>
-    <button class="it" onclick={() => tap('rc')}>
-      <span class="ic"><Icon name="calendar" size={17} /></span>
-      <span class="m"><b>Повторяющиеся платежи</b><small>подписки, аренда, коммуналка</small></span>
-      {#if soon.on === 'rc'}<span class="pill">скоро</span>{:else}{#if rec != null}<span class="pill">{rec}</span>{/if}<span class="ch"><Icon name="chevron" size={14} /></span>{/if}
     </button>
   </div>
   <div class="grp rise" style="--i:2">
