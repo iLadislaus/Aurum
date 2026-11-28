@@ -8,6 +8,9 @@
   import Sheet from './Sheet.svelte';
   import SwipeRow from './SwipeRow.svelte';
   import Icon from './Icon.svelte';
+  import OpAvatar from './OpAvatar.svelte';
+  import { logoFile, loadBrands } from './brands.svelte.js';
+  import { openLogo } from './logopick.svelte.js';
 
   const KINDS = [['EXPENSE', 'Расходы'], ['INCOME', 'Доходы'], ['RETURN', 'Возвраты'], ['TRANSFER', 'Переводы']];
 
@@ -17,6 +20,8 @@
   const byId = $derived(new Map(cats.map((c) => [c.id, c])));
   const catName = (r) => (r.action === 'TRANSFER' ? [r.from, r.to].filter(Boolean).join(' → ') || 'перевод' : byId.get(r.catId)?.name ?? 'без категории');
   const icon = (r) => (r.action === 'TRANSFER' ? 'swap' : byId.get(r.catId)?.icon ?? 'tag');
+  // у перевода нет магазина, поэтому и логотипа
+  const shop = (r) => (r.action === 'TRANSFER' ? '' : r.note);
   const choices = $derived(cats.filter((c) => (kind === 'INCOME' ? c.type === 'INCOME' : c.type === 'EXPENSE')));
   const list = $derived.by(() => {
     const s = q.trim().toLowerCase();
@@ -31,7 +36,7 @@
   // загрузка только при открытии окна: чтение кэша внутри не должно перезапускать эффект
   $effect(() => {
     if (!rl.open) return;
-    untrack(() => { q = ''; openId = null; armed = null; load(); });
+    untrack(() => { q = ''; openId = null; armed = null; load(); loadBrands().catch(() => {}); });
   });
 
   const pickKind = (k) => { kind = k; openId = null; armed = null; };
@@ -80,7 +85,9 @@
           <div class="rw" class:rise={i < 14} style="--i:{Math.min(i, 14)}">
             <SwipeRow id={'rule.' + r.id} norepeat ondelete={() => remove(r)}>
               <button class="r" onclick={() => toggle(r.id)} aria-expanded={openId === r.id}>
-                <span class="ic" class:flash={flash === r.id}><Icon name={icon(r)} size={17} /></span>
+                {#key shop(r) && logoFile(shop(r))}
+                  <span class="ic" class:flash={flash === r.id} class:logo={shop(r) && logoFile(shop(r))}><OpAvatar icon={icon(r)} size={34} name={shop(r)} lazy /></span>
+                {/key}
                 <span class="m"><b>{r.note}</b><small>{catName(r)}</small></span>
                 <span class="ch" class:up={openId === r.id}><Icon name="chevron" size={14} /></span>
               </button>
@@ -90,6 +97,7 @@
                 <div class="chips">
                   {#if r.action !== 'TRANSFER'}
                     {#each choices as c (c.id)}<button class="c" class:on={r.catId === c.id} onclick={() => setCat(r, c.id)}><Icon name={c.icon} size={14} />{c.name}</button>{/each}
+                    <button class="c lgo" onclick={() => openLogo(r.note, icon(r))}><Icon name="tag" size={14} />Логотип</button>
                   {/if}
                   <button class="c del" onclick={() => (armed === r.id ? remove(r) : (armed = r.id))}>{armed === r.id ? 'Точно удалить?' : 'Удалить правило'}</button>
                 </div>
@@ -113,10 +121,12 @@
   .seg button.on { color: #1A1204; }
   .list { background: var(--card); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; }
   .rw { position: relative; }
-  .rw + .rw::before { content: ""; position: absolute; top: 0; left: 58px; right: 0; height: .5px; background: var(--line); z-index: 1; }
+  .rw + .rw::before { content: ""; position: absolute; top: 0; left: 60px; right: 0; height: .5px; background: var(--line); z-index: 1; }
   .r { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 11px 14px; text-align: left; transition: background .15s; }
   .r:active { background: var(--fill); }
-  .ic { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: var(--gold-soft); color: var(--gold); flex: none; }
+  .ic { display: flex; border-radius: 50%; flex: none; }
+  .ic.logo > :global(img) { animation: turn .55s cubic-bezier(.3, 1.35, .5, 1) calc(.2s + var(--i) * 70ms) backwards; }
+  @keyframes turn { from { transform: perspective(300px) rotateY(-180deg) scale(.7); opacity: 0; } }
   .ic.flash { animation: fl .9s; }
   @keyframes fl { 30% { box-shadow: 0 0 0 1px var(--gold), 0 0 18px var(--glow); transform: scale(1.12); } }
   .m { flex: 1; min-width: 0; }
@@ -131,9 +141,10 @@
   .c { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 13px; border-radius: 99px; background: var(--fill); font-size: 13px; transition: background .25s, box-shadow .25s; }
   .c :global(svg) { color: var(--gold); }
   .c.on { background: var(--gold-soft); box-shadow: inset 0 0 0 1px var(--gline); color: var(--gold); }
+  .c.lgo { color: var(--gold); box-shadow: inset 0 0 0 1px var(--gline); }
   .c.del { color: var(--neg); }
   .msg { margin: 28px 0; text-align: center; font-size: 14px; color: var(--muted); }
   .msg.bad { margin: 0 0 10px; color: var(--neg); }
   .again { display: block; margin: 0 auto; min-height: 44px; padding: 0 20px; color: var(--gold); font-weight: 600; }
-  @media (prefers-reduced-motion: reduce) { .seg i, .x, .ch { transition: none; } .ic.flash { animation: none; } }
+  @media (prefers-reduced-motion: reduce) { .seg i, .x, .ch { transition: none; } .ic.flash, .ic.logo > :global(img) { animation: none; } }
 </style>
