@@ -1,13 +1,15 @@
--- Текст уведомления об операции: магазин в заголовке; сумма и категория; остаток бюджета при каждой трате.
+-- Текст уведомления об операции: магазин в заголовке; ниже сумма и остаток бюджета при каждой трате.
+-- Категорию не пишем: её видно по значку.
 
--- строка про бюджет категории для траты этого месяца; null, если бюджета на неё нет
+-- строка про бюджет категории для траты этого месяца, в том числе «вне бюджета»; null для долгов, прошлых месяцев и валютных счетов
 create or replace function public.push_left(op uuid) returns text language sql stable set search_path = '' as $$
-  select case when s.spent > b.plan then 'Превышен на ' || public.push_money(s.spent - b.plan) || ' ₴'
+  select case when coalesce(b.plan, 0) <= 0 then '⚠️ Вне бюджета, за месяц ' || public.push_money(s.spent) || ' ₴'
+    when s.spent > b.plan then 'Превышен на ' || public.push_money(s.spent - b.plan) || ' ₴'
     else 'Осталось ' || public.push_money(b.plan - s.spent) || ' ₴ из ' || public.push_money(b.plan) || ' ₴' end
   from public.transactions t
   cross join lateral (select date_trunc('month', now() at time zone 'Europe/Kyiv')::date as mon) m
   join public.categories c on c.id = t.category_id and c.type = 'EXPENSE' and not coalesce(c.is_debt, false)
-  join lateral (select sum(amount) as plan from public.budgets where category_id = c.id and month = m.mon) b on b.plan > 0
+  cross join lateral (select sum(amount) as plan from public.budgets where category_id = c.id and month = m.mon) b
   cross join lateral (select public.push_spent(c.id, m.mon) as spent) s
   where t.id = op and t.action = 'EXPENSE' and (t.date at time zone 'Europe/Kyiv')::date between m.mon and (now() at time zone 'Europe/Kyiv')::date
     and not exists (select 1 from public.accounts ac where ac.id = t.account_id and ac.is_foreign)
@@ -69,12 +71,11 @@ begin
     msgs := msgs || jsonb_build_object('title', 'Новых операций: ' || n, 'body', 'Откройте Aurum, чтобы посмотреть', 'tag', 'ops-' || (ops->0->>'id'));
   else
     for a in select * from jsonb_array_elements(ops) loop
-      -- в заголовке магазин, ниже сумма с категорией и остаток бюджета
+      -- в заголовке магазин, ниже сумма и остаток бюджета
       msgs := msgs || jsonb_build_object('tag', 'op-' || (a->>'id'),
         'title', case when (a->>'uncat')::boolean then '❓' else public.push_emoji(a->>'icon') end || ' ' || (a->>'name'),
-        'body', (a->>'sum') || ' · ' || case when (a->>'uncat')::boolean then 'без категории, выберите в Aurum'
-          else coalesce(a->>'cat', case a->>'action' when 'INCOME' then 'Поступление' else 'Возврат' end) end
-          || case when pref.budget and a->>'action' = 'EXPENSE' then coalesce(E'\n' || public.push_left((a->>'id')::uuid), '') else '' end);
+        'body', (a->>'sum') || case when (a->>'uncat')::boolean then E'\nВыберите категорию в Aurum'
+          when pref.budget and a->>'action' = 'EXPENSE' then coalesce(E'\n' || public.push_left((a->>'id')::uuid), '') else '' end);
       if a->>'action' = 'EXPENSE' then
         select coalesce(jsonb_agg(v), '[]') into alerts from jsonb_array_elements(alerts) v where v->'category_id' is distinct from a->'category_id';
       end if;
