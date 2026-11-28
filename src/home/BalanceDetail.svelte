@@ -18,7 +18,7 @@
 <div class="bd">
   <div class="au"></div>
   <div class="top"><span class="dot"></span>Общий баланс {#if stamp}<i>· {stamp}</i>{/if}</div>
-  <div class="sum">{#each [...sp[0]] as ch, i}{#if /\d/.test(ch)}<span class="dw"><span class="dg" style="--i:{i}">{ch}</span></span>{:else}{ch}{/if}{/each}<small><span class="dw"><span class="dg" style="--i:{sp[0].length}">{sp[1]}</span></span>&nbsp;₴</small></div>
+  <div class="sum"><span>{#each [...sp[0]] as ch, i}{#if /\d/.test(ch)}<span class="dw"><span class="dg" style="--i:{i}">{ch}</span></span>{:else}{ch}{/if}{/each}</span><small><span class="dw"><span class="dg" style="--i:{sp[0].length}">{sp[1]}</span></span>&nbsp;₴</small></div>
   <div class="dl" class:dn={delta < 0}>{delta >= 0 ? '▲' : '▼'} {signed(delta)} ₴ за месяц · {pct >= 0 ? '+' : '−'}{Math.abs(pct).toFixed(1).replace('.', ',')}%</div>
   <div class="bar">{#each segs as s (s.k)}<i class={s.k} style:flex={Math.max(s.p, 0.012)}></i>{/each}</div>
   <div class="rows">
@@ -36,7 +36,7 @@
   .top i { font-style: normal; opacity: .75; }
   .dot { position: relative; width: 6px; height: 6px; border-radius: 50%; background: #E8C277; flex: none; }
   .dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #E8C277; animation: bdPl 2.2s ease-out infinite; }
-  .sum { position: relative; margin-top: 2px; font-size: 34px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; }
+  .sum { position: relative; display: flex; align-items: baseline; margin-top: 2px; font-size: 34px; font-weight: 700; letter-spacing: -.03em; line-height: 1.1; white-space: nowrap; }
   .dw { display: inline-block; overflow: hidden; height: 1.1em; vertical-align: bottom; }
   .dg { display: inline-block; animation: roll .9s cubic-bezier(.16, 1, .3, 1) both; animation-delay: calc(var(--i) * 70ms + .1s); }
   @keyframes roll { 0% { transform: translateY(105%); opacity: 0; } 60% { opacity: 1; } 100% { transform: none; opacity: 1; } }
