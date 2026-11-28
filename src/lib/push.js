@@ -36,6 +36,9 @@ export async function disable(sub) {
   await sub.unsubscribe();
 }
 
+// что присылать: без аргумента только читает
+export const prefs = async (change = {}) => (await call({ action: 'prefs', ...change })).prefs;
+
 export async function sendTest(sub) {
   try { await call({ action: 'test', endpoint: sub.endpoint }); }
   catch (e) {
