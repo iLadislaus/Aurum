@@ -7,6 +7,7 @@
   import { openMono } from '../lib/monowin.svelte.js';
   import { openRules } from '../lib/rules.svelte.js';
   import { openLogos } from '../lib/logoswin.svelte.js';
+  import { openNotify } from '../lib/notifywin.svelte.js';
   import { peek } from '../lib/cache.svelte.js';
 
   let rules = $state(null), mono = $state('');
@@ -41,6 +42,11 @@
     <button class="it" onclick={openLogos}>
       <span class="ic"><Icon name="tag" size={17} /></span>
       <span class="m"><b>Логотипы</b><small>значки платежей</small></span>
+      <span class="ch"><Icon name="chevron" size={14} /></span>
+    </button>
+    <button class="it" onclick={openNotify}>
+      <span class="ic"><Icon name="bell" size={17} /></span>
+      <span class="m"><b>Уведомления</b><small>платежи, бюджет, советы</small></span>
       <span class="ch"><Icon name="chevron" size={14} /></span>
     </button>
   </div>
