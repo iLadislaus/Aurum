@@ -6,6 +6,7 @@
   import { fmt, cash } from '../lib/format.js';
   import Icon from '../lib/Icon.svelte';
   import OpAvatar from '../lib/OpAvatar.svelte';
+  import { logoFor } from '../lib/brands.svelte.js';
   import SwipeRow from '../lib/SwipeRow.svelte';
   import { sw } from '../lib/swipe.svelte.js';
   import { openOp } from '../lib/opcard.svelte.js';
@@ -116,7 +117,7 @@
     for (const v of fl.types) o.push({ id: 't' + v, label: TL[v], icon: TYPES.find((x) => x[0] === v)[2], off: () => toggle('types', v) });
     for (const v of fl.accs) o.push({ id: 'a' + v, label: accs.find((a) => a.id === v)?.name ?? '…', icon: 'wallet', off: () => toggle('accs', v) });
     for (const v of fl.cats) o.push({ id: 'c' + v, label: v === 'none' ? 'Без категории' : cats.find((c) => c.id === v)?.name ?? '…', icon: 'tag', off: () => toggle('cats', v) });
-    for (const v of fl.mers) o.push({ id: 'm' + v, label: v, icon: 'cart', off: () => toggle('mers', v) });
+    for (const v of fl.mers) o.push({ id: 'm' + v, label: v, icon: 'cart', shop: v, off: () => toggle('mers', v) });
     if (fl.sum >= 0) o.push({ id: 's', label: SUMR[fl.sum][0] + ' ₴', icon: 'coin', off: () => (fl.sum = -1) });
     for (const v of fl.src) o.push({ id: 'r' + v, label: SRC.find((x) => x[0] === v)[1], icon: SRC.find((x) => x[0] === v)[2], off: () => toggle('src', v) });
     for (const v of fl.flags) o.push({ id: 'f' + v, label: FLAGS.find((x) => x[0] === v)[1], icon: FLAGS.find((x) => x[0] === v)[2], off: () => toggle('flags', v) });
@@ -224,7 +225,7 @@
           {#each sugg as x, i (x.k + x.v)}
             {#if i === 0 || sugg[i - 1].g !== x.g}<div class="gl">{x.g}</div>{/if}
             <button class="it" role="option" aria-selected="false" onpointerdown={(e) => e.preventDefault()} onclick={() => chosen(x)}>
-              <span class="ico"><Icon name={x.icon} size={15} /></span><span class="nm">{x.label}</span>{#if x.c}<span class="ct">{x.c}</span>{/if}
+              {#if x.k === 'mers' && logoFor(x.v)}<span class="lg"><OpAvatar icon={x.icon} size={32} name={x.v} /></span>{:else}<span class="ico"><Icon name={x.icon} size={15} /></span>{/if}<span class="nm">{x.label}</span>{#if x.c}<span class="ct">{x.c}</span>{/if}
             </button>
           {/each}
         </div>
@@ -238,7 +239,8 @@
         <button class="addf" class:on={fpOpen} onclick={togglePanel}><Icon name="sliders" size={15} />{caps.length ? 'Фильтры' : 'Добавить фильтры'}<span class="cv" class:up={fpOpen}><Icon name="chevron" size={14} /></span></button>
       {/if}
       {#each caps as c (c.id)}
-        <span class="cap"><Icon name={c.icon} size={14} />{c.label}<button aria-label="Убрать" onclick={c.off}><Icon name="close" size={14} /></button></span>
+        {@const pic = c.shop && logoFor(c.shop)}
+        <span class="cap" class:pic>{#if pic}<OpAvatar icon={c.icon} size={24} name={c.shop} />{:else}<Icon name={c.icon} size={14} />{/if}{c.label}<button aria-label="Убрать" onclick={c.off}><Icon name="close" size={14} /></button></span>
       {/each}
     </div>
   {/if}
@@ -313,7 +315,9 @@
   .gl { padding: 8px 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: var(--muted); }
   .it { display: flex; align-items: center; gap: 11px; width: 100%; padding: 7px 10px; border-radius: 14px; text-align: left; }
   .it:active { background: var(--gold-soft); }
-  .it .ico { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--gold-soft); color: var(--gold); flex: none; }
+  .it .lg { display: flex; flex: none; animation: turn .55s cubic-bezier(.3, 1.35, .5, 1) .1s backwards; }
+  @keyframes turn { from { transform: perspective(300px) rotateY(-180deg) scale(.7); opacity: 0; } }
+  .it .ico { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--gold-soft); color: var(--gold); flex: none; }
   .it .nm { flex: 1; min-width: 0; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .it .ct { font-size: 13px; color: var(--muted); }
   .frow { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
@@ -323,6 +327,7 @@
   .addf .cv { display: grid; transition: transform .3s; }
   .addf .cv.up { transform: rotate(180deg); }
   .cap { display: inline-flex; align-items: center; gap: 5px; height: 32px; padding: 0 6px 0 10px; border-radius: 16px; background: linear-gradient(180deg, #F0D18A, #C9963A); color: #1a1206; font-size: 14px; font-weight: 600; white-space: nowrap; }
+  .cap.pic { padding-left: 4px; }
   .cap button { display: grid; place-items: center; width: 22px; height: 22px; opacity: .7; }
   .fpwrap { margin-bottom: 0; }
   .sm { margin-top: 8px; }
@@ -344,6 +349,7 @@
   .nt { position: relative; display: flex; justify-content: space-between; align-items: center; margin-top: 9px; padding: 0 3px; font-size: 12.5px; color: #9c9582; }
   .nt b { font-size: 15px; display: inline; }
   .pos { color: var(--pos); }
+  @media (prefers-reduced-motion: reduce) { .it .lg { animation: none; } }
   .sm .pos { color: #30D158; }
   .op.un { background: rgba(229, 88, 77, .07); }
   .op.un .nm small { color: #D43D32; font-weight: 600; }
