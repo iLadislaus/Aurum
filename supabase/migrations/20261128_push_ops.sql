@@ -30,6 +30,16 @@ create or replace function public.push_money(v numeric) returns text language sq
   select replace(trim(to_char(abs(v), case when v = trunc(v) then 'FM999,999,999,990' else 'FM999,999,999,990.00' end)), ',', ' ')
 $$;
 
+-- значок категории в начале уведомления: iPhone не даёт поставить свою картинку
+create or replace function public.push_emoji(icon text) returns text language sql immutable set search_path = '' as $$
+  select coalesce('{"cart":"🛒","bank":"🏦","home":"🏠","health":"🏥","car":"🚕","card":"💳","eat":"🍔","sport":"🏋️","sofa":"🛋️","cloth":"👕","gift":"🎁","digital":"💻","family":"👪","care":"🛁","film":"🎬","study":"📚","coin":"🪙","wallet":"💰","pen":"✍️","basket":"🛍️","swap":"🔄","chart":"📈","user":"🤝","dollar":"💵"}'::jsonb ->> icon, '💳')
+$$;
+
+-- название категории без эмодзи, чтобы значок не повторялся
+create or replace function public.push_plain(name text) returns text language sql immutable set search_path = '' as $$
+  select btrim(regexp_replace(regexp_replace(name, '[^A-Za-zА-Яа-яЁёІіЇїЄєҐґ0-9 .,+&/()''’-]', '', 'g'), ' {2,}', ' ', 'g'))
+$$;
+
 -- название без слов об отмене, чтобы найти списание, которое отменяет возврат
 create or replace function public.push_shop(note text) returns text language sql immutable set search_path = '' as $$
   select lower(btrim(regexp_replace(btrim(coalesce(note, '')), '^(скасування\.|повернення платежу|возврат\.?|платіж)\s*', '', 'i')))
@@ -80,7 +90,7 @@ begin
       coalesce(nullif(trim(split_part(t.note, E'\n', 1)), ''), 'Операция') as name,
       case when t.action = 'EXPENSE' then '−' else '+' end || public.push_money(t.amount) || ' '
         || case t.currency when 'USD' then '$' when 'EUR' then '€' else '₴' end as sum,
-      c.name as cat, (t.action <> 'INCOME' and (t.category_id is null or c.name ~* '^uncategorized')) as uncat, t.action
+      public.push_plain(c.name) as cat, c.icon, (t.action <> 'INCOME' and (t.category_id is null or c.name ~* '^uncategorized')) as uncat, t.action
     from public.transactions t left join public.categories c on c.id = t.category_id
     where t.id = any(ids) and t.mono_op_id is not null and t.action <> 'TRANSFER' and t.date > now() - interval '2 days'
   ) x
@@ -89,7 +99,7 @@ begin
   -- категории расходов из новых операций этого месяца, дошедшие до 80% или превысившие бюджет
   if pref.budget then
     select coalesce(jsonb_agg(y), '[]') into alerts from (
-      select c.id as category_id, c.name, b.plan, s.spent, case when s.spent > b.plan then 100 else 80 end as level
+      select c.id as category_id, public.push_plain(c.name) as name, c.icon, b.plan, s.spent, case when s.spent > b.plan then 100 else 80 end as level
       from (
         select distinct t.category_id from public.transactions t
         where t.id = any(ids) and t.action = 'EXPENSE' and (t.date at time zone 'Europe/Kyiv')::date between mon and today
@@ -120,7 +130,7 @@ begin
   else
     for a in select * from jsonb_array_elements(ops) loop
       -- бюджет этой же категории дописываем в то же сообщение
-      msgs := msgs || jsonb_build_object('title', (a->>'name') || ' · ' || (a->>'sum'), 'tag', 'op-' || (a->>'id'),
+      msgs := msgs || jsonb_build_object('title', case when (a->>'uncat')::boolean then '❓' else public.push_emoji(a->>'icon') end || ' ' || (a->>'name') || ' · ' || (a->>'sum'), 'tag', 'op-' || (a->>'id'),
         'body', case when (a->>'uncat')::boolean then 'Без категории, выберите в Aurum'
           else coalesce(a->>'cat', case a->>'action' when 'INCOME' then 'Поступление' else 'Возврат' end) end
           || coalesce((select E'\n' || upper(left(v->>'text', 1)) || substr(v->>'text', 2) from jsonb_array_elements(alerts) v
@@ -131,7 +141,7 @@ begin
     end loop;
   end if;
   for a in select * from jsonb_array_elements(alerts) loop
-    msgs := msgs || jsonb_build_object('title', 'Бюджет: ' || (a->>'name'), 'body', upper(left(a->>'text', 1)) || substr(a->>'text', 2),
+    msgs := msgs || jsonb_build_object('title', public.push_emoji(a->>'icon') || ' Бюджет: ' || (a->>'name'), 'body', upper(left(a->>'text', 1)) || substr(a->>'text', 2),
       'tag', 'budget-' || (a->>'category_id') || '-' || (a->>'level'));
   end loop;
   return jsonb_build_object('messages', msgs, 'marks', marks);
@@ -162,7 +172,7 @@ begin
   return null;
 end $$;
 
-revoke execute on function public.push_digest(uuid[]), public.push_after_insert(), public.push_money(numeric), public.push_shop(text), public.push_spent(bigint, date) from public, anon, authenticated;
+revoke execute on function public.push_digest(uuid[]), public.push_after_insert(), public.push_money(numeric), public.push_shop(text), public.push_emoji(text), public.push_plain(text), public.push_spent(bigint, date) from public, anon, authenticated;
 
 -- имя по алфавиту после mono_glue_after_insert: к этому моменту пары переводов уже склеены
 drop trigger if exists push_after_insert on public.transactions;
