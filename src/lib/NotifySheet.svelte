@@ -6,7 +6,7 @@
   import Sheet from './Sheet.svelte';
   import Icon from './Icon.svelte';
 
-  const SOON = [['calendar', 'Платежи', 'накануне платежа'], ['chart', 'Советы', 'сводка за неделю'], ['plus', 'Новости', 'что нового в приложении']];
+  const SOON = [['calendar', 'Платежи', 'накануне платежа'], ['chart', 'Советы', 'сводка за неделю']];
   const KEY = 'aurum.pushprefs';
   // что присылать; до ответа базы показываем запомненное
   let saved = null;
