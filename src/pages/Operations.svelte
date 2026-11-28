@@ -247,7 +247,8 @@
     <div class="fpwrap"><OpsFilters ops={base} {accs} {cats} /></div>
   {/if}
 
-  <OpsPeriod />
+  <!-- пока открыты подсказки поиска, переключатель периода убран: они занимают первый экран -->
+  <div hidden={sugg.length > 0}><OpsPeriod /></div>
   {#if data}
     <div class="sm" bind:this={card}>
       <div class="r"><div><span>Расходы</span><b>{tot.exp ? '−' : ''}{cash(tot.exp, 0)}</b></div><div><span>Доходы</span><b class:pos={tot.inc > 0}>{tot.inc > 0 ? '+' : ''}{cash(tot.inc, 0)}</b></div></div>
