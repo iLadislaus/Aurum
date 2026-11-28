@@ -2,13 +2,13 @@
   import Icon from './Icon.svelte';
   import { logoFor } from './brands.svelte.js';
   // Единый значок Aurum: эмблема магазина, если она есть, иначе золотой круг с белой линейной иконкой
-  let { icon = 'tag', size = 42, name = '' } = $props();
+  let { icon = 'tag', size = 42, name = '', lazy = false } = $props();
   let logo = $derived(logoFor(name));
   let bad = $state('');
 </script>
 
 {#if logo && bad !== logo}
-  <img class="lg" src={logo} alt="" style:width="{size}px" style:height="{size}px" onerror={() => (bad = logo)} />
+  <img class="lg" src={logo} alt="" loading={lazy ? 'lazy' : 'eager'} style:width="{size}px" style:height="{size}px" onerror={() => (bad = logo)} />
 {:else}
   <div class="av" style:width="{size}px" style:height="{size}px"><Icon name={icon} size={Math.round(size * 0.48)} /></div>
 {/if}
