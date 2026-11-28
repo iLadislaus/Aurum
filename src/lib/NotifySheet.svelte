@@ -6,12 +6,12 @@
   import Sheet from './Sheet.svelte';
   import Icon from './Icon.svelte';
 
-  const SOON = [['calendar', 'Платежи', 'накануне платежа'], ['chart', 'Советы', 'сводка за неделю']];
+  const PLAN = [['payments', 'calendar', 'Платежи', 'накануне в 09:00'], ['advice', 'chart', 'Советы', 'анализ по воскресеньям']];
   const KEY = 'aurum.pushprefs';
   // что присылать; до ответа базы показываем запомненное
   let saved = null;
   try { saved = JSON.parse(localStorage.getItem(KEY)); } catch { /* пусто */ }
-  let p = $state(saved ?? { ops: 'all', budget: true });
+  let p = $state({ ops: 'all', budget: true, payments: true, advice: true, ...saved });
   const keep = (v) => { p = v; try { localStorage.setItem(KEY, JSON.stringify(v)); } catch { /* хранилище недоступно */ } };
   const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
 
@@ -85,11 +85,11 @@
       <span class="m"><b>Бюджет</b><small>80% и превышение</small></span>
       <button class="sw" class:y={p.budget} role="switch" aria-checked={p.budget} aria-label="Бюджет" disabled={view !== 'on'} onclick={() => change({ budget: !p.budget })}><i></i></button>
     </div>
-    {#each SOON as [icon, name, hint], i (name)}
+    {#each PLAN as [k, icon, name, hint], i (k)}
       <div class="it rise" style="--i:{i + 2}">
         <span class="ic"><Icon name={icon} size={17} /></span>
         <span class="m"><b>{name}</b><small>{hint}</small></span>
-        <span class="pill">скоро</span>
+        <button class="sw" class:y={p[k]} role="switch" aria-checked={p[k]} aria-label={name} disabled={view !== 'on'} onclick={() => change({ [k]: !p[k] })}><i></i></button>
       </div>
     {/each}
   </div>
@@ -127,5 +127,4 @@
   .m { flex: 1; min-width: 0; }
   .m b { display: block; font-weight: 500; font-size: 15px; }
   .m small { display: block; color: var(--muted); font-size: 12px; }
-  .pill { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 99px; background: var(--gold-soft); color: var(--gold); }
 </style>

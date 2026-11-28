@@ -69,12 +69,12 @@ Deno.serve(async (req: Request) => {
     if (action === "prefs") {
       const set: Record<string, unknown> = {};
       if (["all", "uncat", "off"].includes(body?.ops)) set.ops = body.ops;
-      if (typeof body?.budget === "boolean") set.budget = body.budget;
+      for (const k of ["budget", "payments", "advice"]) if (typeof body?.[k] === "boolean") set[k] = body[k];
       if (Object.keys(set).length) {
         const w = await db.from("push_prefs").update(set).eq("id", 1);
         if (w.error) return fail("Не удалось сохранить", 500);
       }
-      const r = await db.from("push_prefs").select("ops,budget").eq("id", 1).single();
+      const r = await db.from("push_prefs").select("ops,budget,payments,advice").eq("id", 1).single();
       if (r.error) return fail("Не удалось прочитать настройки", 500);
       return json({ ok: true, prefs: r.data });
     }
