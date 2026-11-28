@@ -1,5 +1,6 @@
 // AURUM — уведомления на телефон. Действия владельца: key (ключ для подписки), on (запомнить устройство),
-// off (забыть), test (пробное сообщение на это устройство).
+// off (забыть), test (пробное сообщение на это устройство), prefs (что присылать).
+// Действие hook вызывает сама база, когда есть новые сообщения; вместо входа владельца — секрет из push_keys.
 // Ключи отправителя функция создаёт сама и держит в таблице push_keys, закрытой для приложения.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { newKeys, sendPush } from "./webpush.js";
@@ -16,19 +17,43 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, "content-type": "application/json; charset=utf-8" } });
 const fail = (message: string, status: number) => json({ ok: false, message }, status);
 
+// сообщения от базы — всем подписанным устройствам; на всё один запрос к базе
+async function hook(db: any, body: any) {
+  const secret = String(body?.secret ?? "");
+  const r = secret ? await db.from("push_keys").select("public_key,private_key,subs:push_hook_subs").eq("id", 1).eq("hook_secret", secret).maybeSingle() : null;
+  if (!r?.data) return fail("Нет доступа", 401);
+  const messages = (Array.isArray(body.messages) ? body.messages : []).slice(0, 8);
+  const gone: string[] = [];
+  for (const sub of r.data.subs ?? []) {
+    for (const m of messages) {
+      try {
+        const sent = await sendPush(sub, m, r.data, SUBJECT);
+        if (sent.status === 404 || sent.status === 410) { gone.push(sub.endpoint); break; }
+        if (!sent.ok) console.error("[PUSH]", sent.status, (await sent.text()).slice(0, 200));
+      } catch (e) { console.error("[PUSH]", e instanceof Error ? e.message : e); }
+    }
+  }
+  if (gone.length) await db.from("push_subscriptions").delete().in("endpoint", gone);
+  return json({ ok: true });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (req.method !== "POST") return fail("Метод не поддерживается", 405);
   try {
+    const opts = { auth: { persistSession: false, autoRefreshToken: false } };
+    const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, opts);
+    const body = await req.json().catch(() => null);
+    const action = String(body?.action ?? "");
+    if (action === "hook") return await hook(db, body);
+
     // только владелец: запрос идёт под его входом, а RLS чужим не отдаёт ни одной строки
     const auth = req.headers.get("authorization") ?? "";
-    const opts = { auth: { persistSession: false, autoRefreshToken: false } };
     const own = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_ANON_KEY")!, { ...opts, global: { headers: { Authorization: auth } } });
     const who = await own.auth.getUser(auth.replace(/^bearer\s+/i, ""));
     const mine = who.data?.user ? await own.from("merchant_brands").select("id").limit(1) : null;
     if (!mine?.data?.length) return fail("Войдите в приложение заново", 401);
 
-    const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, opts);
     const keys = async () => {
       const read = () => db.from("push_keys").select("public_key,private_key").eq("id", 1).maybeSingle();
       let r = await read();
@@ -41,8 +66,18 @@ Deno.serve(async (req: Request) => {
       return r.data;
     };
 
-    const body = await req.json().catch(() => null);
-    const action = String(body?.action ?? "");
+    if (action === "prefs") {
+      const set: Record<string, unknown> = {};
+      if (["all", "uncat", "off"].includes(body?.ops)) set.ops = body.ops;
+      if (typeof body?.budget === "boolean") set.budget = body.budget;
+      if (Object.keys(set).length) {
+        const w = await db.from("push_prefs").update(set).eq("id", 1);
+        if (w.error) return fail("Не удалось сохранить", 500);
+      }
+      const r = await db.from("push_prefs").select("ops,budget").eq("id", 1).single();
+      if (r.error) return fail("Не удалось прочитать настройки", 500);
+      return json({ ok: true, prefs: r.data });
+    }
     if (action === "key") return json({ ok: true, key: (await keys()).public_key });
 
     const endpoint = String(body?.endpoint ?? "");
